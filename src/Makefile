@@ -21,7 +21,8 @@
 
 PROJ=VoxLogicA
 UNAME := $(shell uname)
-RELEASE=../releases/$(PROJ)_$(RID)_$(shell date +%Y-%m-%d)
+RELEASENAME=$(PROJ)_$(RID)_$(shell date +%Y-%m-%d)
+RELEASE=../releases/$(RELEASENAME)
 
 ifeq ($(UNAME),Linux)
 CURRENTRID=linux-x64
@@ -41,6 +42,7 @@ publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
 	cp -a bin/release/netcoreapp2.1/$(RID)/publish/* $(RELEASE)
+	cd ../releases && rm -f $(RELEASENAME).zip && zip -r $(RELEASENAME).zip $(RELEASENAME)
 
 clean:
 	rm -rf bin obj
