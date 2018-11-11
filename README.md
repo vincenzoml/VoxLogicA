@@ -1,14 +1,13 @@
 VoxLogicA: Voxel Logical Analysis
 =================================
 
+VoxLogicA is a tool for analysing images using ImgQL specifications.
+
 ImgQL is a language to analyse images, based on spatial
 logics and using a model-checking approach, which entails, in
 particular, heavy use of memoisation techniques to permit very complex
-analysis in short execution times, at the expense of memory, which is
-not considered scarce, also because on-disk caching is integrated in
-the approach.
+analysis in short execution times, at the expense of used memory.
 
-VoxLogicA is a tool for analysing images using ImgQL specifications.
 
 
 License
@@ -31,11 +30,11 @@ system) takes only one parameter, a file (may have extension .imgql,
 but this is not mandatory), containing a description of the analysis
 to be executed.
  
-[Example] ----------------
+[Example] -------------------
 
 /path/to/VoxLogicA test.imgql
 
----------------------------
+-----------------------------
 
 
 File format

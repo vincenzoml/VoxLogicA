@@ -34,22 +34,37 @@ type SITKModel() =
     let mutable baseImg : option<Image> = None
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
-    override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
-        match (t,System.IO.Path.GetExtension f) with 
-        | TValuation(_),(".nii"|".nii.gz"|".png"|".jpg") -> true // TODO: make this list exhaustive 
-        | _ -> false
+    let supported_extensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
 
-
+    override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
+        match t with 
+        | TValuation(_) when List.exists (f.EndsWith : string -> bool) supported_extensions -> true 
+        | _ -> false        
     override __.Save (logger : ErrorMsg.Logger) filename v =
-        saveImage filename (v :?> Image) logger
-          
-            
+        saveImage filename (v :?> Image) logger                      
     override __.Load (logger : ErrorMsg.Logger) s =
         let img = loadImage s logger
         match baseImg with
-            | None -> baseImg <- Some img
-            | Some _ -> logger.Warning "multiple loaded images should share the same voxel and physical space. Check not yet implemented."
-        img :> obj
+            | None -> 
+                baseImg <- Some img
+                img :> obj
+            | Some img1 ->
+                try
+                    use x = SimpleITK.Add(img1,img) 
+                    img :> obj
+                with _ -> // if And fails, the two images don't have the same physical structure
+                    if img.GetNumberOfPixels() = img1.GetNumberOfPixels() 
+                        //&& img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() 
+                        //&& img.GetPixelID() = img1.GetPixelID()
+                        && img.GetDimension() = img1.GetDimension()
+                    then 
+                        if img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() then 
+                            logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
+                            changePhysicalSpace(img,img1) :> obj 
+                        else 
+                            logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
+                            raise (DifferentPhysicalAndLogicalSpaceException s) //TODO: fix this, converting when possible.
+                    else raise (DifferentPhysicalAndLogicalSpaceException s)
 
     interface IBoundedModel<Image> with
         member __.Border = job { return border (getBaseImg()) }
@@ -57,10 +72,12 @@ type SITKModel() =
     interface IImageModel<Image> with
         member __.Intensity (img : Image) = lift intensity img
         
-        member __.Red (img : Image) = job  {return (SimpleITK.VectorIndexSelectionCast(img,0ul)) }
-        member __.Green (img : Image) = job { return SimpleITK.VectorIndexSelectionCast(img,1ul) }
-        member __.Blue (img : Image) = job { return SimpleITK.VectorIndexSelectionCast(img,2ul) }
-
+        member __.Red (img : Image) = lift red img
+        member __.Green (img : Image) = lift green img
+        member __.Blue (img : Image) = lift blue img
+        member __.Alpha (img : Image) = lift alpha img
+        member __.RGB (imgr : Image) (imgg : Image) (imgb : Image) = job { return rgb imgr imgg imgb }
+        member __.RGBA (imgr : Image) (imgg : Image) (imgb : Image) (imga : Image) = job { return rgba imgr imgg imgb imga }
         member __.Volume img = lift volume img
         member __.MaxVol img = lift maxvol img
         member __.Percentiles img mask = lift2 percentiles img mask

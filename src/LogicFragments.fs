@@ -61,7 +61,7 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     [<OperatorAttribute("avg",[|"valuation(number)";"valuation(bool)"|],"number")>]
     abstract member Avg : 'Value -> 'Value -> Job<float>
     [<OperatorAttribute("sdiv",[|"valuation(number)";"number"|],"valuation(number)")>]    
-    abstract member Sdiv : 'Value -> float -> Job<'Value>
+    abstract member Sdiv : 'Value -> float -> Job<'Value>    
 
 type ISpatialModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
@@ -94,9 +94,16 @@ type IImageModel<'Value when 'Value : equality> =
     abstract member Green : 'Value -> Job<'Value>
     [<OperatorAttribute("blue","model","valuation(number)")>]
     abstract member Blue : 'Value -> Job<'Value>
+    [<OperatorAttribute("alpha","model","valuation(number)")>]
+    abstract member Alpha : 'Value -> Job<'Value>
     [<OperatorAttribute("volume","valuation(bool)","number")>]
     abstract member Volume : 'Value -> Job<float>
     [<OperatorAttribute("maxvol","valuation(bool)","valuation(bool)")>]
     abstract member MaxVol : 'Value -> Job<'Value>
     [<OperatorAttribute("percentiles",[|"valuation(number)";"valuation(bool)"|],"valuation(number)")>]
     abstract member Percentiles : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("rgb",[|"valuation(number)";"valuation(number)";"valuation(number)"|],"valuation(number)")>]
+    abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"valuation(number)")>]
+    abstract member RGBA : 'Value -> 'Value -> 'Value -> 'Value -> Job<'Value>
+    

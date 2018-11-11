@@ -26,7 +26,7 @@ RELEASE=../releases/$(RELEASENAME)
 
 ifeq ($(UNAME),Linux)
 CURRENTRID=linux-x64
-else 
+else
 CURRENTRID=osx-x64
 endif
 

@@ -26,17 +26,17 @@ type ModelChecker(model : IModel) =
     let startChecker i = 
         job {   let iv = new IVar<_>()
                 let f = formulaFactory.[i]
-                let op = f.Operator
-                do! Job.queue                     
-                        (job {  // cache.[f'.Uid] below never fails !
-                                // because formula uids give a topological sort of the dependency graph
-                                let! arguments = 
-                                    Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
-                                do! Job.tryWith
-                                        (job {  let! x = op.Eval (Array.ofSeq arguments)
-                                                do! IVar.fill iv x })
-                                        (fun exn -> IVar.FillFailure (iv,exn)) } ) 
+                let op = f.Operator                
+                do! Job.queue <|
+                        Job.tryWith                                                  
+                            (job {  // cache.[f'.Uid] below never fails !
+                                    // because formula uids give a topological sort of the dependency graph
+                                    let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
+                                    let! x = op.Eval (Array.ofSeq arguments)                                                                                                
+                                    do! IVar.fill iv x } )
+                            (fun exn -> IVar.FillFailure (iv,exn))  
                 cache.[i] <- IVar.read iv }
+                    
     member __.OperatorFactory = operatorFactory    
     member __.FormulaFactory = formulaFactory
     member __.Check =
@@ -48,6 +48,6 @@ type ModelChecker(model : IModel) =
                     do! startChecker i
                 alreadyChecked <- formulaFactory.Count                  }
     member this.Get (f : Formula) = cache.[f.Uid]   
-
+        
 
 

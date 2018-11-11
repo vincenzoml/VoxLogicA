@@ -17,12 +17,24 @@
 module VoxLogicA.SITKUtil 
 open VoxLogicA
 open itk.simple
+open System.IO
+open VoxLogicA
+open itk.simple
+open itk.simple
+open itk.simple
+open itk.simple
 
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
 
 exception UnsupportedNumberOfComponentsPerPixelException of i : int
     with override this.Message = sprintf "Unsupported number of components per pixel: %d" this.i
+
+exception UnsupportedImageSizeException of s : string
+    with override this.Message = sprintf "More than 2 dimensions are not supported with type: %s" this.s
+
+exception DifferentPhysicalAndLogicalSpaceException of s : string
+    with override this.Message = sprintf "Image %s\ndiffers both in physical space and logical structure (number of voxels and dimensions) from previously loaded images." this.s
 
 // TODO: review this
 
@@ -41,8 +53,8 @@ let minImg (img : Image) =
     use flt = new itk.simple.MinimumMaximumImageFilter() // TODO: implement tuples and projections, make max and min a single operator
     flt.Execute(img)
     flt.GetMinimum()
-    
-let loadImage (filename : string) (logger : ErrorMsg.Logger) =
+
+let loadImage (filename : string) (logger : ErrorMsg.Logger) = // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
     let img = SimpleITK.ReadImage(filename)
     let fname = System.IO.Path.GetFileName(filename)
     let sz = img.GetSize()
@@ -54,40 +66,48 @@ let loadImage (filename : string) (logger : ErrorMsg.Logger) =
             logger.Warning (sprintf "image %s has size 1 in some dimensions; image flattened" fname)    
             SimpleITK.Extract(img,sz) 
         else img
-    logger.Debug (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
+    logger.DebugOnly (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
     match img.GetPixelID(),img.GetNumberOfComponentsPerPixel() with 
         | (x,_) when x = PixelIDValueEnum.sitkFloat32 -> img
         | (x,_) when x = PixelIDValueEnum.sitkVectorFloat32 -> img
         | (_,y) when y = 1u -> 
-            logger.Warning (sprintf "image %s\ncasted to float32" fname) 
+            logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
             SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
-        | (_,y) when y = 3u || y = 4u-> 
-            logger.Warning (sprintf "image %s\ncasted to float32" fname) 
-            SimpleITK.Cast(img,PixelIDValueEnum.sitkVectorFloat32)        
+        | (_,y) when y = 3u || y = 4u -> 
+            logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
+            if y = 4u then 
+                logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 
+                if fname.EndsWith ".jpg" then 
+                    logger.Warning <| sprintf "image %s\nhas jpg extension and 4 components per pixel, therefore it is in CMYK color space. Only proceed if you know what you are doing. Colors and intensity of the image will be messed up in processing." fname
+            SimpleITK.Cast(img,PixelIDValueEnum.sitkVectorFloat32)
         | (x,y) -> raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
 
 let saveImage (filename : string) (img : Image) (logger : ErrorMsg.Logger) =
     let fname = System.IO.Path.GetFileName(filename)
+    if fname.EndsWith(".jpg") && img.GetNumberOfComponentsPerPixel() > 3ul then
+        logger.Warning <| sprintf "Saving to %s\nusing 4 components per pixel. The resulting image will be CMYK; only proceed if you know what you are doing." fname
     let tmp = 
-        match System.IO.Path.GetExtension filename with
-            | ".nii" -> img
-            | (".png"|".jpg") -> 
-                if img.GetPixelID() <> PixelIDValueEnum.sitkUInt8 then
-                    logger.Warning (sprintf "saving to %s\nrequires cast to uint8" fname)                    
-                    let m1 = minImg(img)
-                    let m2 = maxImg(img)
-                    let tmp = 
-                        if m1 < 0.0 || m2 > 255.0 
-                        then 
-                            logger.Warning (sprintf "saving to %s\nrequires rescaling of intensity" fname)
-                            SimpleITK.RescaleIntensity(img,0.0,255.0)
-                        else img
-                    SimpleITK.Cast(tmp,PixelIDValueEnum.sitkUInt8)
-                else
-                    logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
-                    SimpleITK.RescaleIntensity(img,0.0,255.0)
-            | _ -> img
-    SimpleITK.WriteImage(tmp,filename)
+        if filename.EndsWith(".nii") || filename.EndsWith(".nii.gz") then img
+        else 
+            if filename.EndsWith(".png") || filename.EndsWith(".jpg") || filename.EndsWith ("bmp") then
+                if img.GetSize().Count = 2 then 
+                    if img.GetPixelID() <> PixelIDValueEnum.sitkUInt8 then
+                        // TODO: double-check that "nearest integer" in the message below is correct
+                        logger.Warning (sprintf "saving to %s\nrequires cast to uint8 and may crop values. For each component, only values between 0 and 255 are preserved, rounded to the nearest integer." fname)                    
+                        let ncomp = img.GetNumberOfComponentsPerPixel()
+                        if ncomp = 1ul
+                        then SimpleITK.Cast(img,PixelIDValueEnum.sitkUInt8)
+                        else // TODO: why simply casting the image doesn't work here? It works in load
+                            let comps = Array.init (int ncomp) (fun i -> SimpleITK.VectorIndexSelectionCast(img,uint32 i,PixelIDValueEnum.sitkUInt8))
+                            use flt = new ComposeImageFilter()
+                            use v = new VectorOfImage(comps)
+                            flt.Execute(v)                            
+                    else
+                        logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
+                        SimpleITK.RescaleIntensity(img,0.0,255.0)
+                else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
+            else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
+    SimpleITK.WriteImage(tmp,filename)  
 
 let floatV (img : Image) = 
     let ptr = NativePtr.ofNativeInt<float32> (lock img <| fun () -> img.GetBufferAsFloat()) in
@@ -102,19 +122,36 @@ let uint32V (img : Image) =
     let len = int (img.GetNumberOfPixels()) in
     new NativeArray<uint32>(ptr,len,Some (img :> obj))
 
-let emptyUint8 (img : Image) =
-    use img2 = 
-        if img.GetNumberOfComponentsPerPixel() = 1ul then new Image(img)
-        else 
+let private allocate (img : Image, pixeltype : PixelIDValueEnum) = // Does not guarantee the memory is cleared.
+    match (img.GetNumberOfComponentsPerPixel(),img.GetPixelID() = pixeltype) with
+        | (1ul,true) -> new Image(img)
+        | (_,true) -> SimpleITK.VectorIndexSelectionCast(img,0ul)            
+        | (1ul,false) -> SimpleITK.Cast(img,pixeltype)    
+        | (_,_) ->
             use baseImg = SimpleITK.VectorIndexSelectionCast(img,0ul)
-            new Image(baseImg)
-    SimpleITK.Cast(img2,PixelIDValueEnum.sitkUInt8)    
+            SimpleITK.Cast(baseImg,pixeltype) 
 
 let createUint8 (img : Image, value : uint8) =
-    let res = emptyUint8(img)
+    let res = allocate(img,PixelIDValueEnum.sitkUInt8)
     let buf = uint8V res
     buf.fill value
     res
+
+let createFloat32 (img : Image, value : float32) =
+    let res = allocate(img,PixelIDValueEnum.sitkFloat32)
+    let buf = floatV res
+    buf.fill value
+    res
+
+let changePhysicalSpace(dest : Image, source : Image) = // NOTE: only works with float32 images
+    let res = allocate(source,PixelIDValueEnum.sitkFloat32)
+    let smem = floatV(dest)
+    let dmem = floatV(res)
+    for i = 0 to int <| dest.GetNumberOfPixels() do
+        for j = 0 to int <| source.GetNumberOfComponentsPerPixel() do
+            dmem.USet (i+j) (smem.UGet(i+j))
+    res            
+    
 
 let intensity (img : Image) =
             if img.GetNumberOfComponentsPerPixel() = 1ul
@@ -123,10 +160,35 @@ let intensity (img : Image) =
                 let r = SimpleITK.VectorIndexSelectionCast(img,0ul)
                 let g = SimpleITK.VectorIndexSelectionCast(img,1ul) 
                 let b = SimpleITK.VectorIndexSelectionCast(img,2ul)
-                // TODO: is the following correct? Source: https://en.wikipedia.org/wiki/Relative_luminance
+                // Source: https://en.wikipedia.org/wiki/Relative_luminance
                 // the same formula is used in GIMP and called "Luminosity"
                 let (rcoeff,gcoeff,bcoeff) = 0.2126,0.7152,0.0722
-                SimpleITK.Add(SimpleITK.Multiply(rcoeff,r),SimpleITK.Add(SimpleITK.Multiply(gcoeff,r),SimpleITK.Multiply(bcoeff,r)))
+                SimpleITK.Add(SimpleITK.Multiply(rcoeff,r),SimpleITK.Add(SimpleITK.Multiply(gcoeff,g),SimpleITK.Multiply(bcoeff,b)))
+
+let red (img : Image) = 
+    if img.GetNumberOfComponentsPerPixel() = 1ul then img
+    else SimpleITK.VectorIndexSelectionCast(img,0ul)
+
+let green (img : Image) = 
+    if img.GetNumberOfComponentsPerPixel() = 1ul then img
+    else SimpleITK.VectorIndexSelectionCast(img,1ul)
+
+let blue (img : Image) = 
+    if img.GetNumberOfComponentsPerPixel() = 1ul then img
+    else SimpleITK.VectorIndexSelectionCast(img,2ul)
+
+let alpha (img : Image) = 
+    if img.GetNumberOfComponentsPerPixel() < 4ul 
+    then createFloat32(img,255.0f)
+    else SimpleITK.VectorIndexSelectionCast(img,3ul)
+
+let rgb img1 img2 img3 = 
+    use flt = new ComposeImageFilter()
+    flt.Execute(img1,img2,img3)
+let rgba img1 img2 img3 img4 = 
+    use flt = new ComposeImageFilter()
+    flt.Execute(img1,img2,img3,img4)
+
 let avg (img : Image) (mask : Image) = // TODO: type check that there is one component only
     // TODO: test if this function using arrays in place of lists is more efficient, and if there is any difference in the result
     let npixels = int (img.GetNumberOfPixels())
@@ -150,7 +212,7 @@ let border (img : Image) =
     let szv = img.GetSize()
     let dim = szv.Count
     let sz = Array.init dim (fun i -> int szv.[i])
-    let res = emptyUint8(img)
+    let res = createUint8(img,0uy)
     let buf = uint8V res               
     let coords = Array.create dim 0  
     let inline decode (size : array<int>) (idx : int) (res : array<int>) =        
@@ -493,7 +555,7 @@ let crosscorrelation (rad : float) (a : Image) (b : Image) (fb : Image) (m1 : fl
                         let (center,previous,direction) = h.[pos]
                         fn localHistogram center previous direction }
 
-            do! Util.Concurrent.doParallel (Array.init nprocs mkJob)
+            do! Job.conIgnore (Array.init nprocs mkJob) //Util.Concurrent.doParallel (Array.init nprocs mkJob)
             return res  }
 
 

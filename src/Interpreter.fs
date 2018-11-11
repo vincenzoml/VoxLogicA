@@ -97,20 +97,12 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
         let res = System.IO.Path.GetFullPath concat // Canonicizes the file name
         let confineto = System.IO.Path.GetFullPath confineto
         if res.StartsWith confineto then res else raise (MalformedPathException (dir,file,concat,confineto))
-
-    let rec numSubFormulas (f : Formula) =
-        if f.Arguments.Length = 0 then (1,1)
-        else
-            let (args : array<int * int>) = Array.map numSubFormulas f.Arguments         
-            (1 + Array.sumBy fst args),(1 + Array.max (Array.map snd args))
-        
-
     let interpreterJob libdir inputdir outputdir confinetoRead confinetoWrite filename (model : #IModel) (checker : ModelChecker) (s : System.IO.Stream) =
         let rec evaluate (env : Env) (parsedImports : Set<string>) syn jobs =        
             match syn with 
                 | ModelLoad(ide,filename) :: rest ->
                     let filename = getPath inputdir filename confinetoRead 
-                    logger.DebugOnly <| sprintf "ModelLoad \"%s\"" filename 
+                    logger.DebugOnly <| sprintf "ModelLoad \"%s\"" filename
                     let v = model.Load logger filename
                     evaluate (env.Add(ide,Form (checker.FormulaFactory.CreateConst (v,TModel)))) parsedImports rest jobs                
                 | Declaration (ide,fargs,body) :: rest -> 
@@ -119,8 +111,6 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
                 | ModelSave(pos,filename,expression) :: rest -> // TODO Use interpreterexception also in load and import
                     logger.DebugOnly <| sprintf "ModelSave \"%s\"" filename
                     let formula = translateExpression [] model checker.FormulaFactory checker.OperatorFactory env expression
-                    let (count,depth) = numSubFormulas formula
-                    logger.Debug <| sprintf "Saving formula with %d proper sub-expressions, depth %d, %d tasks to %s" count depth formula.Uid filename                    
                     let typ = formula.Operator.Rettype
                     if model.CanSave typ filename then
                         let j = job {   
@@ -157,11 +147,11 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
                 | [] -> List.rev jobs
         job {   logger.Debug "Parsing input..."        
                 let p = parseProgram filename s
-                logger.Debug "Preparing computation..."
+                logger.Debug "Preparing computation..."                
                 let jobs = evaluate (emptyEnv()) (Set.empty) p []
-                do! checker.Check
                 logger.Debug "Starting computation..."
-                do! Util.Concurrent.doParallel (Array.ofList jobs)                  
+                do! checker.Check
+                do! Job.conIgnore jobs //Util.Concurrent.doParallel (Array.ofList jobs)                  
                 logger.Debug "... done."  }
     let batchHopac job = 
         match Hopac.run (Job.catch job) with
