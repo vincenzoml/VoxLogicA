@@ -1,5 +1,5 @@
-VoxLogicA: Voxel Logical Analysis
-=================================
+VoxLogicA: Voxel-based Logical Analyser
+=======================================
 
 VoxLogicA is a tool for analysing images using ImgQL specifications.
 
