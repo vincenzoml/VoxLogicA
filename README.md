@@ -5,9 +5,8 @@ VoxLogicA is a tool for analysing images using ImgQL specifications.
 
 ImgQL is a language to analyse images, based on spatial
 logics and using a model-checking approach, which entails, in
-particular, heavy use of memoisation techniques to permit very complex
-analysis in short execution times, at the expense of used memory.
-
+particular, heavy use of memoisation techniques to permit complex
+analyses in short execution times, at the expense of used memory.
 
 
 License
@@ -30,7 +29,7 @@ system) takes only one parameter, a file (may have extension .imgql,
 but this is not mandatory), containing a description of the analysis
 to be executed.
  
-[Example] -------------------
+**Example** 
 
 /path/to/VoxLogicA test.imgql
 
@@ -44,7 +43,7 @@ A VoxLogicA input file is a list of commands separated by white
 space. Commands specify libraries to be imported, images to be loaded,
 constant and function definitions, and images to be saved.
 
-[Example] ----------------
+**Example**
 
 import "stdlib.imgql"
 
@@ -90,7 +89,7 @@ function applied to the correct number of arguments, or a prefix or
 infix operator with its arguments. More than two arguments are
 possible for infix operators; see the example below.
 
-[Example] ----------------
+**Example**
 
 // Constant
 let x = 3 		
@@ -113,7 +112,7 @@ let ++(a,b,c) = dt(a,b) > c
 
 Library import: import "filename"
 
-[Example] ----------------
+**Example**
 
 import "stdlib.imgql"
 
@@ -129,7 +128,7 @@ features of an image.
 Supported file formats are those of the ITK library, including ".nii",
 ".nii.gz", ".jpg", ".png".
 
-[Example] ----------------
+**Example**
 
 load x = "test.png"
 let intsty = intensity(x)
@@ -138,7 +137,7 @@ let intsty = intensity(x)
 
 Image saving: save filename expression
 
-[Example] ----------------
+**Example**
 
 load x = "test.png"
 load y = "test2.png"
