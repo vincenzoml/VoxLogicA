@@ -31,7 +31,7 @@ to be executed.
  
 **Example** 
 
-/path/to/VoxLogicA test.imgql
+    /path/to/VoxLogicA test.imgql
 
 -----------------------------
 
@@ -45,15 +45,15 @@ constant and function definitions, and images to be saved.
 
 **Example**
 
-import "stdlib.imgql"
+    import "stdlib.imgql"
 
-load x = "images/nii/test3d.nii"
-load y = "images/nii/mask3d.nii"
+    load x = "images/nii/test3d.nii"
+    load y = "images/nii/mask3d.nii"
 
-let image = intensity(x)
-let mymask = intensity(y) > 0
+    let image = intensity(x)
+    let mymask = intensity(y) > 0
 
-save "output/a.nii" mask(image,mymask)
+    save "output/a.nii" mask(image,mymask)
 
 ---------------------------
 
@@ -72,11 +72,11 @@ VoxLogicA supports the following commands
 
 Declarations:
 
-let identifier = expression
+    let identifier = expression
 
 OR
 
-let identifier(argument1,argument2,...) = expression
+    let identifier(argument1,argument2,...) = expression
 
 An identifier is either a function or constant identifier, consisting
 in a sequence of letters or digits, starting with a lowercase letter,
@@ -91,20 +91,20 @@ possible for infix operators; see the example below.
 
 **Example**
 
-// Constant
-let x = 3 		
-let y = 3.1
+    // Constant
+    let x = 3 		
+    let y = 3.1
 
-// Function
-let xor(a,b) = and(or(a,b),not(and(a,b)) 	
+    // Function
+    let xor(a,b) = and(or(a,b),not(and(a,b)) 	
 
-// Infix operator, use as x <|> y
-let <|>(a,b) = xor(a,b)
+    // Infix operator, use as x <|> y
+    let <|>(a,b) = xor(a,b)
 
-// Infix operator; arguments beyond the first two are specified after
-// the operator in square brackets, e.g. x++[z] y is translated to
-++(x,y,z)
-let ++(a,b,c) = dt(a,b) > c
+    // Infix operator; arguments beyond the first two are specified after
+    // the operator in square brackets, e.g. x++[z] y is translated to
+    ++(x,y,z)
+    let ++(a,b,c) = dt(a,b) > c
 								
 
 ---------------------------
@@ -114,11 +114,13 @@ Library import: import "filename"
 
 **Example**
 
-import "stdlib.imgql"
+    import "stdlib.imgql"
 
 ---------------------------
 
-Image loading: load identifier = filename
+Image loading: 
+
+    load identifier = filename
 
 Identifiers follow the "constant or function" rule, that is, they
 consist in a sequence of letters or digits, starting with a lowercase
@@ -130,21 +132,21 @@ Supported file formats are those of the ITK library, including ".nii",
 
 **Example**
 
-load x = "test.png"
-let intsty = intensity(x)
+    load x = "test.png"
+    let intsty = intensity(x)
 
---------------------------
+    --------------------------
 
-Image saving: save filename expression
+    Image saving: save filename expression
 
-**Example**
+    **Example**
 
-load x = "test.png"
-load y = "test2.png"
-let intsty1 = intensity(x)
-let intsty2 = intensity(y)
+    load x = "test.png"
+    load y = "test2.png"
+    let intsty1 = intensity(x)
+    let intsty2 = intensity(y)
 
-save "output.nii" (intsty1 > 0) & (intsty2 < 3)
+    save "output.nii" (intsty1 > 0) & (intsty2 < 3)
 
 ---------------------------
 
@@ -218,10 +220,10 @@ e.g. from boolean operators or thresholds). Below we write these as
 Derived operators:
 ------------------
 
-See stdlib.imgql
+See the file stdlib.imgql in the same directory as the VoxLogicA executable. 
 
 
 COMPILING
 =========
 
-install .net core (portable) 2.1, cd to the "src" subdirectory of the repository type "make release-OS" where OS is one of linux-x64, osx-x64, win-x64. Find your executables in the "releases" subdirectory of the repository. If you don't have make, read the Makefile; dotnet build IS supported for compiling.
+install .net core (portable) 2.1, cd to the "src" subdirectory of the repository type "make release-OS" where OS is one of linux-x64, osx-x64, win-x64. Find your executables in the "releases" subdirectory of the repository. If you don't have make, read the comments at the beginning Makefile; the command dotnet build is used for compiling, but you need to set a RID for selecting the right binary libraries to be imported.
