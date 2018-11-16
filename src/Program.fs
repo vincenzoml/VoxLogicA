@@ -19,23 +19,43 @@ module VoxLogicA.Main
 exception CommandLineException 
     with override __.Message = "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
 
+type CmdLine = Help | Ops | Filename of string
 
 let parseCmdLine (argv : array<string>) =
-    match argv.Length with
-    | 1 -> argv.[0] 
+    match argv with
+    | [|"--help"|] -> Help 
+    | [|"--ops"|] -> Ops
+    | ([|filename|] | [|"--";filename|]) -> Filename filename
     | _ -> raise CommandLineException 
     
 [<EntryPoint>]
 let main (argv : string array) = 
     let logger = ErrorMsg.Logger()        
-    try
-        let filename = parseCmdLine argv
-        let model = SITKModel() :> IModel
-        let checker = ModelChecker(model)                
-        let interpreter = Interpreter(model,checker,logger)
-        interpreter.Batch interpreter.DefaultLibDir (System.IO.Path.GetFullPath ".") (System.IO.Path.GetFullPath ".") filename                      
+    try 
+        let model = SITKModel() :> IModel   
+        let checker = ModelChecker(model)                         
+        match parseCmdLine argv with
+        | Filename filename ->             
+            let interpreter = Interpreter(model,checker,logger)
+            interpreter.Batch 
+                interpreter.DefaultLibDir 
+                (System.IO.Path.GetFullPath ".") 
+                (System.IO.Path.GetFullPath ".") 
+                filename    
+        | Help -> 
+            printfn "%s" <| // TODO: get the executable name from the environment
+                (     "Usage:\n"
+                    + "VoxLogicA filename\t# starts an analysis described in filename\n"
+                    + "VoxLogicA --help\t# shows this text\n"
+                    + "VoxLogicA --ops \t# describes all defined operators\n"
+                    + "VoxLogicA -- filename\t# if you need to use a filename like '--help'"  )
+        | Ops -> Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
         0
-    with e ->
-        logger.DebugExn e
-        logger.Failure "exiting."
-        1
+    with 
+        | CommandLineException ->
+            printfn "Command line error. Try the \"--help\" command line switch."
+            1
+        | e ->        
+            logger.DebugExn e
+            logger.Failure "exiting."
+            1

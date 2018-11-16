@@ -92,8 +92,7 @@ type SITKModel() =
     interface ISpatialModel<Image> with
         member __.Near img = lift near img
         member __.Interior img = lift interior img
-        member __.Flood img1 img2 = lift2 flood img1 img2   
-        member __.Reaches img1 img2 = lift2 reaches img1 img2           
+        member __.Through img1 img2 = lift2 through img1 img2           
    
     
     interface IDistanceModel<Image> with
@@ -108,9 +107,14 @@ type SITKModel() =
         member __.Max img = lift maxImg img
         member __.Min img = lift minImg img
         member __.Subtract img1 img2 = lift2 subtract img1 img2
+        member __.Add img1 img2 = lift2 add img1 img2
+        member __.Multiply img1 img2 = lift2 mult img1 img2
         member __.Mask (img : Image) (maskImg : Image) = lift2 mask img maskImg
         member __.Avg (img : Image) (maskImg : Image)  = lift2 avg img maskImg
         member __.Sdiv (img : Image) k = job { return SimpleITK.Divide(img,k) }
+        member __.Sadd (img : Image) k = job { return SimpleITK.Add(img,k) }
+        member __.Smul (img : Image) k = job { return SimpleITK.Multiply(img,k) }
+        member __.Ssub (img : Image) k = job { return SimpleITK.Subtract(img,k) }
 
     interface IStatisticalModel<Image> with 
         member __.CrossCorrelation rho a b fb m1 m2 k = crosscorrelation rho a b fb m1 m2 k

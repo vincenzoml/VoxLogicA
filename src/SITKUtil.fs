@@ -18,11 +18,6 @@ module VoxLogicA.SITKUtil
 open VoxLogicA
 open itk.simple
 open System.IO
-open VoxLogicA
-open itk.simple
-open itk.simple
-open itk.simple
-open itk.simple
 
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
@@ -202,11 +197,8 @@ let avg (img : Image) (mask : Image) = // TODO: type check that there is one com
         if maskv.Get i > 0uy then
             l <- (imgv.Get i)::l    
     float (List.average l)
-
 let tt img = createUint8(img,1uy)
-
 let ff img = createUint8(img,0uy)
-
 let border (img : Image) = 
     // TODO: make this faster by first filling the result with zeroes and then iterating only over the borders
     let szv = img.GetSize()
@@ -227,7 +219,6 @@ let border (img : Image) =
             then 1uy 
             else 0uy           
     res
-
 let logand (img1 : Image) (img2 : Image) = SimpleITK.And(img1,img2)
 let logor (img1 : Image) (img2 : Image) = SimpleITK.Or(img1,img2)
 let lognot (img : Image) = SimpleITK.Not(img)
@@ -236,28 +227,30 @@ let near (img : Image) = SimpleITK.DilateObjectMorphology(img,1ul,KernelEnum.sit
 let interior (img : Image) = SimpleITK.BinaryErode img
 
 let subtract (img1 : Image) (img2 : Image) = SimpleITK.Subtract(img1,img2)
+let add (img1 : Image) (img2 : Image) = SimpleITK.Add(img1,img2)
+let mult (img1 : Image) (img2 : Image) = SimpleITK.Multiply(img1,img2)
 
-let flood (img1 : Image) (img2 : Image) =
-    use flt = new ConnectedComponentImageFilter()
-    flt.SetFullyConnected(true)    
-    use cc1 = flt.Execute(img2)    
-    let k = int <| flt.GetObjectCount()    
-    let ccs = Array.create (k+1) false    
-    use n1 = near img1
-    let bufcc1 = uint32V cc1
-    let bufn1 = uint8V n1
-    let npixels = int (img1.GetNumberOfPixels())    
-    for i = 0 to npixels - 1 do
-        if bufn1.UGet i > 0uy then
-            let cc = bufcc1.UGet i
-            if cc > 0ul then ccs.[int cc] <- true
-    let res = new Image(img1)
-    let bufres = uint8V res
-    for i = 0 to npixels - 1 do
-        let cc = bufcc1.UGet i
-        if cc > 0ul && ccs.[int cc] then // TODO: is the check "cc > 0ul" necessary? ccs.[0] should be "false" anyway. Also, can we directly use 1uy and 0uy instead of true and false, and write "bufres.USet i ccs.[int cc]"?
-            bufres.USet i 1uy
-    res   
+// let flood (img1 : Image) (img2 : Image) =
+//     use flt = new ConnectedComponentImageFilter()
+//     flt.SetFullyConnected(true)    
+//     use cc1 = flt.Execute(img2)    
+//     let k = int <| flt.GetObjectCount()    
+//     let ccs = Array.create (k+1) false    
+//     use n1 = near img1
+//     let bufcc1 = uint32V cc1
+//     let bufn1 = uint8V n1
+//     let npixels = int (img1.GetNumberOfPixels())    
+//     for i = 0 to npixels - 1 do
+//         if bufn1.UGet i > 0uy then
+//             let cc = bufcc1.UGet i
+//             if cc > 0ul then ccs.[int cc] <- true
+//     let res = new Image(img1)
+//     let bufres = uint8V res
+//     for i = 0 to npixels - 1 do
+//         let cc = bufcc1.UGet i
+//         if cc > 0ul && ccs.[int cc] then // TODO: is the check "cc > 0ul" necessary? ccs.[0] should be "false" anyway. Also, can we directly use 1uy and 0uy instead of true and false, and write "bufres.USet i ccs.[int cc]"?
+//             bufres.USet i 1uy
+//     res   
 
 let dt img =
     use flt = new itk.simple.SignedMaurerDistanceMapImageFilter()
@@ -284,51 +277,32 @@ let between value1 value2 img =
     flt.Execute(img)
 
 let mask img maskImg = SimpleITK.Mask(img,maskImg)
-
-let reachesOlder (img1 : Image) (img2 : Image) =
-    use flt = new ConnectedComponentImageFilter()
-    flt.SetFullyConnected(true)
-    use cc1 = flt.Execute(img2)
-    let k = int <| flt.GetObjectCount()
-    let ccs = Array.create (k+1) 0uy
-    use n1 = near img1 
-    let bufcc1 = uint32V cc1
-    let bufn1 = uint8V n1
-    let npixels = int (img1.GetNumberOfPixels())
-    for i = 0 to npixels - 1 do
-        if bufn1.UGet i > 0uy 
-        then
-            let cc = bufcc1.UGet i
-            if bufcc1.UGet i > 0ul then ccs.[int cc] <- 1uy
-    let res = new Image(img1)
-    let bufres = uint8V res
-    for i = 0 to npixels - 1 do        
-        let cc = int (bufcc1.UGet i)
-        let cval = ccs.[cc]
-        if cval > 0uy then bufres.USet i cval
-    res    
-
-let reaches (img1 : Image) (img2 : Image) =
+let through (img1 : Image) (img2 : Image) =  // x satisfies (through phi1 phi2) iff there is path p and index l s.t. p(l) satisfies phi1, and for all k in [0,l] p(k) satisfies phi2
     use flt = new ConnectedComponentImageFilter()
     flt.SetFullyConnected(true)
     use cc2 = flt.Execute(img2)
     let k = int <| flt.GetObjectCount()
     let ccs = Array.create (k+1) 0uy
-    use n1 = near img1
-    use m1 = mask cc2 n1
+
+    use m1 = mask cc2 img1 
+
     let bufm1 = uint32V m1
     let bufcc1 = uint32V cc2
-    let npixels = int (img1.GetNumberOfPixels())    
+
+    let npixels = int (img1.GetNumberOfPixels())
+
     for i = 0 to npixels - 1 do
         let cc = int (bufm1.UGet i)
-        if cc > 0 then ccs.[cc] <- 1uy        
-    let res = new Image(img1)
+        if cc > 0 then ccs.[cc] <- 1uy
+
+    let res = createUint8(img1,0uy)
     let bufres = uint8V res
+
     for i = 0 to npixels - 1 do        
-        let cc = int (bufcc1.UGet i)
-        let cval = ccs.[cc]
-        if cval > 0uy then bufres.USet i cval
-    res    
+        let cc = int <| bufcc1.UGet i
+        if cc > 0 then bufres.USet i ccs.[cc]
+
+    res
 
 /// <summary>Creates a 1-dimensional array <c>a</c> with as many elements as the voxels in a hyperrectangle with dimensions specified by <c>hyperRadius</c>.
 /// The i-th dimension is obtained as <c>2*hyperRadius[i]+1</c>. The created array is only useful in a image <c>img</c> of dimensions as specified in the <c>size</c> parameter. 
@@ -555,7 +529,7 @@ let crosscorrelation (rad : float) (a : Image) (b : Image) (fb : Image) (m1 : fl
                         let (center,previous,direction) = h.[pos]
                         fn localHistogram center previous direction }
 
-            do! Job.conIgnore (Array.init nprocs mkJob) //Util.Concurrent.doParallel (Array.init nprocs mkJob)
+            do! Util.Concurrent.conIgnore (Array.init nprocs mkJob)
             return res  }
 
 

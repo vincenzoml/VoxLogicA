@@ -20,20 +20,20 @@ open System
 module Concurrent =
     open Hopac
 
-    // let doParallel (s : array<#Job<unit>>) = // The implementation of the same function in Hopac does not queue all jobs immediately; we want this one.
-    //     job {
-    //         let x = Array.init (Array.length s) (fun _ -> new IVar<_>()) // Use Latch instead
-    //         for i = 0 to s.Length - 1 do
-    //             Hopac.queue <| 
-    //                 Job.tryWith 
-    //                     (job {  do! (s.[i] :> Job<unit>)
-    //                             do! (IVar.fill x.[i] None)  } )
-    //                     (fun exn -> IVar.fill x.[i] (Some exn))
-    //         for i = 0 to s.Length - 1 do
-    //             match! IVar.read x.[i] with
-    //             | None -> () 
-    //             | Some exn -> raise exn
-    //     }
+    let conIgnore (s : array<#Job<unit>>) = // The implementation of the same function in Hopac ("conIgnore") does not queue all jobs immediately; we want this one.
+        job {
+            let x = Array.init (Array.length s) (fun _ -> new IVar<_>()) // Use Latch instead?
+            for i = 0 to s.Length - 1 do
+                Hopac.queue <| 
+                    Job.tryWith 
+                        (job {  do! (s.[i] :> Job<unit>)
+                                do! (IVar.fill x.[i] None)  } )
+                        (fun exn -> IVar.fill x.[i] (Some exn))
+            for i = 0 to s.Length - 1 do
+                match! IVar.read x.[i] with
+                | None -> () 
+                | Some exn -> raise exn
+        }
 
     open System.Reflection
 

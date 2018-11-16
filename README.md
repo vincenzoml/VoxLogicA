@@ -3,43 +3,87 @@ VoxLogicA: Voxel-based Logical Analyser
 
 VoxLogicA is a tool for analysing images using ImgQL specifications.
 
-ImgQL is a language to analyse images, based on spatial
-logics and using a model-checking approach, which entails, in
-particular, heavy use of memoisation techniques to permit complex
-analyses in short execution times, at the expense of used memory.
+ImgQL is a language to analyse images, based on spatial logics. VoxLogicA
+interprets ImgQL specifications using a model-checking approach, which entails,
+in particular, heavy use of memoisation techniques to permit complex analyses in
+short execution times, at the expense of used memory.
 
+VoxLogicA is distributed under a permissive open source license. See the file
+LICENSE.txt for details.
 
-License
-=======
+This file is meant to be an user manual for the tool. However, one can also
+refer to the following research paper, which illustrates the philosophy of the
+tool in more detail, with a detailed case study.
 
-See the file LICENSE.txt
+https://arxiv.org/abs/1811.05677
+
 
 
 Using the tool
 ==============
 
-Releases of VoxLogicA consist of an executable file with a number of
-libraries, that must reside in the same directory of the executable.
+Releases of VoxLogicA consist of an executable file accompained by a number of
+libraries, that must reside in the same directory as the executable.
 
-Executable file
----------------
 
-The executable (VoxLogicA, or VoxLogicA.exe, depending on the operating
-system) takes only one parameter, a file (may have extension .imgql,
-but this is not mandatory), containing a description of the analysis
-to be executed.
+Command line invocation
+-----------------------
+
+First of all, one needs to identify the main executable, residing in the tool
+directory. The name of the executable is VoxLogicA on linux and macOS systems,
+and VoxLogicA.exe on windows systems. From now on, we will write VoxLogicA to
+indicate your executable. Substitute with /path/to/VoxLogicA or
+/path/to/VoxLogicA.exe, whatever appropriate.
+
+For normal usage, the executable (VoxLogicA, or VoxLogicA.exe, depending on the
+operating system) takes just one parameter, a text file (may have extension
+.imgql, but this is not mandatory), containing a description of the analysis to
+be executed.
  
 **Example** 
 
-    /path/to/VoxLogicA test.imgql
+    VoxLogicA test.imgql
+
+
+Inline help and documentation of built-in operators
+---------------------------------------------------
+
+To see an help message about command line options, type
+
+    VoxLogicA --help
+
+In particular, you can get a list of all defined built-in operators, with a
+short description, by typing
+
+    VoxLogicA --ops
+
+For more information on such operators, please refer to the paper mentioned at
+the beginning of this document. 
+
+It is customary to include the VoxLogicA standard library by adding
+to an analysis file the following line:
+
+    import "stdlib.imgql"
+
+There is currently no documentation for these (one-line, mostly shorthand) functions, although
+most of them are documented in the above research paper. Check the file
+"stlib.imgql" in the same directory of the main VoxLogicA executable, and the
+comments therein.
+
+Graphical user interface
+------------------------
+
+A graphical user interface is being worked on. If you are a skilled electron or
+html5 developer and want to contribute, get in touch!
+
 
 -----------------------------
 
 
-File format
------------
+Analysis file format
+--------------------
 
-A VoxLogicA input file is a list of commands separated by white
+A VoxLogicA input file is a list of *commands* separated by white
 space. Commands specify libraries to be imported, images to be loaded,
 constant and function definitions, and images to be saved.
 
@@ -50,12 +94,15 @@ constant and function definitions, and images to be saved.
     load x = "images/nii/test3d.nii"
     load y = "images/nii/mask3d.nii"
 
-    let image = intensity(x)
+    let myimage = intensity(x)
     let mymask = intensity(y) > 0
 
-    save "output/a.nii" mask(image,mymask)
+    save "output/result.nii" mask(myimage,mymask)
 
 ---------------------------
+
+Syntax of VoxLogicA analysis files
+==================================
 
 
 Comment syntax
@@ -64,13 +111,24 @@ Comment syntax
 Comments are introduced using "//". Everything following "//" until
 newline is skipped in evaluation.
 
+** Example **
+
+	// This line is ignored
+
 
 Commands
 --------
 
-VoxLogicA supports the following commands
+VoxLogicA supports the following commands: 
 
-Declarations:
+- let 		(declarations)
+- import 	(import libraries)
+- load 		(load images) 
+- save 		(save images) 
+- print		(print values) 
+
+Declarations (command "let"):
+-----------------------------
 
     let identifier = expression
 
@@ -78,47 +136,69 @@ OR
 
     let identifier(argument1,argument2,...) = expression
 
-An identifier is either a function or constant identifier, consisting
-in a sequence of letters or digits, starting with a lowercase letter,
-or an infix or prefix operator identifier, consisting in a sequence of
+An identifier is 
+
+- either a function or constant identifier, consisting
+	of **a sequence of letters or digits starting with a lowercase letter**,
+
+- or an infix or prefix operator identifier, consisting in **a sequence of
 letters, digits or symbols, drawn from # ; : _ ' . | ! $ % & / ^ = * -
-+ < > ? @ ~ \ .
++ < > ? @ ~ \ .**, starting either with a symbol, or with an uppercase letter.
 
 An expression is a defined numeric or literal constant, or a defined
 function applied to the correct number of arguments, or a prefix or
 infix operator with its arguments. More than two arguments are
 possible for infix operators; see the example below.
 
-**Example**
+**Examples**
 
-    // Constant
+Constant declaration
+
     let x = 3 		
     let y = 3.1
 
-    // Function
+	let a = red(image)	
+
+Function declaration
+
     let xor(a,b) = and(or(a,b),not(and(a,b)) 	
 
-    // Infix operator, use as x <|> y
+	// Usage
+	let c = xor(a,b)
+
+Prefix and infix operators:
+
+	let !(a) = not(a)
     let <|>(a,b) = xor(a,b)
 
-    // Infix operator; arguments beyond the first two are specified after
-    // the operator in square brackets, e.g. x++[z] y is translated to
-    ++(x,y,z)
-    let ++(a,b,c) = dt(a,b) > c
-								
+	// Usage
+	let x = ! a
+	let y = a <|> b
 
----------------------------
+Infix operator with more than two arguments: 
 
+    let ++(a,b,c,d) = dt(a,b) > (c+d)
 
-Library import: import "filename"
+	// Square brackets are used for arguments from the third on;
+	// the following is interpreted as ++(a,b,c,d) = dt(a,b) > (c+d)
+	let x =  a ++[c,d] b
+
+Library import: command "import"
+--------------------------------
+
+	import "filename"
+
+If filename is a relative path (that is, it does not start with "/"), the file
+to be imported is first searched in the current directory, then in the directory
+where the VoxLogicA executable is. Note that "stdlib.imgql" is bundled with
+VoxLogicA.
 
 **Example**
 
     import "stdlib.imgql"
 
----------------------------
-
-Image loading: 
+Image loading (command "load"):
+-------------------------------
 
     load identifier = filename
 
@@ -127,19 +207,38 @@ consist in a sequence of letters or digits, starting with a lowercase
 letter. The identifier is subsequently used to access specific
 features of an image.
 
-Supported file formats are those of the ITK library, including ".nii",
-".nii.gz", ".jpg", ".png".
+Supported file formats are ".bmp", ".jpg", ".png", ".nii", and ".nii.gz". 
+
+NOTE: ITK seems to not support some versions of the .bmp file format. If you get
+a failure while loading a .bmp image, try converting it to .png beforehand.
+
 
 **Example**
 
     load x = "test.png"
     let intsty = intensity(x)
+	let r = red(x)
 
-    --------------------------
+NOTE: VoxLogicA only supports RGB and RGBA color spaces. If you need to use CMYK
+images, you can either convert them to RGB, or save them to separate
+monochromatic images, and load/save them separately. You can use multiple load
+instructions to achieve this.
 
-    Image saving: save filename expression
+**Example**
 
-    **Example**
+	load c = "img_c.png"
+	loat m = "img_m.png"
+	load y = "img_y.png"
+	load k = "img_k.png"
+
+
+
+Image saving: command "save"
+----------------------------
+
+	save "filename" expression
+
+**Example**
 
     load x = "test.png"
     load y = "test2.png"
@@ -148,82 +247,160 @@ Supported file formats are those of the ITK library, including ".nii",
 
     save "output.nii" (intsty1 > 0) & (intsty2 < 3)
 
+Printing values: command "print"
+
+	print "message" expression
+
+The print command prints to the log file the string provided as message,
+followed by an "=" sign and the value of the provided expression.
+
+**Example**
+
+	print "Red area size" volume((red(img)=255) & (green(img)=0) & (blue(img)=0)
+
+
+Type system
+===========
+
+The VoxLogicA type system (quite simple, right now) is described in the research
+paper mentioned at the beginning of this document. Voxlogica currently
+implements just four types, although it is planned to expand the type system in
+the near future, when more operations are added to VoxLogicA.
+
+Basic types:
+
+- number            (no difference between float and int; internally, float32)  
+- model				(the type assigned to "x" in load x = "filename")
+- valuation(number)	(image with number-valued voxels)
+- valuation(bool)   (image with truth values in voxels, a.k.a. region of interest)
+
 ---------------------------
 
 Builtin operators
------------------
+=================
 
-VoxLogicA types are numbers (floating point), images (returned by load),
-or formulas. Formulas can be quantitative (resulting from
-e.g. intensity, or distance transforms) or boolean (resulting
-e.g. from boolean operators or thresholds). Below we write these as
-"qformula" and "formula".
+For completeness, below we report the output of the command
 
-- Boolean operators: 
-	tt : formula,
-	ff: formula,
-	and(formula,formula) : formula,
-	or(formula,formula) : formula,
-	not(formula) : formula
-
-- Spatial operators: 
-	near(formula) : formula,
-	interior(formula) : formula,
-	flood(formula,formula) : formula
-
-	flood(a,b) is true at all points that are reachable, passing
-	only by points satisfying a or b, from a point satisfying
-	a. This is useful to define surrounded, reach, touch as
-	derived operators.
-
-- Quantitative operators (thresholds and similar): 
-	eq(number,qformula) : formula,
-	geq(number,qformula) : formula,
-	leq(number,qformula) : formula, 
-	between(number,number,qformula) : formula,
-	max(qformula) : number,
-	min(qformula) : number, 
-	subtract(qformula,qformula) : qformula,
-	mask(qformula,formula) : qformula
-
-	The "mask" operator may be non-obvious. mask(qf,f) returns a
-	quantitative formula which has value 0 at points where f is
-	false, and the same value of qf at points where f is true.
-
-- Distance transform: 
-	dt(formula) : qformula
-
-	dt(f) returns the Euclidean distance map of f, that is, a
-	quantitative formula holding at each point the minimum
-	distance from that point to a point where f is true.
-	Distances are positives at points where f is false ("outside"
-	f), negative at points where f is true ("inside" f).
-
-- Statistical operators:
-	crossCorrelation(number,qformula,qformula,formula,number,number,number) : qformula
-
-	crossCorrelation(rho,qfa,qfb,f,min,max,nbins) computes at each
-	point x the cross-correlation of the histogram of the values
-	of qfa on the hyperrectangle of radius rho, with the histogram
-	of the values of qfb on the points of the image satisfying
-	f. The parameters min, max and nbins determines which values
-	of qfa and qfb are taken into account, and how many bins are
-	used.
-
-- Image operators:
-	intensity(image) : qformula
-
-- Border operator:
-	border : formula
+	VoxLogicA --ops
 
 
-Derived operators:
-------------------
+/(number,number) : number
+Floating point division
 
-See the file stdlib.imgql in the same directory as the VoxLogicA executable. 
+*(number,number) : number
+Floating point multiplication
 
++(number,number) : number
+Floating point addition
 
-COMPILING
-=========
+-(number,number) : number
+Floating point subtraction
 
-install .net core (portable) 2.1, cd to the "src" subdirectory of the repository type "make release-OS" where OS is one of linux-x64, osx-x64, win-x64. Find your executables in the "releases" subdirectory of the repository. If you don't have make, read the comments at the beginning Makefile; the command dotnet build is used for compiling, but you need to set a RID for selecting the right binary libraries to be imported.
+crossCorrelation(number,valuation(number),valuation(number),valuation(bool),number,number,number) : valuation(number)
+similarity via statistical cross-correlation (see academic papers or extended documentation)
+
+eq(number,valuation(number)) : valuation(bool)
+eq(n,i) is true at voxels of i that are equal to n
+
+geq(number,valuation(number)) : valuation(bool)
+geq(n,i) is true at voxels of i that are greater than or equal to n
+
+leq(number,valuation(number)) : valuation(bool)
+leq(n,i) is true at voxels of i that are less than or equal to n
+
+between(number,number,valuation(number)) : valuation(bool)
+between(n1,n2,i) is true at voxels of i that are greater than or equal to n1, and less than or equal to n2
+
+max(valuation(number)) : number
+Finds the maximum value among the voxels in its argument
+
+min(valuation(number)) : number
+Finds the minimum value among the voxels in its argument
+
+add(valuation(number),valuation(number)) : valuation(number)
+Voxel-wise addition
+
+multiply(valuation(number),valuation(number)) : valuation(number)
+Voxel-wise multiplication
+
+subtract(valuation(number),valuation(number)) : valuation(number)
+Voxel-wise subtraction
+
+mask(valuation(number),valuation(bool)) : valuation(number)
+mask(img,bimg) has value 0 at voxels that are false in bimg, and the same value of img at voxels that are true in bimg
+
+avg(valuation(number),valuation(bool)) : number
+avg(img,bimg) is the average of the values of img at voxels that are true in bimg
+
+sdiv(valuation(number),number) : valuation(number)
+divides each voxel by a constant
+
+ssub(valuation(number),number) : valuation(number)
+subtracts a constant from each voxel
+
+sadd(valuation(number),number) : valuation(number)
+adds a constant to each voxel
+
+smul(valuation(number),number) : valuation(number)
+multiplies each voxel by a constant
+
+dt(valuation(bool)) : valuation(number)
+Euclidean distance transform of its argument: replaces each voxel with the positive (or 0) distance from the nearest voxel which is true in the argument.
+
+near(valuation(bool)) : valuation(bool)
+Spatial-logical closure (that is, dilation)
+
+interior(valuation(bool)) : valuation(bool)
+Spatial-logical interior (that is, erosion)
+
+through(valuation(bool),valuation(bool)) : valuation(bool)
+through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2
+
+not(valuation(bool)) : valuation(bool)
+Boolean negation of each voxel
+
+and(valuation(bool),valuation(bool)) : valuation(bool)
+Boolean and voxel-wise
+
+or(valuation(bool),valuation(bool)) : valuation(bool)
+Boolean or voxel-wise
+
+intensity(model) : valuation(number)
+The intensity  of an image. For RGB images this is computed with the well known colorimetric formula.
+
+red(model) : valuation(number)
+The red component of an image. For grayscale images this is equal to the intensity
+
+green(model) : valuation(number)
+The green component of an image. For grayscale images this is equal to the intensity
+
+blue(model) : valuation(number)
+The blue component of an image. For grayscale images this is equal to the intensity
+
+alpha(model) : valuation(number)
+The alpha channel of an image. If there is no alpha channel, a constant image with all voxels equal to 255 is returned
+
+volume(valuation(bool)) : number
+The number of voxels that are true in the given image
+
+maxvol(valuation(bool)) : valuation(bool)
+The connected component of the given image with maximum volume (if more components have the same maximum volume, their union is returned)
+
+percentiles(valuation(number),valuation(bool)) : valuation(number)
+Each voxel in percentiles(img,bimg) is the percentile, between 0 and 1, of its value in img, considering only voxels that are true in bimg (voxels that are false in bimg are assigned value 0)
+
+rgb(valuation(number),valuation(number),valuation(number)) : model
+Creates a RGB image given the red, green, and blue components
+
+rgba(valuation(number),valuation(number),valuation(number),valuation(number)) : model
+Creates a RGBA image given the red, green, blue, and alpha components
+
+tt : valuation(bool)
+The image which is true at each voxel
+
+ff : valuation(bool)
+The image which is false at each voxel
+
+border : valuation(bool)
+True at voxels in the border of the image
+

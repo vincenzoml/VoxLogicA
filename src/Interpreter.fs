@@ -45,6 +45,9 @@ exception MalformedPathException of prefix : string * file : string * result : s
     with override this.Message = sprintf "Malformed path: prefix %s, filename %s, result %s, cannot be confined to %s" 
                                             this.prefix this.file this.result this.confined
 
+exception ImportNotFoundException of fname : string * libdir : string 
+    with override this.Message = sprintf"Import \"%s\" not found\n(local paths are searched in current director and \"%s\")" this.fname this.libdir                                    
+
 type private DVal = Form of Formula | Fun of string list * Expression * Env
 
 and private Env = Map<string,DVal>
@@ -133,11 +136,17 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
                             evaluate env parsedImports rest (j::jobs)
                     | _ -> raise <| InterpreterException(StackTrace(["print",pos]),CantPrintException(typ))                            
                 | Import fname :: rest ->
-                    let path = 
-                        let try1 = getPath "." fname confinetoRead // TODO: also permit local import                        
+                    let path =                         
+                        let try1 = getPath (if fname.StartsWith "/" then "/" else ".") fname confinetoRead // TODO: also permit local import         
                         if File.Exists try1 
                         then try1
-                        else getPath libdir fname confinetoRead
+                        else
+                            if not (fname.StartsWith "/") then
+                                let try2 = getPath libdir fname confinetoRead
+                                if File.Exists try2 
+                                then try2
+                                else raise <| ImportNotFoundException(fname,libdir)
+                            else raise <| ImportNotFoundException(fname,libdir)                            
                     logger.DebugOnly <| sprintf "Import \"%s\"" fname
                     logger.Debug <| sprintf "Importing file \"%s\"" path                    
                     if not (parsedImports.Contains(path)) then 
@@ -151,7 +160,7 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
                 let jobs = evaluate (emptyEnv()) (Set.empty) p []
                 logger.Debug "Starting computation..."
                 do! checker.Check
-                do! Job.conIgnore jobs //Util.Concurrent.doParallel (Array.ofList jobs)                  
+                do! Util.Concurrent.conIgnore (Array.ofList jobs)                  
                 logger.Debug "... done."  }
     let batchHopac job = 
         match Hopac.run (Job.catch job) with

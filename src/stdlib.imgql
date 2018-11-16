@@ -14,19 +14,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-let &(a,b) = and(a,b)
+
+// Prefix and infix forms for boolean operators
+let &(a,b) = and(a,b)       
 let |(a,b) = or(a,b)
 let !(a) = not(a)
-let ~>(a,b) = reaches(b,a)
-                                                    
+
+// "Through" operator in infix form; used internally to define mayReach and
+// surrounded 
+// a ~> b is true at point x if there is a connected component C of
+// the points that are true in a, with C containing one point which is true in b 
+let ~>(a,b) = through(b,a)      
+
+// Prefix operator form for near, interior, and external boundary
 let N(a) = near(a)
 let I(a) = interior(a)
-
-let \(a,b) = and(a,not(b))
 let B+(a) = (near(a)) \ a
 
-let S(a,b) = a \ (not(b) ~> not(or(a,b)))
+// Set theoretic subtraction
+let \(a,b) = and(a,not(b))
 
+// Threshlding operators
+// MIND THE PARAMETER ORDER! a must be an image, b a number
 let <=(a,b) = leq(b,a)
 let >=(a,b) = geq(b,a)
 let =(a,b) = eq(a,b)
@@ -35,10 +44,14 @@ let gt(a,x) = !leq(a,x)
 let <(a,b) = lt(b,a)
 let >(a,b) = gt(b,a)
 
+// Distance operators
 let distgeq(x,y) = dt(y) >= x
 let distlt(x,y) = dt(y) < x
 
-let reach(a,b) = !( (!b) S (!a))
-let R(a,b) = reach(a,b)
-let touch(a,b) = a & reaches(b,a)
+// Reachability derived operators
+let mayReach(a,b) = N((b ~> N a) | a)
+let touch(a,b) = a ~> N b
 let T(a,b) = touch(a,b)
+
+let surrounded(a,b) = a \ mayReach(not(a | b),not(b)) 
+let S(a,b) = surrounded(a,b)

@@ -24,86 +24,94 @@ type ILogicModel<'Value> = // empty interface used to constrain all implemented 
 
 type IBooleanModel<'Value when 'Value : equality> =  
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("tt","valuation(bool)")>]
+    [<OperatorAttribute("tt","valuation(bool)","The image which is true at each voxel")>]
     abstract member TT : Job<'Value>
-    [<OperatorAttribute("ff","valuation(bool)")>]
+    [<OperatorAttribute("ff","valuation(bool)","The image which is false at each voxel")>]
     abstract member FF : Job<'Value>
-    [<OperatorAttribute("not","valuation(bool)","valuation(bool)")>]
+    [<OperatorAttribute("not","valuation(bool)","valuation(bool)","Boolean negation of each voxel")>]
     abstract member Not : 'Value -> Job<'Value>
-    [<OperatorAttribute("and",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)",true)>]
+    [<OperatorAttribute("and",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)",true,"Boolean and voxel-wise")>]
     abstract member And : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("or",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)",true)>]
+    [<OperatorAttribute("or",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)",true,"Boolean or voxel-wise")>]
     abstract member Or : 'Value -> 'Value -> Job<'Value>
 
 type IDistanceModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("dt","valuation(bool)","valuation(number)")>]
-    abstract member DT : 'Value -> Job<'Value    >
+    [<OperatorAttribute("dt","valuation(bool)","valuation(number)","Euclidean distance transform of its argument: replaces each voxel with the positive (or 0) distance from the nearest voxel which is true in the argument.")>]
+    abstract member DT : 'Value -> Job<'Value>
 
 type IQuantitativeModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("eq",[|"number";"valuation(number)"|],"valuation(bool)")>]
+    [<OperatorAttribute("eq",[|"number";"valuation(number)"|],"valuation(bool)","eq(n,i) is true at voxels of i that are equal to n")>]    
     abstract member Eq : float -> 'Value -> Job<'Value>
-    [<OperatorAttribute("geq",[|"number";"valuation(number)"|],"valuation(bool)")>]    
+    [<OperatorAttribute("geq",[|"number";"valuation(number)"|],"valuation(bool)","geq(n,i) is true at voxels of i that are greater than or equal to n")>]    
     abstract member Geq : float -> 'Value -> Job<'Value>
-    [<OperatorAttribute("leq",[|"number";"valuation(number)"|],"valuation(bool)")>]    
+    [<OperatorAttribute("leq",[|"number";"valuation(number)"|],"valuation(bool)","leq(n,i) is true at voxels of i that are less than or equal to n")>]    
     abstract member Leq : float -> 'Value -> Job<'Value>
-    [<OperatorAttribute("between",[|"number";"number";"valuation(number)"|],"valuation(bool)")>]
+    [<OperatorAttribute("between",[|"number";"number";"valuation(number)"|],"valuation(bool)","between(n1,n2,i) is true at voxels of i that are greater than or equal to n1, and less than or equal to n2")>]
     abstract member Between : float -> float -> 'Value -> Job<'Value>
-    [<OperatorAttribute("max","valuation(number)","number")>]
+    [<OperatorAttribute("max","valuation(number)","number","Finds the maximum value among the voxels in its argument")>]
     abstract member Max : 'Value -> Job<float>
-    [<OperatorAttribute("min","valuation(number)","number")>]
+    [<OperatorAttribute("min","valuation(number)","number","Finds the minimum value among the voxels in its argument")>]
     abstract member Min : 'Value -> Job<float>
-    [<OperatorAttribute("subtract",[|"valuation(number)";"valuation(number)"|],"valuation(number)")>]    
+    [<OperatorAttribute("add",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise addition")>]    
+    abstract member Add : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("multiply",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise multiplication")>]    
+    abstract member Multiply : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("subtract",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise subtraction")>]    
     abstract member Subtract : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("mask",[|"valuation(number)";"valuation(bool)"|],"valuation(number)")>]    
+    [<OperatorAttribute("mask",[|"valuation(number)";"valuation(bool)"|],"valuation(number)","mask(img,bimg) has value 0 at voxels that are false in bimg, and the same value of img at voxels that are true in bimg")>]    
     abstract member Mask : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("avg",[|"valuation(number)";"valuation(bool)"|],"number")>]
+    [<OperatorAttribute("avg",[|"valuation(number)";"valuation(bool)"|],"number","avg(img,bimg) is the average of the values of img at voxels that are true in bimg")>]
     abstract member Avg : 'Value -> 'Value -> Job<float>
-    [<OperatorAttribute("sdiv",[|"valuation(number)";"number"|],"valuation(number)")>]    
+    [<OperatorAttribute("sdiv",[|"valuation(number)";"number"|],"valuation(number)","divides each voxel by a constant")>]    
     abstract member Sdiv : 'Value -> float -> Job<'Value>    
+    [<OperatorAttribute("ssub",[|"valuation(number)";"number"|],"valuation(number)","subtracts a constant from each voxel")>]    
+    abstract member Ssub : 'Value -> float -> Job<'Value>    
+    [<OperatorAttribute("sadd",[|"valuation(number)";"number"|],"valuation(number)","adds a constant to each voxel")>]    
+    abstract member Sadd : 'Value -> float -> Job<'Value>    
+    [<OperatorAttribute("smul",[|"valuation(number)";"number"|],"valuation(number)","multiplies each voxel by a constant")>]    
+    abstract member Smul : 'Value -> float -> Job<'Value>    
 
 type ISpatialModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("near","valuation(bool)","valuation(bool)")>]
+    [<OperatorAttribute("near","valuation(bool)","valuation(bool)","Spatial-logical closure (that is, dilation)")>]
     abstract member Near : 'Value -> Job<'Value>
-    [<OperatorAttribute("interior","valuation(bool)","valuation(bool)")>]
+    [<OperatorAttribute("interior","valuation(bool)","valuation(bool)","Spatial-logical interior (that is, erosion)")>]
     abstract member Interior : 'Value -> Job<'Value>
-    [<OperatorAttribute("flood",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)")>]
-    abstract member Flood : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("reaches",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)")>]
-    abstract member Reaches : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2")>]
+    abstract member Through : 'Value -> 'Value -> Job<'Value>
     
 type IStatisticalModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("crossCorrelation",[|"number";"valuation(number)";"valuation(number)";"valuation(bool)";"number";"number";"number"|],"valuation(number)")>]
+    [<OperatorAttribute("crossCorrelation",[|"number";"valuation(number)";"valuation(number)";"valuation(bool)";"number";"number";"number"|],"valuation(number)","similarity via statistical cross-correlation (see academic papers or extended documentation)")>]
     abstract member CrossCorrelation : float -> 'Value -> 'Value -> 'Value -> float -> float -> float -> Job<'Value>
     
 type IBoundedModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("border",[||],"valuation(bool)")>]
+    [<OperatorAttribute("border",[||],"valuation(bool)","True at voxels in the border of the image")>]
     abstract member Border : Job<'Value>
 
 type IImageModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("intensity","model","valuation(number)")>]
+    [<OperatorAttribute("intensity","model","valuation(number)","The intensity  of an image. For RGB images this is computed with the well known colorimetric formula.")>]
     abstract member Intensity : 'Value -> Job<'Value>
-    [<OperatorAttribute("red","model","valuation(number)")>]
+    [<OperatorAttribute("red","model","valuation(number)","The red component of an image. For grayscale images this is equal to the intensity")>]
     abstract member Red : 'Value -> Job<'Value>
-    [<OperatorAttribute("green","model","valuation(number)")>]
+    [<OperatorAttribute("green","model","valuation(number)","The green component of an image. For grayscale images this is equal to the intensity")>]
     abstract member Green : 'Value -> Job<'Value>
-    [<OperatorAttribute("blue","model","valuation(number)")>]
+    [<OperatorAttribute("blue","model","valuation(number)","The blue component of an image. For grayscale images this is equal to the intensity")>]
     abstract member Blue : 'Value -> Job<'Value>
-    [<OperatorAttribute("alpha","model","valuation(number)")>]
+    [<OperatorAttribute("alpha","model","valuation(number)","The alpha channel of an image. If there is no alpha channel, a constant image with all voxels equal to 255 is returned")>]
     abstract member Alpha : 'Value -> Job<'Value>
-    [<OperatorAttribute("volume","valuation(bool)","number")>]
+    [<OperatorAttribute("volume","valuation(bool)","number","The number of voxels that are true in the given image")>]
     abstract member Volume : 'Value -> Job<float>
-    [<OperatorAttribute("maxvol","valuation(bool)","valuation(bool)")>]
+    [<OperatorAttribute("maxvol","valuation(bool)","valuation(bool)","The connected component of the given image with maximum volume (if more components have the same maximum volume, their union is returned)")>]
     abstract member MaxVol : 'Value -> Job<'Value>
-    [<OperatorAttribute("percentiles",[|"valuation(number)";"valuation(bool)"|],"valuation(number)")>]
+    [<OperatorAttribute("percentiles",[|"valuation(number)";"valuation(bool)"|],"valuation(number)","Each voxel in percentiles(img,bimg) is the percentile, between 0 and 1, of its value in img, considering only voxels that are true in bimg (voxels that are false in bimg are assigned value 0)")>]
     abstract member Percentiles : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("rgb",[|"valuation(number)";"valuation(number)";"valuation(number)"|],"valuation(number)")>]
+    [<OperatorAttribute("rgb",[|"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGB image given the red, green, and blue components")>]
     abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"valuation(number)")>]
+    [<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]
     abstract member RGBA : 'Value -> 'Value -> 'Value -> 'Value -> Job<'Value>
     

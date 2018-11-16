@@ -19,19 +19,16 @@ open Hopac
 
 /// Implementation of several operators that can be evaluated without knowing the model type
 type Coreops() =
-    [<OperatorAttribute("/",[|"number";"number"|],"number")>]
+    [<OperatorAttribute("/",[|"number";"number"|],"number","Floating point division")>]
     member __.Div (a : float) (b: float) : Job<float> = job { return a / b }
 
-    [<OperatorAttribute("*",[|"number";"number"|],"number")>]
+    [<OperatorAttribute("*",[|"number";"number"|],"number","Floating point multiplication")>]
     member __.Mult (a : float) (b: float) : Job<float> = job { return a * b }
 
     
-    [<OperatorAttribute("+",[|"number";"number"|],"number")>]
+    [<OperatorAttribute("+",[|"number";"number"|],"number","Floating point addition")>]
     member __.Sum (a : float) (b: float) : Job<float> = job { return a + b }
 
-    [<OperatorAttribute("-",[|"number";"number"|],"number")>]
+    [<OperatorAttribute("-",[|"number";"number"|],"number","Floating point subtraction")>]
     member __.Sub (a : float) (b: float) : Job<float> = job { return a - b }
 
-    [<OperatorAttribute("++",[|"string";"string"|],"string")>]
-    member __.Concat (s1 : string) (s2 : string) : Job<string> = job {return (s1 + s2)}
-     
