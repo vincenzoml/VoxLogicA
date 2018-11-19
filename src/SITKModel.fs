@@ -38,7 +38,7 @@ type SITKModel() =
 
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
         match t with 
-        | TValuation(_) when List.exists (f.EndsWith : string -> bool) supported_extensions -> true 
+        | (TValuation(_)|TModel) when List.exists (f.EndsWith : string -> bool) supported_extensions -> true 
         | _ -> false        
     override __.Save (logger : ErrorMsg.Logger) filename v =
         saveImage filename (v :?> Image) logger                      

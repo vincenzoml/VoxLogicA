@@ -1,0 +1,113 @@
+// A mini-quickstart tutorial for VoxLogicA
+// 
+// Task: remove the background from a simple image, leaving just the coloured items in there.
+
+// To run this example, cd to the directory containing this file and run VoxLogicA on this file
+// If you need to compile the tool, first install dotnet core sdk
+//
+// https://www.microsoft.com/net/download
+//
+// Then compile, and run as follows:
+//
+//    cd src 
+//    make                          # or release-win, or release-osx, and replace the path below as appropriate
+//
+//    cd ../example                 # this directory
+//    ../releases/VoxLogicA-linux-DATE/VoxLogicA example.imgql          # replace linux with your OS and date with the date you compiled the release    
+
+
+// First, let's import the standard library
+
+import "stdlib.imgql"
+
+
+/////// 
+// Let us also define a simple "smoothen" filter; below, x is a number (radius of smothening), whereas
+// distlt(x,y) is the set of points at distance less than x from the points true in (boolean-valued image) y
+// (see also the paper https://arxiv.org/abs/1811.05677, Section 4, and Section 2 for theory)
+
+let flt(x,a) = distlt(x,distgeq(x,!a))
+
+
+/////
+// Load the image
+
+load image = "three_coloured_items.png"
+
+
+/////
+// Give names to the components of the image, to ease typing
+
+let r = red(image)
+let g = green(image)
+let b = blue(image)
+
+
+/////
+// The background is not very coloured; it's grayish. Let us capture it as follows.
+// Coloured items may also have high values for some components, but not for all three!
+// NOTE: we could also have used percentiles(r) (also for g and b components) to avoid 
+// referencing an absolute value ("120"). Later you can return here and experiment
+// with that
+
+let tendentToGray = (r > 120) & (g > 120) & (b > 120)
+
+
+/////
+// Save the intermediate result
+// Do check all the intermediate results! 
+// (use xdg-open IMAGE_FILE_NAME to open the default image viewer on ubuntu)
+// In the viewer you can use the left and right arrow keys to navigate between images.
+//
+
+save "output/01_tendentToGray.png" tendentToGray
+
+
+///////
+// Note that the "output" directory will be created if it does not exist
+// Also note that should you save an image valued between 0 and 1 (instead of 0 and 255)
+// in a png or jpg file, you are responsible for rescaling! png uses integer values.
+// To rescale if needed, use the smul operator (VoxLogicA --ops will list all the operators,
+// including smul and its type).
+
+
+/////
+// The background is the part tendent to gray that touches the border
+
+let background  = touch(tendentToGray,border)
+
+
+/////
+// Please, check the difference between background.png and tendentToGray.png now! Can you see the "noise" that is removed?
+
+save "output/02_background.png" background
+
+
+/////
+// Check the background now. It's still noisy. We want to use its complement as a mask to select only the "coloured things".
+// So we will remove from its complement the noise in two ways: filtering, and removing the part that touches the border.
+// Operator "\" is defined in "stdlib.imgql"; it is set-theoretical subtraction. So below we are filtering, with radius
+// 5 pixels, the complement of the background WITHOUT the part of it that touches the border.
+// (Indeed, prefix operator "!" is boolean complement).
+
+
+let thingsMask = flt(5,(!background) \ touch(!background,border))
+save "output/03_thingsMask.png" thingsMask
+
+
+/////
+// Check the result now. Try removing the flt operator. Try removing also the touch operator.
+// Do you see the difference?
+
+
+/////
+// Finally, let us save in rgb the masked image, using the "mask" and "rgb" primitives
+
+let maskedImage = rgb(mask(r,thingsMask),mask(g,thingsMask),mask(b,thingsMask))
+save "output/04_maskedImage.png" maskedImage
+
+
+/////
+// Let us also save the original image so that you can check the difference in the image viewer.
+
+save "output/00_original_image.png" image
