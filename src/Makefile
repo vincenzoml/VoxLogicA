@@ -18,11 +18,16 @@
 ### the program will be compiled in
 ### ./bin/release/netcoreapp2.x/win-x64/publish/voxlogica
 
-
 PROJ=VoxLogicA
 UNAME := $(shell uname)
-RELEASENAME=$(PROJ)_$(RID)_$(shell date +%Y-%m-%d)
+VERSION=$(shell cat VERSION.txt)
+RELEASENAME=$(PROJ)_$(VERSION)_$(RID)
 RELEASE=../releases/$(RELEASENAME)
+
+ifeq ($(VERSION),"") 
+		$(error "VERSION is not set; set the release number (e.g. 0.5.1) in VERSION.txt") 
+endif
+	
 
 ifeq ($(UNAME),Linux)
 CURRENTRID=linux-x64
@@ -38,7 +43,7 @@ build: *.fs $(PROJ).fsproj
 restore:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet restore
 
-publish-internal: 
+publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
 	cp -a bin/release/netcoreapp2.1/$(RID)/publish/* $(RELEASE)
