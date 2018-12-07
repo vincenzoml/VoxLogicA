@@ -1,0 +1,3 @@
+Version 0.5.2:
+
+Binary operators that involve numbers and images now follow standard conventions.

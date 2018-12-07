@@ -18,6 +18,11 @@ tool in more detail, with a detailed case study.
 https://arxiv.org/abs/1811.05677
 
 
+Quickstart
+==========
+
+See the directory "example" and the comments in the file "example.imgql" 
+
 
 Using the tool
 ==============
@@ -95,7 +100,7 @@ constant and function definitions, and images to be saved.
     load y = "images/nii/mask3d.nii"
 
     let myimage = intensity(x)
-    let mymask = intensity(y) > 0
+    let mymask = intensity(y) >. 0
 
     save "output/result.nii" mask(myimage,mymask)
 
@@ -177,7 +182,7 @@ Prefix and infix operators:
 
 Infix operator with more than two arguments: 
 
-    let ++(a,b,c,d) = dt(a,b) > (c+d)
+    let ++(a,b,c,d) = dt(a,b) >. (c+d)
 
 	// Square brackets are used for arguments from the third on;
 	// the following is interpreted as ++(a,b,c,d) = dt(a,b) > (c+d)
@@ -245,7 +250,7 @@ Image saving: command "save"
     let intsty1 = intensity(x)
     let intsty2 = intensity(y)
 
-    save "output.nii" (intsty1 > 0) & (intsty2 < 3)
+    save "output.nii" (intsty1 >. 0) & (intsty2 <. 3)
 
 Printing values: command "print"
 
@@ -283,30 +288,32 @@ For completeness, below we report the output of the command
 
 	VoxLogicA --ops
 
-
-/(number,number) : number
+./.(number,number) : number
 Floating point division
 
-*(number,number) : number
+.*.(number,number) : number
 Floating point multiplication
 
-+(number,number) : number
+.+.(number,number) : number
 Floating point addition
 
--(number,number) : number
+.-.(number,number) : number
 Floating point subtraction
 
 crossCorrelation(number,valuation(number),valuation(number),valuation(bool),number,number,number) : valuation(number)
 similarity via statistical cross-correlation (see academic papers or extended documentation)
 
-eq(number,valuation(number)) : valuation(bool)
+constant(number) : valuation(number)
+The image which has the given value at each voxel
+
+.=(number,valuation(number)) : valuation(bool)
 eq(n,i) is true at voxels of i that are equal to n
 
-geq(number,valuation(number)) : valuation(bool)
-geq(n,i) is true at voxels of i that are greater than or equal to n
+.<=(number,valuation(number)) : valuation(bool)
+n .<= img is true at voxels of img that are greater than or equal to n
 
-leq(number,valuation(number)) : valuation(bool)
-leq(n,i) is true at voxels of i that are less than or equal to n
+.>=(number,valuation(number)) : valuation(bool)
+n .>= img is true at voxels of img that are less than or equal to n
 
 between(number,number,valuation(number)) : valuation(bool)
 between(n1,n2,i) is true at voxels of i that are greater than or equal to n1, and less than or equal to n2
@@ -317,13 +324,13 @@ Finds the maximum value among the voxels in its argument
 min(valuation(number)) : number
 Finds the minimum value among the voxels in its argument
 
-add(valuation(number),valuation(number)) : valuation(number)
++(valuation(number),valuation(number)) : valuation(number)
 Voxel-wise addition
 
-multiply(valuation(number),valuation(number)) : valuation(number)
+*(valuation(number),valuation(number)) : valuation(number)
 Voxel-wise multiplication
 
-subtract(valuation(number),valuation(number)) : valuation(number)
+-(valuation(number),valuation(number)) : valuation(number)
 Voxel-wise subtraction
 
 mask(valuation(number),valuation(bool)) : valuation(number)
@@ -332,16 +339,16 @@ mask(img,bimg) has value 0 at voxels that are false in bimg, and the same value 
 avg(valuation(number),valuation(bool)) : number
 avg(img,bimg) is the average of the values of img at voxels that are true in bimg
 
-sdiv(valuation(number),number) : valuation(number)
+/.(valuation(number),number) : valuation(number)
 divides each voxel by a constant
 
-ssub(valuation(number),number) : valuation(number)
+-.(valuation(number),number) : valuation(number)
 subtracts a constant from each voxel
 
-sadd(valuation(number),number) : valuation(number)
++.(valuation(number),number) : valuation(number)
 adds a constant to each voxel
 
-smul(valuation(number),number) : valuation(number)
+*.(valuation(number),number) : valuation(number)
 multiplies each voxel by a constant
 
 dt(valuation(bool)) : valuation(number)

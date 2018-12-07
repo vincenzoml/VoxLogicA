@@ -50,6 +50,7 @@ let minImg (img : Image) =
     flt.GetMinimum()
 
 let loadImage (filename : string) (logger : ErrorMsg.Logger) = // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
+    logger.Debug <| sprintf "Loading file %s" filename
     let img = SimpleITK.ReadImage(filename)
     let fname = System.IO.Path.GetFileName(filename)
     let sz = img.GetSize()
@@ -102,6 +103,7 @@ let saveImage (filename : string) (img : Image) (logger : ErrorMsg.Logger) =
                         SimpleITK.RescaleIntensity(img,0.0,255.0)
                 else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
             else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
+    logger.Debug <| sprintf "Saving file %s" filename        
     SimpleITK.WriteImage(tmp,filename)  
 
 let floatV (img : Image) = 
@@ -150,7 +152,7 @@ let changePhysicalSpace(dest : Image, source : Image) = // NOTE: only works with
 
 let intensity (img : Image) =
             if img.GetNumberOfComponentsPerPixel() = 1ul
-            then img  
+            then img
             else  // TODO check color space correctly!!! Assumes it's rgb                
                 let r = SimpleITK.VectorIndexSelectionCast(img,0ul)
                 let g = SimpleITK.VectorIndexSelectionCast(img,1ul) 
@@ -199,6 +201,8 @@ let avg (img : Image) (mask : Image) = // TODO: type check that there is one com
     float (List.average l)
 let tt img = createUint8(img,1uy)
 let ff img = createUint8(img,0uy)
+
+let mkConst value img = createFloat32(img,value)
 let border (img : Image) = 
     // TODO: make this faster by first filling the result with zeroes and then iterating only over the borders
     let szv = img.GetSize()

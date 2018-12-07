@@ -42,36 +42,38 @@ type IDistanceModel<'Value when 'Value : equality> =
 
 type IQuantitativeModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("eq",[|"number";"valuation(number)"|],"valuation(bool)","eq(n,i) is true at voxels of i that are equal to n")>]    
-    abstract member Eq : float -> 'Value -> Job<'Value>
-    [<OperatorAttribute("geq",[|"number";"valuation(number)"|],"valuation(bool)","geq(n,i) is true at voxels of i that are greater than or equal to n")>]    
-    abstract member Geq : float -> 'Value -> Job<'Value>
-    [<OperatorAttribute("leq",[|"number";"valuation(number)"|],"valuation(bool)","leq(n,i) is true at voxels of i that are less than or equal to n")>]    
-    abstract member Leq : float -> 'Value -> Job<'Value>
+    [<OperatorAttribute("constant","number","valuation(number)","The image which has the given value at each voxel")>]
+    abstract member Const : float -> Job<'Value>
+    [<OperatorAttribute(".=",[|"number";"valuation(number)"|],"valuation(bool)","eq(n,i) is true at voxels of i that are equal to n")>]    
+    abstract member EqSV : float -> 'Value -> Job<'Value>
+    [<OperatorAttribute(".<=",[|"number";"valuation(number)"|],"valuation(bool)","n .<= img is true at voxels of img that are greater than or equal to n")>]    
+    abstract member GeqSV : float -> 'Value -> Job<'Value>
+    [<OperatorAttribute(".>=",[|"number";"valuation(number)"|],"valuation(bool)","n .>= img is true at voxels of img that are less than or equal to n")>]    
+    abstract member LeqSV : float -> 'Value -> Job<'Value>
     [<OperatorAttribute("between",[|"number";"number";"valuation(number)"|],"valuation(bool)","between(n1,n2,i) is true at voxels of i that are greater than or equal to n1, and less than or equal to n2")>]
     abstract member Between : float -> float -> 'Value -> Job<'Value>
     [<OperatorAttribute("max","valuation(number)","number","Finds the maximum value among the voxels in its argument")>]
     abstract member Max : 'Value -> Job<float>
     [<OperatorAttribute("min","valuation(number)","number","Finds the minimum value among the voxels in its argument")>]
     abstract member Min : 'Value -> Job<float>
-    [<OperatorAttribute("add",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise addition")>]    
-    abstract member Add : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("multiply",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise multiplication")>]    
-    abstract member Multiply : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("subtract",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise subtraction")>]    
-    abstract member Subtract : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("+",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise addition")>]    
+    abstract member AddVV : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("*",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise multiplication")>]    
+    abstract member MultiplyVV : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("-",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise subtraction")>]    
+    abstract member SubtractVV : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("mask",[|"valuation(number)";"valuation(bool)"|],"valuation(number)","mask(img,bimg) has value 0 at voxels that are false in bimg, and the same value of img at voxels that are true in bimg")>]    
     abstract member Mask : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("avg",[|"valuation(number)";"valuation(bool)"|],"number","avg(img,bimg) is the average of the values of img at voxels that are true in bimg")>]
     abstract member Avg : 'Value -> 'Value -> Job<float>
-    [<OperatorAttribute("sdiv",[|"valuation(number)";"number"|],"valuation(number)","divides each voxel by a constant")>]    
-    abstract member Sdiv : 'Value -> float -> Job<'Value>    
-    [<OperatorAttribute("ssub",[|"valuation(number)";"number"|],"valuation(number)","subtracts a constant from each voxel")>]    
-    abstract member Ssub : 'Value -> float -> Job<'Value>    
-    [<OperatorAttribute("sadd",[|"valuation(number)";"number"|],"valuation(number)","adds a constant to each voxel")>]    
-    abstract member Sadd : 'Value -> float -> Job<'Value>    
-    [<OperatorAttribute("smul",[|"valuation(number)";"number"|],"valuation(number)","multiplies each voxel by a constant")>]    
-    abstract member Smul : 'Value -> float -> Job<'Value>    
+    [<OperatorAttribute("/.",[|"valuation(number)";"number"|],"valuation(number)","divides each voxel by a constant")>]    
+    abstract member DivVS : 'Value -> float -> Job<'Value>    
+    [<OperatorAttribute("-.",[|"valuation(number)";"number"|],"valuation(number)","subtracts a constant from each voxel")>]    
+    abstract member SubVS : 'Value -> float -> Job<'Value>    
+    [<OperatorAttribute("+.",[|"valuation(number)";"number"|],"valuation(number)","adds a constant to each voxel")>]    
+    abstract member AddVS : 'Value -> float -> Job<'Value>    
+    [<OperatorAttribute("*.",[|"valuation(number)";"number"|],"valuation(number)","multiplies each voxel by a constant")>]    
+    abstract member MulVS : 'Value -> float -> Job<'Value>    
 
 type ISpatialModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>

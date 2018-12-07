@@ -26,7 +26,7 @@ import "stdlib.imgql"
 // distlt(x,y) is the set of points at distance less than x from the points true in (boolean-valued image) y
 // (see also the paper https://arxiv.org/abs/1811.05677, Section 4, and Section 2 for theory)
 
-let flt(x,a) = distlt(x,distgeq(x,!a))
+let flt(x,a) = distleq(x,distgeq(x,!a))
 
 
 /////
@@ -50,7 +50,7 @@ let b = blue(image)
 // referencing an absolute value ("120"). Later you can return here and experiment
 // with that
 
-let tendentToGray = (r > 120) & (g > 120) & (b > 120)
+let tendentToGray = (r >. 120) & (g >. 120) & (b >. 120)
 
 
 /////

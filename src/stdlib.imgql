@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 // Prefix and infix forms for boolean operators
 let &(a,b) = and(a,b)       
 let |(a,b) = or(a,b)
@@ -34,19 +33,9 @@ let B+(a) = (near(a)) \ a
 // Set theoretic subtraction
 let \(a,b) = and(a,not(b))
 
-// Threshlding operators
-// MIND THE PARAMETER ORDER! a must be an image, b a number
-let <=(a,b) = leq(b,a)
-let >=(a,b) = geq(b,a)
-let =(a,b) = eq(a,b)
-let lt(a,x) = !geq(a,x)
-let gt(a,x) = !leq(a,x)
-let <(a,b) = lt(b,a)
-let >(a,b) = gt(b,a)
-
 // Distance operators
-let distgeq(x,y) = dt(y) >= x
-let distlt(x,y) = dt(y) < x
+let distgeq(x,y) = x .<= dt(y)
+let distleq(x,y) = x .>= dt(y)
 
 // Reachability derived operators
 let mayReach(a,b) = N((b ~> N a) | a)
@@ -55,3 +44,17 @@ let T(a,b) = touch(a,b)
 
 let surrounded(a,b) = a \ mayReach(not(a | b),not(b)) 
 let S(a,b) = surrounded(a,b)
+
+// Some shorthands 
+let .< (n,i) = (n .<= i) & (!(n .= i))
+let .> (n,i) = (n .>= i) & (!(n .= i))
+let <. (i,n) = n .> i
+let <=. (i,n) = n .>= i
+let >. (i,n) = n .< i
+let >=. (i,n) = n .<= i
+let =. (i,n) = n .= i
+
+let .* (a,b) = b *. a
+let .+ (a,b) = b +. a
+let ./ (a,b) = b /. a
+let .- (a,b) = b -. a

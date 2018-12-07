@@ -1,8 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>  
+    <TargetFramework>netcoreapp2.1</TargetFramework> 
+    <TargetLatestRuntimePatch>true</TargetLatestRuntimePatch>
+
   </PropertyGroup>
+
+<Target Name="SetVersion" BeforeTargets="BeforeBuild">
+  <ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
+    <Output TaskParameter="Lines" ItemName="Version" />
+  </ReadLinesFromFile>
+  <Message Text="Current version is - @(Version)" Importance="high" />
+  <PropertyGroup>
+    <Version>@(version)</Version>
+  </PropertyGroup>
+</Target>
 
   <ItemGroup>
     <Compile Include="Exceptions.fs" />
@@ -44,6 +56,7 @@
   <Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high"></Message>
   <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64"/>
   <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
+  <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
   <Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(PublishDir)"/>
   <Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(PublishDir)"/>
   <Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(PublishDir)"/>

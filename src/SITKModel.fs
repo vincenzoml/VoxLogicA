@@ -99,22 +99,23 @@ type SITKModel() =
         member __.DT img = lift dt img
         
     interface IQuantitativeModel<Image> with    
-        member __.Eq value img = lift2 eq value img
+        member __.Const value = job { return mkConst (float32 value) (getBaseImg()) }
+        member __.EqSV value img = lift2 eq value img
             
-        member __.Geq value img = lift2 geq value img
-        member __.Leq value img = lift2 leq value img
+        member __.GeqSV value img = lift2 geq value img
+        member __.LeqSV value img = lift2 leq value img
         member __.Between value1 value2 img = job { return between value1 value2 img }
         member __.Max img = lift maxImg img
         member __.Min img = lift minImg img
-        member __.Subtract img1 img2 = lift2 subtract img1 img2
-        member __.Add img1 img2 = lift2 add img1 img2
-        member __.Multiply img1 img2 = lift2 mult img1 img2
+        member __.SubtractVV img1 img2 = lift2 subtract img1 img2
+        member __.AddVV img1 img2 = lift2 add img1 img2
+        member __.MultiplyVV img1 img2 = lift2 mult img1 img2
         member __.Mask (img : Image) (maskImg : Image) = lift2 mask img maskImg
         member __.Avg (img : Image) (maskImg : Image)  = lift2 avg img maskImg
-        member __.Sdiv (img : Image) k = job { return SimpleITK.Divide(img,k) }
-        member __.Sadd (img : Image) k = job { return SimpleITK.Add(img,k) }
-        member __.Smul (img : Image) k = job { return SimpleITK.Multiply(img,k) }
-        member __.Ssub (img : Image) k = job { return SimpleITK.Subtract(img,k) }
+        member __.DivVS (img : Image) k = job { return SimpleITK.Divide(img,k) }
+        member __.AddVS (img : Image) k = job { return SimpleITK.Add(img,k) }
+        member __.MulVS (img : Image) k = job { return SimpleITK.Multiply(img,k) }
+        member __.SubVS (img : Image) k = job { return SimpleITK.Subtract(img,k) }
 
     interface IStatisticalModel<Image> with 
         member __.CrossCorrelation rho a b fb m1 m2 k = crosscorrelation rho a b fb m1 m2 k
