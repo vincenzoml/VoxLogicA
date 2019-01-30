@@ -40,10 +40,10 @@ type SITKModel() =
         match t with 
         | (TValuation(_)|TModel) when List.exists (f.EndsWith : string -> bool) supported_extensions -> true 
         | _ -> false        
-    override __.Save (logger : ErrorMsg.Logger) filename v =
-        saveImage filename (v :?> Image) logger                      
-    override __.Load (logger : ErrorMsg.Logger) s =
-        let img = loadImage s logger
+    override __.Save filename v =
+        saveImage filename (v :?> Image)                      
+    override __.Load s =
+        let img = loadImage s 
         match baseImg with
             | None -> 
                 baseImg <- Some img
@@ -59,10 +59,10 @@ type SITKModel() =
                         && img.GetDimension() = img1.GetDimension()
                     then 
                         if img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() then 
-                            logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
+                            ErrorMsg.Logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
                             changePhysicalSpace(img,img1) :> obj 
                         else 
-                            logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
+                            ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
                             raise (DifferentPhysicalAndLogicalSpaceException s) //TODO: fix this, converting when possible.
                     else raise (DifferentPhysicalAndLogicalSpaceException s)
 
@@ -80,7 +80,7 @@ type SITKModel() =
         member __.RGBA (imgr : Image) (imgg : Image) (imgb : Image) (imga : Image) = job { return rgba imgr imgg imgb imga }
         member __.Volume img = lift volume img
         member __.MaxVol img = lift maxvol img
-        member __.Percentiles img mask = lift2 percentiles img mask
+        member __.Percentiles img mask correction = job { return percentiles img mask correction }
 
     interface IBooleanModel<Image> with
         member __.And img1 img2 = lift2 logand img1 img2
@@ -112,11 +112,13 @@ type SITKModel() =
         member __.MultiplyVV img1 img2 = lift2 mult img1 img2
         member __.Mask (img : Image) (maskImg : Image) = lift2 mask img maskImg
         member __.Avg (img : Image) (maskImg : Image)  = lift2 avg img maskImg
-        member __.DivVS (img : Image) k = job { return SimpleITK.Divide(img,k) }
         member __.AddVS (img : Image) k = job { return SimpleITK.Add(img,k) }
         member __.MulVS (img : Image) k = job { return SimpleITK.Multiply(img,k) }
         member __.SubVS (img : Image) k = job { return SimpleITK.Subtract(img,k) }
-
+        member __.DivVS (img : Image) k = job { return SimpleITK.Divide(img,k) }
+        member __.SubSV k (img : Image) = job { return SimpleITK.Subtract(k,img) }
+        member __.DivSV k (img : Image) = job { return SimpleITK.Divide(k,img) }
+        
     interface IStatisticalModel<Image> with 
         member __.CrossCorrelation rho a b fb m1 m2 k = crosscorrelation rho a b fb m1 m2 k
 

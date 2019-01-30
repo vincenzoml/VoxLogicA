@@ -2,7 +2,7 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
-//
+// 
 // A copy of the license is available in the file "Apache_License.txt".
 // You may obtain a copy of the License at
 //
@@ -66,6 +66,10 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     abstract member Mask : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("avg",[|"valuation(number)";"valuation(bool)"|],"number","avg(img,bimg) is the average of the values of img at voxels that are true in bimg")>]
     abstract member Avg : 'Value -> 'Value -> Job<float>
+    [<OperatorAttribute("./",[|"number";"valuation(number)"|],"valuation(number)","divides each voxel by a constant")>]    
+    abstract member DivSV : float -> 'Value  -> Job<'Value>    
+    [<OperatorAttribute(".-",[|"number";"valuation(number)"|],"valuation(number)","subtracts a constant from each voxel")>]    
+    abstract member SubSV : float -> 'Value -> Job<'Value>    
     [<OperatorAttribute("/.",[|"valuation(number)";"number"|],"valuation(number)","divides each voxel by a constant")>]    
     abstract member DivVS : 'Value -> float -> Job<'Value>    
     [<OperatorAttribute("-.",[|"valuation(number)";"number"|],"valuation(number)","subtracts a constant from each voxel")>]    
@@ -86,7 +90,7 @@ type ISpatialModel<'Value when 'Value : equality> =
     
 type IStatisticalModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
-    [<OperatorAttribute("crossCorrelation",[|"number";"valuation(number)";"valuation(number)";"valuation(bool)";"number";"number";"number"|],"valuation(number)","similarity via statistical cross-correlation (see academic papers or extended documentation)")>]
+    [<OperatorAttribute("crossCorrelation",[|"number";"valuation(number)";"valuation(number)";"valuation(bool)";"number";"number";"number"|],"valuation(number)","crossCorrelation(radius,local,target,mask,min,max,nbins) computes similarity scores via statistical cross-correlation (see academic papers or extended documentation)")>]
     abstract member CrossCorrelation : float -> 'Value -> 'Value -> 'Value -> float -> float -> float -> Job<'Value>
     
 type IBoundedModel<'Value when 'Value : equality> =
@@ -110,8 +114,8 @@ type IImageModel<'Value when 'Value : equality> =
     abstract member Volume : 'Value -> Job<float>
     [<OperatorAttribute("maxvol","valuation(bool)","valuation(bool)","The connected component of the given image with maximum volume (if more components have the same maximum volume, their union is returned)")>]
     abstract member MaxVol : 'Value -> Job<'Value>
-    [<OperatorAttribute("percentiles",[|"valuation(number)";"valuation(bool)"|],"valuation(number)","Each voxel in percentiles(img,bimg) is the percentile, between 0 and 1, of its value in img, considering only voxels that are true in bimg (voxels that are false in bimg are assigned value 0)")>]
-    abstract member Percentiles : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("percentiles",[|"valuation(number)";"valuation(bool)";"number"|],"valuation(number)","Each voxel in percentiles(img,bimg,k) is the percentile rank, between 0 and 1, of its value in img, considering only voxels that are true in bimg (voxels that are false in bimg are assigned value 0); the rank is not rounded, and it is corrected with k * n where n is the number of voxels equal to the considered one.")>]
+    abstract member Percentiles : 'Value -> 'Value -> float -> Job<'Value>
     [<OperatorAttribute("rgb",[|"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGB image given the red, green, and blue components")>]
     abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]

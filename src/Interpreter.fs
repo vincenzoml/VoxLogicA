@@ -52,7 +52,7 @@ type private DVal = Form of Formula | Fun of string list * Expression * Env
 
 and private Env = Map<string,DVal>
 
-type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logger) =
+type Interpreter(model : IModel, checker : ModelChecker) =
     let defaultLibDir : string = 
         System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location)
     
@@ -105,14 +105,14 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
             match syn with 
                 | ModelLoad(ide,filename) :: rest ->
                     let filename = getPath inputdir filename confinetoRead 
-                    logger.DebugOnly <| sprintf "ModelLoad \"%s\"" filename
-                    let v = model.Load logger filename
+                    ErrorMsg.Logger.DebugOnly <| sprintf "ModelLoad \"%s\"" filename
+                    let v = model.Load filename
                     evaluate (env.Add(ide,Form (checker.FormulaFactory.CreateConst (v,TModel)))) parsedImports rest jobs                
                 | Declaration (ide,fargs,body) :: rest -> 
-                    logger.DebugOnly <| sprintf "Declaration \"%s\"" ide 
+                    ErrorMsg.Logger.DebugOnly <| sprintf "Declaration \"%s\"" ide 
                     evaluate (env.Add(ide,Fun (fargs,body,env))) parsedImports rest jobs
                 | ModelSave(pos,filename,expression) :: rest -> // TODO Use interpreterexception also in load and import
-                    logger.DebugOnly <| sprintf "ModelSave \"%s\"" filename
+                    ErrorMsg.Logger.DebugOnly <| sprintf "ModelSave \"%s\"" filename
                     let formula = translateExpression [] model checker.FormulaFactory checker.OperatorFactory env expression
                     let typ = formula.Operator.Rettype
                     if model.CanSave typ filename then
@@ -121,18 +121,18 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
                             let filename = getPath outputdir filename confinetoWrite
                             let dirname = System.IO.Path.GetDirectoryName filename
                             ignore <| Directory.CreateDirectory(dirname)
-                            model.Save logger filename res  }
+                            model.Save filename res  }
                         evaluate env parsedImports rest (j::jobs)
                     else raise <| InterpreterException(StackTrace(["save",pos]),CantSaveException(typ,filename))                            
                 | Print(pos,filename,expression) :: rest -> // TODO Use interpreterexception also in load and import
-                    logger.DebugOnly <| sprintf "Print \"%s\"" filename
+                    ErrorMsg.Logger.DebugOnly <| sprintf "Print \"%s\"" filename
                     let formula = translateExpression [] model checker.FormulaFactory checker.OperatorFactory env expression
                     let typ = formula.Operator.Rettype
                     match typ with 
                     | (TModel | TNumber | TBool | TString) ->
                             let j = 
                                 job {   let! res = checker.Get formula                                
-                                        logger.Result filename res  }
+                                        ErrorMsg.Logger.Result filename res  }
                             evaluate env parsedImports rest (j::jobs)
                     | _ -> raise <| InterpreterException(StackTrace(["print",pos]),CantPrintException(typ))                            
                 | Import fname :: rest ->
@@ -147,21 +147,21 @@ type Interpreter(model : IModel, checker : ModelChecker, logger : ErrorMsg.Logge
                                 then try2
                                 else raise <| ImportNotFoundException(fname,libdir)
                             else raise <| ImportNotFoundException(fname,libdir)                            
-                    logger.DebugOnly <| sprintf "Import \"%s\"" fname
-                    logger.Debug <| sprintf "Importing file \"%s\"" path                    
+                    ErrorMsg.Logger.DebugOnly <| sprintf "Import \"%s\"" fname
+                    ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path                    
                     if not (parsedImports.Contains(path)) then 
                         let parsed = parseImport path                    
                         evaluate env (parsedImports.Add path) (parsed@rest) jobs
                     else evaluate env parsedImports rest jobs
                 | [] -> List.rev jobs
-        job {   logger.Debug "Parsing input..."        
+        job {   ErrorMsg.Logger.Debug "Parsing input..."        
                 let p = parseProgram filename s
-                logger.Debug "Preparing computation..."                
+                ErrorMsg.Logger.Debug "Preparing computation..."                
                 let jobs = evaluate (emptyEnv()) (Set.empty) p []
-                logger.Debug "Starting computation..."
+                ErrorMsg.Logger.Debug "Starting computation..."
                 do! checker.Check
                 do! Util.Concurrent.conIgnore (Array.ofList jobs)                  
-                logger.Debug "... done."  }
+                ErrorMsg.Logger.Debug "... done."  }
     let batchHopac job = 
         match Hopac.run (Job.catch job) with
             | Choice1Of2 () -> ()

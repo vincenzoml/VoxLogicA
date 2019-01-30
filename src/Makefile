@@ -46,7 +46,7 @@ restore:
 publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
-	cp -a bin/release/netcoreapp2.1/$(RID)/publish/* $(RELEASE)
+	cp -a bin/release/netcoreapp2.2/$(RID)/publish/* $(RELEASE)
 	cp -a BINARY_LICENSE.txt $(RELEASE)
 	cd ../releases && rm -f $(RELEASENAME).zip && zip -r $(RELEASENAME).zip $(RELEASENAME)
 
@@ -63,3 +63,7 @@ release-win:
 	make publish-internal RID=win-x64
 
 release: release-linux release-osx release-win
+
+install-linux: release-linux
+	#TODO: this is temporary; should be made portable
+	echo sudo "cd /opt && $(PWD)/$(RELEASE)linux-x64.zip"	

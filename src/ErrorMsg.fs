@@ -24,11 +24,12 @@ do debugFlag <- true
 #endif
 let isDebug() = debugFlag
 
-type Logger private (streamWriter : System.IO.StreamWriter) =        
-        let stopWatch = System.Diagnostics.Stopwatch.StartNew()
-        let mutable destinations = [streamWriter] // this is a placeholder for permitting more simultaneous destinations.         
+type Logger private () =        
+        static let streamWriter = new StreamWriter(System.Console.OpenStandardOutput())
+        static let stopWatch = System.Diagnostics.Stopwatch.StartNew()
+        static let mutable destinations = [streamWriter] // this is a placeholder for permitting more simultaneous destinations.         
         
-        let print prefix (string : string) =            
+        static let print prefix (string : string) =            
             let printer destination = 
                 lock destination 
                     (fun () ->
@@ -37,16 +38,15 @@ type Logger private (streamWriter : System.IO.StreamWriter) =
                             prefix 
                             (string.Replace("\n","\n                      "))
                         destination.Flush())
-            List.iter printer destinations       
+            List.iter printer destinations               
 
-        new() = Logger(new StreamWriter(System.Console.OpenStandardOutput()))
-        new(filename : string) = Logger(new StreamWriter(filename))
+        // private new() = Logger(new StreamWriter(System.Console.OpenStandardOutput()))
+        // private new(filename : string) = Logger(new StreamWriter(filename))
 
-        member __.Debug s =  print "info" s
-        member __.DebugOnly s = if isDebug() then print "dbug" s
-        member __.Warning s = print "warn" s
-        member __.Failure s = print "fail" s
-        member __.Result name value = print "user" (sprintf "%s=%A" name value)
-        member this.DebugExn (exn : exn) = this.Debug <| if isDebug() then exn.ToString() else exn.Message
-
-
+        static member Debug s =  print "info" s
+        static member DebugOnly s = if isDebug() then print "dbug" s
+        static member Warning s = print "warn" s
+        static member Failure s = print "fail" s
+        static member Result name value = print "user" (sprintf "%s=%A" name value)
+        static member DebugExn (exn : exn) = Logger.Debug <| if isDebug() then exn.ToString() else exn.Message
+        

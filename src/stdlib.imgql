@@ -56,5 +56,8 @@ let =. (i,n) = n .= i
 
 let .* (a,b) = b *. a
 let .+ (a,b) = b +. a
-let ./ (a,b) = b /. a
-let .- (a,b) = b -. a
+
+// More advanced functions
+let smoothen(a,x) = distleq(x,distgeq(x,!a))
+
+let ~ (a,b,rad,bins) = crossCorrelation(rad,a,b,tt,min(b),max(b),bins)

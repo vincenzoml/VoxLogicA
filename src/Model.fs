@@ -22,6 +22,6 @@ open Hopac
 [<AbstractClass>]
 type IModel() =
     inherit Coreops()
-    abstract member Load : ErrorMsg.Logger -> string -> obj
-    abstract member Save : ErrorMsg.Logger -> string -> obj -> unit 
+    abstract member Load : string -> obj
+    abstract member Save : string -> obj -> unit 
     abstract member CanSave : Type -> string -> bool

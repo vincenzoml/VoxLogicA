@@ -18,6 +18,8 @@ module VoxLogicA.SITKUtil
 open VoxLogicA
 open itk.simple
 open System.IO
+open System
+open VoxLogicA
 
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
@@ -49,8 +51,8 @@ let minImg (img : Image) =
     flt.Execute(img)
     flt.GetMinimum()
 
-let loadImage (filename : string) (logger : ErrorMsg.Logger) = // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
-    logger.Debug <| sprintf "Loading file %s" filename
+let loadImage (filename : string) = // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
+    ErrorMsg.Logger.Debug <| sprintf "Loading file %s" filename
     let img = SimpleITK.ReadImage(filename)
     let fname = System.IO.Path.GetFileName(filename)
     let sz = img.GetSize()
@@ -59,29 +61,29 @@ let loadImage (filename : string) (logger : ErrorMsg.Logger) = // WARNING: the p
         if sz.[i] = 1u then (sz.[i] <- 0u; found <- true)
     let img = 
         if found then 
-            logger.Warning (sprintf "image %s has size 1 in some dimensions; image flattened" fname)    
+            ErrorMsg.Logger.Warning (sprintf "image %s has size 1 in some dimensions; image flattened" fname)    
             SimpleITK.Extract(img,sz) 
         else img
-    logger.DebugOnly (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
+    ErrorMsg.Logger.DebugOnly (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
     match img.GetPixelID(),img.GetNumberOfComponentsPerPixel() with 
         | (x,_) when x = PixelIDValueEnum.sitkFloat32 -> img
         | (x,_) when x = PixelIDValueEnum.sitkVectorFloat32 -> img
         | (_,y) when y = 1u -> 
-            logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
+            ErrorMsg.Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
             SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
         | (_,y) when y = 3u || y = 4u -> 
-            logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
+            ErrorMsg.Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
             if y = 4u then 
-                logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 
+                ErrorMsg.Logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 
                 if fname.EndsWith ".jpg" then 
-                    logger.Warning <| sprintf "image %s\nhas jpg extension and 4 components per pixel, therefore it is in CMYK color space. Only proceed if you know what you are doing. Colors and intensity of the image will be messed up in processing." fname
+                    ErrorMsg.Logger.Warning <| sprintf "image %s\nhas jpg extension and 4 components per pixel, therefore it is in CMYK color space. Only proceed if you know what you are doing. Colors and intensity of the image will be messed up in processing." fname
             SimpleITK.Cast(img,PixelIDValueEnum.sitkVectorFloat32)
         | (x,y) -> raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
 
-let saveImage (filename : string) (img : Image) (logger : ErrorMsg.Logger) =
+let saveImage (filename : string) (img : Image) =
     let fname = System.IO.Path.GetFileName(filename)
     if fname.EndsWith(".jpg") && img.GetNumberOfComponentsPerPixel() > 3ul then
-        logger.Warning <| sprintf "Saving to %s\nusing 4 components per pixel. The resulting image will be CMYK; only proceed if you know what you are doing." fname
+        ErrorMsg.Logger.Warning <| sprintf "Saving to %s\nusing 4 components per pixel. The resulting image will be CMYK; only proceed if you know what you are doing." fname
     let tmp = 
         if filename.EndsWith(".nii") || filename.EndsWith(".nii.gz") then img
         else 
@@ -89,7 +91,7 @@ let saveImage (filename : string) (img : Image) (logger : ErrorMsg.Logger) =
                 if img.GetSize().Count = 2 then 
                     if img.GetPixelID() <> PixelIDValueEnum.sitkUInt8 then
                         // TODO: double-check that "nearest integer" in the message below is correct
-                        logger.Warning (sprintf "saving to %s\nrequires cast to uint8 and may crop values. For each component, only values between 0 and 255 are preserved, rounded to the nearest integer." fname)                    
+                        ErrorMsg.Logger.Warning (sprintf "saving to %s\nrequires cast to uint8. For each component, only values between 0 and 255 are preserved, rounded to the nearest integer; the behaviour on values outside this range is unspecified." fname)                    
                         let ncomp = img.GetNumberOfComponentsPerPixel()
                         if ncomp = 1ul
                         then SimpleITK.Cast(img,PixelIDValueEnum.sitkUInt8)
@@ -99,17 +101,23 @@ let saveImage (filename : string) (img : Image) (logger : ErrorMsg.Logger) =
                             use v = new VectorOfImage(comps)
                             flt.Execute(v)                            
                     else
-                        logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
+                        ErrorMsg.Logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
                         SimpleITK.RescaleIntensity(img,0.0,255.0)
                 else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
             else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
-    logger.Debug <| sprintf "Saving file %s" filename        
+    ErrorMsg.Logger.Debug <| sprintf "Saving file %s" filename        
     SimpleITK.WriteImage(tmp,filename)  
 
 let floatV (img : Image) = 
     let ptr = NativePtr.ofNativeInt<float32> (lock img <| fun () -> img.GetBufferAsFloat()) in
     let len = int (img.GetNumberOfPixels()) in
     new NativeArray<float32>(ptr,len,Some (img :> obj))
+
+let int8V (img : Image) = 
+    let ptr = NativePtr.ofNativeInt<int8> (lock img <| fun () -> img.GetBufferAsInt8()) in
+    let len = int (img.GetNumberOfPixels() * img.GetNumberOfComponentsPerPixel()) in
+    new NativeArray<int8>(ptr,len,Some (img :> obj))
+
 let uint8V (img : Image) = 
     let ptr = NativePtr.ofNativeInt<uint8> (lock img <| fun () -> img.GetBufferAsUInt8()) in
     let len = int (img.GetNumberOfPixels() * img.GetNumberOfComponentsPerPixel()) in
@@ -131,6 +139,18 @@ let private allocate (img : Image, pixeltype : PixelIDValueEnum) = // Does not g
 let createUint8 (img : Image, value : uint8) =
     let res = allocate(img,PixelIDValueEnum.sitkUInt8)
     let buf = uint8V res
+    buf.fill value
+    res
+
+let createInt8 (img : Image, value : int8) =
+    let res = allocate(img,PixelIDValueEnum.sitkInt8)
+    let buf = int8V res
+    buf.fill value
+    res
+
+let createUint32 (img : Image, value : uint32) =
+    let res = allocate(img,PixelIDValueEnum.sitkUInt32)
+    let buf = uint32V res
     buf.fill value
     res
 
@@ -201,7 +221,11 @@ let avg (img : Image) (mask : Image) = // TODO: type check that there is one com
     float (List.average l)
 let tt img = createUint8(img,1uy)
 let ff img = createUint8(img,0uy)
-
+let inline decode (size : array<int>) (idx : int) (res : array<int>) =        
+    let mutable div = idx
+    for i = 0 to size.Length - 1 do
+        res.[i] <- div % size.[i]
+        div <- div / size.[i]    
 let mkConst value img = createFloat32(img,value)
 let border (img : Image) = 
     // TODO: make this faster by first filling the result with zeroes and then iterating only over the borders
@@ -211,11 +235,6 @@ let border (img : Image) =
     let res = createUint8(img,0uy)
     let buf = uint8V res               
     let coords = Array.create dim 0  
-    let inline decode (size : array<int>) (idx : int) (res : array<int>) =        
-        let mutable div = idx
-        for i = 0 to size.Length - 1 do
-            res.[i] <- div % size.[i]
-            div <- div / size.[i]    
     buf.replace <|
         fun i ->
             decode sz i coords
@@ -310,7 +329,7 @@ let through (img1 : Image) (img2 : Image) =  // x satisfies (through phi1 phi2) 
 
 /// <summary>Creates a 1-dimensional array <c>a</c> with as many elements as the voxels in a hyperrectangle with dimensions specified by <c>hyperRadius</c>.
 /// The i-th dimension is obtained as <c>2*hyperRadius[i]+1</c>. The created array is only useful in a image <c>img</c> of dimensions as specified in the <c>size</c> parameter. 
-/// Each element <c>a[i]</c> is a "displacement". Given a linear coordinate <c>x</c>, the linear coordinate <c>x+a[i]</c>, if it lies in <c>0..n</c> where <c>n</c> is the number of voxels, is the coordinate of a point in the hyperrectangle centered at <c>x</c> (and of the specified dimensions).
+/// Each element <c>a[i]</c> is a "displacement" expressed as a pair of a linear relative coordinate and a dimensional relative coordinate. Given a linear coordinate <c>x</c>, the linear coordinate <c>x+a[i]</c>, if it lies in <c>0..n</c> where <c>n</c> is the number of voxels, is the coordinate of a point in the hyperrectangle centered at <c>x</c> (and of the specified dimensions).
 /// The displacements in <c>a</c> are ordered in raster-scan order.
 /// </summary>
 /// <remarks>
@@ -332,7 +351,7 @@ let hyperrectangle (size : array<int>) (hyperRadius : array<int>) =
     let displacements = Array.copy size
     displacements.[0] <- 1
     for i = 1 to ndims - 1 do
-        displacements.[i] <- displacements.[i-1] * size.[i-1]         
+        displacements.[i] <- displacements.[i-1] * size.[i-1]
     let dimensionalCursor = Array.map (~-) hyperRadius 
     let tmp = Array.create ndims 0
     let mutable linearCursor = 0
@@ -364,25 +383,25 @@ let hyperrectangle (size : array<int>) (hyperRadius : array<int>) =
                     else if dimensionalCursor.[dim] = hyperRadius.[dim] then
                         faces.[dim].[1] <- x::(faces.[dim].[1])
                 inc()                
-                x    
+                x
     (indices,faces)        
 
 /// <summary>Computes cross-correlation between two histograms; the first argument can be curried for a speedup</summary
 /// <remarks>The histograms must have the same length</remarks>
-let r : array<float> -> array<float> -> float = 
+let r : array<int> -> array<int> -> float = 
     fun h2 ->
     // computes cross-correlation between two histograms; the first argument can be curried for a speedup
-        let avg2 = Array.average h2
-        let sqrtDen2 = sqrt (Array.sumBy (fun n -> (n - avg2)**2.0) h2)
-        fun (h1 : array<float>) ->
+        let avg2 = (float (Array.sum h2)) / (float (Array.length h2))
+        let sqrtDen2 = sqrt (Array.sumBy (fun n -> ((float n) - avg2)**2.0) h2)
+        fun (h1 : array<int>) ->
             assert (h1.Length = h2.Length)        
-            let avg1 = Array.average h1        
-            let den1 = Array.sumBy (fun n -> (n - avg1)**2.0) h1
+            let avg1 = (float (Array.sum h1)) / (float (Array.length h1))        
+            let den1 = Array.sumBy (fun n -> ((float n) - avg1)**2.0) h1
             if den1 = 0.0 && sqrtDen2 = 0.0 then 1.0
             else 
                 if den1 = 0.0 || sqrtDen2 = 0.0 then 0.0
                 else     
-                    let num = Array.fold2 (fun acc n1 n2 -> acc + ((n1-avg1)*(n2-avg2))) 0.0 h1 h2 // TODO: PRECOMPUTE n2 - avg2
+                    let num = Array.fold2 (fun acc n1 n2 -> acc + (((float n1)-avg1)*((float n2)-avg2))) 0.0 h1 h2 // TODO: PRECOMPUTE n2 - avg2
                     let den = ((sqrt den1)*sqrtDen2)      
                     let res = num / den
                     res
@@ -398,7 +417,7 @@ let private mkDelta m1 m2 k =
 /// <remarks>
 /// <c>delta</c> must be equal to <c>(m2 - m1) / l</c> where <c>l</c> is the number of elements of <c>histogram</c>
 /// </remarks>
-let inline private bin (m1 : float,m2 : float,delta : float, increment : float) (value : float)  (histogram : array<float>) =
+let inline private bin (m1 : float,m2 : float,delta : float, increment : int) (value : float)  (histogram : array<int>) =
     assert (delta = mkDelta m1 m2 histogram.Length)
     if value >= m1 && value < m2 then // TODO: can this bounds checking be omitted if the image is pre-thresholded?
         let histIdx = int ((value - m1) / delta) //TODO: do we want "int (floor (value - m1 / delta)) here?"
@@ -407,135 +426,140 @@ let inline private bin (m1 : float,m2 : float,delta : float, increment : float) 
 
 ///<summary>
 /// Applies <c>fn</c> to the linear coordinates of all points in a Hamiltonian path over an image of dimension <c>size</c> **except the origin 0**; 
-/// the first argument passed to <c>fn</c> is the linear coordinate of the *previous* point (which can be 0)
-/// the second argument passed to <c>fn</c> is the linear coordinate of the *current* point
+/// the first argument passed to <c>fn</c> is the coordinate (linear,dimensional) of the *previous* point (which can be 0)
+/// the second argument passed to <c>fn</c> is the coordinate (linear,dimensional) of the *current* point
 /// the third argument passed to <c>fn</c> is an integer that represents the direction of movement:
 /// the modulus of the third argument is the index of the dimension of movement (1 is first dimension)
 /// the sign of the second argument is the direction (positive, negative).
-///</summary>
-let snake (size : array<int>) (fn : int -> int -> int -> unit) = 
+///</summary>     
     
-    let direction = Array.create size.Length 1
-    let dimensionalCursor = Array.create size.Length 0
-    let ndims = size.Length
+let snake (innerSize : array<int>) (radius : array<int>) = // TODO: does this work when radius is 0?
+    let innerLength = Array.fold (*) 1 innerSize 
+    let outerSize = Array.mapi (fun i n -> n + (2*radius.[i])) innerSize
+    
+    let ndims = radius.Length
+    let pathidx = Array.create innerLength 0 // To be returned 
+    let pathdir = Array.create innerLength 0 // To be returned
 
-    let displacements = Array.copy size
+    // Initialise the "displacements" array     
+    // displacements.[i] is the difference between the linear coordinates of a point, and another point off by one in the i-th dimension.            
+    let displacements = Array.copy outerSize
     displacements.[0] <- 1
     for i = 1 to ndims - 1 do
-        displacements.[i] <- displacements.[i-1] * size.[i-1] // displacements.[i] is the difference between the linear coordinates of a point, and another point off by one in the i-th dimension.    
-    let tmp = Array.create ndims 0
+        displacements.[i] <- displacements.[i-1] * outerSize.[i-1]
+
+    // Helpers for the "step" function
+    let direction = Array.create ndims 1 
+    let dimensionalCursor = Array.copy radius 
     let mutable linearCursor = 0
-    let mutable prevCursor = -1
-    let inline doprod () =
+    let tmp = Array.create ndims 0    
+    let inline updateLinearCursor () =
         Array.iteri2 (fun i v1 v2 -> tmp.[i] <- v1 * v2) dimensionalCursor displacements 
-        prevCursor <- linearCursor
         linearCursor <- Array.sum tmp            
 
-    let inline inc () =
-        let mutable res = 0
+    // One step of the "snake" algorithm
+    let inline step () =
+        let mutable resDir = 0
         let mutable n = 0
         while n < ndims do    
             let d = direction.[n]
-            let x = (dimensionalCursor.[n] + d)
-                       
-            if x < 0 || x >= size.[n] then                
+            let x = (dimensionalCursor.[n] + d)                       
+            if x < radius.[n] || x >= (radius.[n] + innerSize.[n]) then    // TODO: this sum could be pre-computed; furthermore only one check is really needed per direction.          
                 direction.[n] <- -d
                 n <- n + 1
-            else 
-                res <- d * (n+1)
+            else
+                resDir <- d * (n+1)
                 dimensionalCursor.[n] <- x
                 n <- ndims + 1
-        doprod()            
-        (n = ndims,res)
+        updateLinearCursor ()           
+        resDir
+      
+    // Algorithm initialization
+    let mutable dir = 0
+    let mutable n = 0
+    updateLinearCursor()
 
-    let mutable state = inc()
-    while not (fst state) do
-        fn linearCursor prevCursor (snd state)
-        state <- inc ()                     
-
-let memo fn =
-    let h = new System.Collections.Generic.Dictionary<_,_>() 
-    fun x ->
-        try h.[x]
-        with _ -> 
-            let y = fn x in
-            h.[x] <- y
-            y
-
-let hamiltonianPath = // takes a list as input for memoisation (arrays have reference equality) // TODO: consider adding this to the model interface instead of memoizing
-    memo (fun size ->
-            let nelems= (List.fold (*) 1 size) - 1
-            let path = Array.create nelems (0,0,0)
-            let mutable idx = 0
-            snake (Array.ofList size) (fun x y z -> path.[idx] <- (x,y,z); idx <- idx + 1)
-            path)
-
+    // Main loop
+    while n < innerLength do
+        pathidx.[n] <- linearCursor
+        pathdir.[n] <- dir
+        n <- n + 1        
+        dir <- step()
+    (pathidx,pathdir)    
+    
 /// <summary>Implements the "crossCorrelation" / "statistical comparison (SCMP)" operator
 /// </summary>
 /// 
 let crosscorrelation (rad : float) (a : Image) (b : Image) (fb : Image) (m1 : float) (m2 : float) (k : float) = 
-    job {   let dims = a.GetSpacing()
+    job {   
+            let dims = a.GetSpacing()
             let ballRadius = Array.create dims.Count 0
             for i = 0 to dims.Count - 1 do ballRadius.[i] <- int (round (rad / (float dims.[i]))) // Compute anisotropic voxel radiuses from real-world radius            
+            use vradius = new VectorUInt32(Array.map uint32 ballRadius)
+            use outerImage = SimpleITK.ConstantPad(a,vradius,vradius,infinity) // To be returned                
             let size = Array.ofSeq (Seq.map int (a.GetSize()))  
-            let indices,faces = hyperrectangle size ballRadius            
+            let outerSize = Array.ofSeq (Seq.map int (outerImage.GetSize()))
+            let indices,faces = hyperrectangle outerSize ballRadius    
             let npixels = int (a.GetNumberOfPixels())
             let nbins = int k
             let delta = mkDelta m1 m2 nbins
 
-            let bufa = floatV a
-
             let r' = // Curried cross-correlation where the global histogram has been pre-computed
-                let bigHistogram = Array.create nbins 0.0 // Global histogram to compare to
-                
+                let bigHistogram = Array.create nbins 0 // Global histogram to compare to                               
                 let bufb = floatV b
                 let buffb = uint8V fb    
                 for linearCoord = 0 to npixels - 1 do // Fill big histogram
                     let vfb = buffb.UGet linearCoord        
-                    if vfb > 0uy then 
+                    if vfb > 0uy then
                         let vb = float (bufb.UGet linearCoord)            
-                        bin (m1,m2,delta,1.0) vb bigHistogram  
+                        bin (m1,m2,delta,1) vb bigHistogram
                 r bigHistogram
 
-            let inline doThing localHistogram center increment el = 
-                let linearCoord = center + el
-                if (linearCoord >= 0) && (linearCoord < npixels) 
-                then 
-                    let va = float (bufa.UGet linearCoord) // TODO: use integer arithmetics and power-of-two deltas
-                    bin (m1,m2,delta,increment) va localHistogram
-            
-            let res = new Image(a)
-            let bufres = floatV res  
+            let inline doThing (buf : NativeArray<float32>) localHistogram (linearCenter : int) (increment : int) (linearEl : int) = 
+                let linearCoord = linearCenter + linearEl  
+                let va = float (buf.UGet linearCoord)
+                bin (m1,m2,delta,increment) va localHistogram            
 
-            let init center = // Initialize local histogram, and sets the cross-correlation value, returns the local histogram
-                let localHistogram = Array.create nbins 0.0 
-                Array.iter (doThing localHistogram center 1.0) indices 
-                bufres.USet center (float32 (r' localHistogram))
+            let init buf (bufres : NativeArray<float32>)  linearCenter = // Initialize local histogram, and sets the cross-correlation value, returns the local histogram
+                let localHistogram = Array.create nbins 0
+                Array.iter (doThing buf localHistogram linearCenter 1) indices
+                bufres.USet linearCenter (float32 (r' localHistogram))
                 localHistogram
                    
-            let inline fn localHistogram center previous direction =
-                let faceIdx = (abs direction) - 1
-                let facepair = faces.[faceIdx]
-                let face1,face2 = facepair.[0],facepair.[1]
-                let (faceMinus,facePlus) = if direction > 0 then (face1,face2) else (face2,face1)
-                List.iter (doThing localHistogram previous -1.0) faceMinus
-                List.iter (doThing localHistogram center 1.0) facePlus
-                bufres.USet center (float32 (r' localHistogram))
+            let inline forEachPoint buf (bufres : NativeArray<float32>) localHistogram linearCenter linearPrevious direction =
+                let faceIdx = (abs direction) - 1                
+                let facepair = faces.[faceIdx]                
+                let face1,face2 = facepair.[0],facepair.[1]                
+                let (faceMinus,facePlus) = if direction > 0 then (face1,face2) else (face2,face1)                
+                List.iter (doThing buf localHistogram linearPrevious -1) faceMinus
+                List.iter (doThing buf localHistogram linearCenter 1) facePlus
+                bufres.USet linearCenter (float32 (r' localHistogram))
 
-            let h = hamiltonianPath (List.ofArray size) // TODO: this takes time because of array allocation and such. Can we do "snake" already from a start to an end point? It's tricky.            
-            let nprocs = System.Environment.ProcessorCount            
-            let fragsize = h.Length / nprocs
+    
+            let (hidx,hdir) = snake size ballRadius
+            let outerBuf = floatV outerImage 
+            use temporaryImage = new Image(outerImage)
+            let temporaryBuf = floatV temporaryImage            
+            let nprocs = System.Environment.ProcessorCount
+            let fragsize = npixels / nprocs
+
+            let jobFn procindex =
+                let fragstart = procindex * fragsize
+                let start = hidx.[fragstart]    
+                let localHistogram = init outerBuf temporaryBuf start
+                let target = fragstart + fragsize - 1 
+                let mutable previous = start                           
+                for pos = fragstart+1 to min target (npixels - 1) do
+                    let (center,direction) = (hidx.[pos],hdir.[pos])                            
+                    forEachPoint outerBuf temporaryBuf localHistogram center previous direction
+                    previous <- center   
 
             let mkJob procindex =
-                job {   let fragstart = procindex * fragsize    
-                        let localHistogram = init fragstart
-                        for pos = fragstart to min (fragstart + fragsize - 1) (h.Length - 1) do
-                        let (center,previous,direction) = h.[pos]
-                        fn localHistogram center previous direction }
+                job { jobFn procindex }
 
             do! Util.Concurrent.conIgnore (Array.init nprocs mkJob)
-            return res  }
-
+            
+            return SimpleITK.Crop(temporaryImage,vradius,vradius) }
 
 let volume (img : Image) =
     let mutable res = 0
@@ -575,7 +599,7 @@ let maxvol (img : Image) =
         bufres.USet i (uint8 (volumes.[cc]))
     res
 
-let percentiles (img : Image) (mask : Image) =
+let percentiles (img : Image) (mask : Image) (correction : float) =    
     let bufimg = floatV img
     let bufmask = uint8V mask
     let npixels = int <| img.GetNumberOfPixels()
@@ -591,6 +615,6 @@ let percentiles (img : Image) (mask : Image) =
     let vol = float32 (Seq.length population)
     for (size,indices) in data do
         for idx in indices do
-            bufres.USet idx ((float32 curvol) / vol)
+            bufres.USet idx (((float32 curvol) + ((float32 correction) * (float32 size))) / vol)
         curvol <- curvol + size        
     res    

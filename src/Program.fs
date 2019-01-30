@@ -16,7 +16,7 @@
 
 module VoxLogicA.Main
 open System.Reflection
-open itk.simple
+open VoxLogicA
 
 exception CommandLineException 
     with override __.Message = "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
@@ -35,16 +35,15 @@ let main (argv : string array) =
     let name = Assembly.GetEntryAssembly().GetName()
     let version = name.Version 
     let informationalVersion = ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
-    let logger = ErrorMsg.Logger ()        
-    logger.Debug (sprintf "%s %s" name.Name informationalVersion)
+    ErrorMsg.Logger.Debug (sprintf "%s %s" name.Name informationalVersion)
     if version.Revision <> 0 then   
-        logger.Warning (sprintf "You are using a PRERELEASE version of VoxLogicA. The most recent stable release is %d.%d.%d." version.Major version.Minor version.Build)         
+        ErrorMsg.Logger.Warning (sprintf "You are using a PRERELEASE version of VoxLogicA. The most recent stable release is %d.%d.%d." version.Major version.Minor version.Build)         
     try 
         let model = SITKModel() :> IModel   
         let checker = ModelChecker(model)                         
         match parseCmdLine argv with
         | Filename filename ->             
-            let interpreter = Interpreter(model,checker,logger)
+            let interpreter = Interpreter(model,checker)
             interpreter.Batch 
                 interpreter.DefaultLibDir 
                 (System.IO.Path.GetFullPath ".") 
@@ -64,6 +63,6 @@ let main (argv : string array) =
             printfn "Command line error. Try the \"--help\" command line switch."
             1
         | e ->        
-            logger.DebugExn e
-            logger.Failure "exiting."
+            ErrorMsg.Logger.DebugExn e
+            ErrorMsg.Logger.Failure "exiting."
             1
