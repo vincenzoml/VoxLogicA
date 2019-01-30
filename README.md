@@ -17,6 +17,25 @@ tool in more detail, with a detailed case study.
 
 https://arxiv.org/abs/1811.05677
 
+NOTE: the above link points to a preprint of an academic paper to be published in 
+the proceedings of the "25th International Conference on Tools and Algorithms for 
+the Construction and Analysis of Systems (TACAS 2019)".  See:
+
+https://conf.researchr.org/track/etaps-2019/tacas-2019-papers
+
+If you use VoxLogicA in your research, please consider citing the relevant paper(s):
+
+@InProceedings{BCLM2019TACAS,
+author="Belmonte, Gina and Ciancia, Vincenzo and Latella, Diego and Massink, Mieke",
+title="VoxLogicA: a Spatial Model Checker for Declarative Image Analysis",
+booktitle="Tools and Algorithms for the Construction and Analysis of Systems",
+year="2019",
+publisher="Springer International Publishing",
+address="Cham",
+pages="To appear",
+}
+
+
 
 Quickstart
 ==========
