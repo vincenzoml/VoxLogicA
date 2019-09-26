@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<!--m.me/VoxLogicA fb.me/VoxLogicA-->
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+
+  <title>VoxLogicA: the Voxel-based Logical Analyser</title>
+
+  <!-- Bootstrap core CSS -->
+  <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom fonts for this template -->
+  <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+  <link href="vendor/simple-line-icons/css/simple-line-icons.css" rel="stylesheet" type="text/css">
+  <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700,300italic,400italic,700italic" rel="stylesheet"
+    type="text/css">
+
+  <!-- Custom styles for this template -->
+  <link href="css/landing-page.min.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+  <!-- Navigation 
+  <nav class="navbar navbar-light bg-light static-top">
+    <div class="container">
+      <a class="navbar-brand" href="#">Start Bootstrap</a>
+      <a class="btn btn-primary" href="#">Sign In</a>
+    </div>
+  </nav>
+-->
+  <!-- Masthead -->
+  <header class="masthead text-white text-center">
+    <div class="overlay"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-xl-9 mx-auto">
+          <h1 class="mb-5">Solve image analysis tasks easily!</h1>
+        </div>
+        <div class="col-md-10 col-lg-8 col-xl-7 mx-auto">
+          <div class="row">
+            <div class="col-12 col-md-6 mb-2 mb-md-0">
+              <form action="https://groups.google.com/forum/#!forum/voxlogica/join">
+                <button type="submit" class="btn btn-block btn-lg btn-primary">Subscribe to google group</button>
+              </form>
+              <br>
+              <form action="https://github.com/vincenzoml/VoxLogicA/releases">
+                <button type="submit" class="btn btn-block btn-lg btn-primary">Download VoxLogicA</button>
+            </form>
+            </div>
+            <div class="col-12 col-md-6 mb-2 mb-md-0">
+              <form action="mailto:voxlogicatool@gmail.com">
+                <button type="submit" class="btn btn-block btn-lg btn-primary">Send us an e-mail</button>
+              </form><br>
+              <form action="https://www.github.com/vincenzoml/voxlogica">
+                  <button type="submit" class="btn btn-block btn-lg btn-primary">Check us out on github</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- google group 
+  <iframe id="forum_embed"
+  src="javascript:void(0)"
+  scrolling="no"
+  frameborder="0"
+  width="900"
+  height="700">
+</iframe>
+<script type="text/javascript">
+  document.getElementById('forum_embed').src =
+     'https://groups.google.com/forum/embed/?place=forum/voxlogica'
+     + '&showsearch=true&showpopout=true&showtabs=false'
+     + '&parenturl=' + encodeURIComponent(window.location.href);
+</script>
+-->
+
+  <!-- Icons Grid -->
+  <section class="features-icons bg-light text-center">
+    <div class="container">
+      <div class="row">
+        <div class="col-lg-4">
+          <div class="features-icons-item mx-auto mb-5 mb-lg-0 mb-lg-3">
+            <div class="features-icons-icon d-flex">
+              <i class="icon-screen-desktop m-auto text-primary"></i>
+            </div>
+            <h3>Declarative</h3>
+            <p class="lead mb-0">Aimed at
+              non-programmers.</p>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="features-icons-item mx-auto mb-5 mb-lg-0 mb-lg-3">
+            <div class="features-icons-icon d-flex">
+              <i class="icon-layers m-auto text-primary"></i>
+            </div>
+            <h3>Collaborative</h3>
+            <p class="lead mb-0">Easy to share, easy to check.</p>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="features-icons-item mx-auto mb-0 mb-lg-3">
+            <div class="features-icons-icon d-flex">
+              <i class="icon-check m-auto text-primary"></i>
+            </div>
+            <h3>Open Source</h3>
+            <p class="lead mb-0">No entry fee, open to contribution.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Image Showcases -->
+  <section class="showcase">
+    <div class="container-fluid p-0">
+      <div class="row no-gutters">
+
+        <div class="col-lg-6 order-lg-2 text-white showcase-img" style="background-image: url('img/VoxLogicA-code.png');"></div>
+        <div class="col-lg-6 order-lg-1 my-auto showcase-text">
+          <h2>Analysis under your control</h2>
+          <p class="lead mb-0">When you use VoxLogicA, your source code will
+          typically be in the order of 10-30 lines of code (yes, we didn't add
+          any "K" after the numbers). The language of VoxLogicA is close to the
+          domain of imaging, featuring constructs like "near", "reachable",
+          "similar to".</p>
+          <br>
+          Got curious? Read our <br> <a href="https://link.springer.com/chapter/10.1007/978-3-030-17462-0_16">TACAS 2019 publication</a>
+        </div>
+      </div>
+      <div class="row no-gutters">
+        <div class="col-lg-6 text-white showcase-img" style="background-image: url('img/VoxLogicA-brain.png');"></div>
+        <div class="col-lg-6 my-auto showcase-text">
+          <h2>Fast and predictable</h2>
+          <p class="lead mb-0">Inside VoxLogicA, there's a powerful
+          computational engine called a <em>Model Checker</em>. VoxLogicA
+          computes your analysis in parallel using all the available CPU cores.
+          The result is implicitly backed up by a formal mathematical interpretation,
+          guaranteed to yield the same result on Windows, Linux, OSX.</p>
+        </div>
+      </div>
+      <div class="row no-gutters">
+        <div class="col-lg-6 order-lg-2 text-white showcase-img" style="background-image: url('img/bg-showcase-3.jpg');"></div>
+        <div class="col-lg-6 order-lg-1 my-auto showcase-text">
+          <h2>Easy to Use, Easy to Collaborate</h2>
+          <p class="lead mb-0">It does not take a lot to learn how to use
+          VoxLogicA. Analysis is so short that you can share it to your
+          colleagues, even in a chat window.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials
+  <section class="testimonials text-center bg-light">
+    <div class="container">
+      <h2 class="mb-5">What people are saying...</h2>
+      <div class="row">
+        <div class="col-lg-4">
+          <div class="testimonial-item mx-auto mb-5 mb-lg-0">
+            <img class="img-fluid rounded-circle mb-3" src="img/testimonials-1.jpg" alt="">
+            <h5>Margaret E.</h5>
+            <p class="font-weight-light mb-0">"This is fantastic! Thanks so much guys!"</p>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="testimonial-item mx-auto mb-5 mb-lg-0">
+            <img class="img-fluid rounded-circle mb-3" src="img/testimonials-2.jpg" alt="">
+            <h5>Fred S.</h5>
+            <p class="font-weight-light mb-0">"Bootstrap is amazing. I've been using it to create lots of super nice
+              landing pages."</p>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="testimonial-item mx-auto mb-5 mb-lg-0">
+            <img class="img-fluid rounded-circle mb-3" src="img/testimonials-3.jpg" alt="">
+            <h5>Sarah W.</h5>
+            <p class="font-weight-light mb-0">"Thanks so much for making these free resources available to us!"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+ -->
+  <!-- Call to Action -->
+  <section class="call-to-action text-white text-center">
+    <div class="overlay"></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-xl-9 mx-auto">
+          <h2 class="mb-4">We need you to shape the future of VoxLogicA<br> Get in touch now!</h2>
+        </div>
+        <div class="col-md-10 col-lg-8 col-xl-7 mx-auto">
+         
+              <div class="row">
+                  <div class="col-12 col-md-6 mb-2 mb-md-0">
+                    <form action="https://groups.google.com/forum/#!forum/voxlogica/join">
+                      <button type="submit" class="btn btn-block btn-lg btn-primary">Subscribe to google group</button>
+                    </form>
+                  </div>
+                  <div class="col-12 col-md-6 mb-2 mb-md-0">
+                    <form action="mailto:voxlogicatool@gmail.com">
+                      <button type="submit" class="btn btn-block btn-lg btn-primary">Send us an e-mail</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer bg-light">
+    <div class="container">
+      <!--div class="row">
+        <div class="col-lg-6 h-100 text-center text-lg-left my-auto">
+          <ul class="list-inline mb-2">
+            <li class="list-inline-item">
+              <a href="#">About</a>
+            </li>
+            <li class="list-inline-item">&sdot;</li>
+            <li class="list-inline-item">
+              <a href="#">Contact</a>
+            </li>
+            <li class="list-inline-item">&sdot;</li>
+            <li class="list-inline-item">
+              <a href="#">Terms of Use</a>
+            </li>
+            <li class="list-inline-item">&sdot;</li>
+            <li class="list-inline-item">
+              <a href="#">Privacy Policy</a>
+            </li>
+          </ul>
+          <p class="text-muted small mb-4 mb-lg-0">&copy; Vincenzo Ciancia 2019. All Rights Reserved.</p>
+        </div-->
+        <div class="col-lg-12 h-100 text-center text-lg-right my-auto">
+          <ul class="list-inline mb-0">
+            <li class="list-inline-item mr-3">
+              <a href="http://m.me/VoxLogicA">
+                <i class="fab fa-facebook fa-2x fa-fw"></i> Message us on facebook
+              </a>
+            </li>
+            <!--li class="list-inline-item mr-3">
+              <a href="#">
+                <i class="fab fa-twitter-square fa-2x fa-fw"></i>
+              </a>
+            </li-->
+            <!--li class="list-inline-item">
+              <a href="#">
+                <i class="fab fa-instagram fa-2x fa-fw"></i>
+              </a>
+            </li-->
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bootstrap core JavaScript -->
+  <script src="vendor/jquery/jquery.min.js"></script>
+  <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+</body>
+
+</html>
