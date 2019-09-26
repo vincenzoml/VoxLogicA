@@ -6,7 +6,9 @@ VoxLogicA is a tool for analysing images using ImgQL specifications.
 ImgQL is a language to analyse images, based on spatial logics. VoxLogicA
 interprets ImgQL specifications using a model-checking approach, which entails,
 in particular, heavy use of memoisation techniques to permit complex analyses in
-short execution times, at the expense of used memory.
+short execution times, at the expense of used memory. Analysis is automatically
+distributed to multiple CPU cores where possible, so that a VoxLogicA session is
+typically faster than an equivalent hand-written computer program.
 
 VoxLogicA is distributed under a permissive open source license. See the file
 LICENSE.txt for details.
@@ -25,16 +27,24 @@ https://conf.researchr.org/track/etaps-2019/tacas-2019-papers
 
 If you use VoxLogicA in your research, please consider citing the relevant paper(s):
 
-	@InProceedings{BCLM2019TACAS,
+Belmonte G., Ciancia V., Latella D., Massink M. (2019) VoxLogicA: A Spatial Model Checker for Declarative Image Analysis. 
+In: Vojnar T., Zhang L. (eds) Tools and Algorithms for the Construction and Analysis of Systems. 
+TACAS 2019. Lecture Notes in Computer Science, vol 11427. Springer, Cham
+
+```
+@InProceedings{BCLM2019TACAS,
 	author="Belmonte, Gina and Ciancia, Vincenzo and Latella, Diego and Massink, Mieke",
-	title="VoxLogicA: a Spatial Model Checker for Declarative Image Analysis",
+	title="VoxLogicA: A Spatial Model Checker for Declarative Image Analysis",
 	booktitle="Tools and Algorithms for the Construction and Analysis of Systems",
 	year="2019",
+	series="Lecture Notes in Computer Science",
 	publisher="Springer International Publishing",
-	address="Cham",
-	pages="To appear",
-	}
+	pages="281--298",
+	doi="https://doi.org/10.1007/978-3-030-17462-0_16"
+}
+```
 
+https://link.springer.com/chapter/10.1007/978-3-030-17462-0_16
 
 
 Quickstart
