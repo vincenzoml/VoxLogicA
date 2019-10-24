@@ -20,6 +20,8 @@ open itk.simple
 open System.IO
 open System
 open VoxLogicA
+open VoxLogicA.ErrorMsg
+open VoxLogicA.ErrorMsg
 
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
@@ -494,7 +496,11 @@ let crosscorrelation (rad : float) (a : Image) (b : Image) (fb : Image) (m1 : fl
     job {   
             let dims = a.GetSpacing()
             let ballRadius = Array.create dims.Count 0
-            for i = 0 to dims.Count - 1 do ballRadius.[i] <- int (round (rad / (float dims.[i]))) // Compute anisotropic voxel radiuses from real-world radius            
+            for i = 0 to dims.Count - 1 do 
+                ballRadius.[i] <- int (round (rad / (float dims.[i]))) // Compute anisotropic voxel radiuses from real-world radius
+                if ballRadius.[i] = 0 then
+                    Logger.Debug (sprintf "Computing cross correlation with radius %A but the pixdim number %A (starting from 0) is %A; approximated to 1 voxel in this dimension" rad i dims.[i])
+                    ballRadius.[i] <- 1
             use vradius = new VectorUInt32(Array.map uint32 ballRadius)
             use outerImage = SimpleITK.ConstantPad(a,vradius,vradius,infinity) // To be returned                
             let size = Array.ofSeq (Seq.map int (a.GetSize()))  

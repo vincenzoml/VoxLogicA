@@ -148,8 +148,8 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                                 else raise <| ImportNotFoundException(fname,libdir)
                             else raise <| ImportNotFoundException(fname,libdir)                            
                     ErrorMsg.Logger.DebugOnly <| sprintf "Import \"%s\"" fname
-                    ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path                    
                     if not (parsedImports.Contains(path)) then 
+                        ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path                                                               
                         let parsed = parseImport path                    
                         evaluate env (parsedImports.Add path) (parsed@rest) jobs
                     else evaluate env parsedImports rest jobs
@@ -157,7 +157,7 @@ type Interpreter(model : IModel, checker : ModelChecker) =
         job {   ErrorMsg.Logger.Debug "Parsing input..."        
                 let p = parseProgram filename s
                 ErrorMsg.Logger.Debug "Preparing computation..."                
-                let jobs = evaluate (emptyEnv()) (Set.empty) p []
+                let jobs = evaluate (emptyEnv()) (Set.empty) (Import "stdlib.imgql"::p) []
                 ErrorMsg.Logger.Debug "Starting computation..."
                 do! checker.Check
                 do! Util.Concurrent.conIgnore (Array.ofList jobs)                  

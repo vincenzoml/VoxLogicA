@@ -33,13 +33,10 @@ let B+(a) = (near(a)) \ a
 // Set theoretic subtraction
 let \(a,b) = and(a,not(b))
 
-// Distance operators
-let distgeq(x,y) = x .<= dt(y)
-let distleq(x,y) = x .>= dt(y)
-
 // Reachability derived operators
 let mayReach(a,b) = N((b ~> N a) | a)
 let touch(a,b) = a ~> N b
+let grow(a,b) = (a | touch(b,a))
 let T(a,b) = touch(a,b)
 
 let surrounded(a,b) = a \ mayReach(not(a | b),not(b)) 
@@ -57,7 +54,17 @@ let =. (i,n) = n .= i
 let .* (a,b) = b *. a
 let .+ (a,b) = b +. a
 
+
+// Distance operators
+let pdt(x) = mask(dt(x),dt(x) >. 0)
+let distgeq(x,y) = x .<= pdt(y)
+let distleq(x,y) = x .>= pdt(y)
+
 // More advanced functions
 let smoothen(a,x) = distleq(x,distgeq(x,!a))
 
 let ~ (a,b,rad,bins) = crossCorrelation(rad,a,b,tt,min(b),max(b),bins)
+
+let booleanToNumber(k,x) = mask(constant(k),x)
+
+let norm(k,x) = (k .* x) /. max(x)
