@@ -10,6 +10,8 @@ short execution times, at the expense of used memory. Analysis is automatically
 distributed to multiple CPU cores where possible, so that a VoxLogicA session is
 typically faster than an equivalent hand-written computer program.
 
+See also: http://www.voxlogica.org 
+
 VoxLogicA is distributed under a permissive open source license. See the file
 LICENSE.txt for details.
 
