@@ -6,13 +6,13 @@ The provided `.imgql` script is not directly executable by VoxLogicA, since file
 
 However it is easier to run the analysis against a dataset. For that, the additional script "run_analysis.sh" is provided. It should be self-explanatory (run it with no arguments to see the usage instructions). The script expects a dataset of MRI-flair, skull stripped 3D images. The dataset should be in BraTS format (the HGG directory of the BraTS dataset, or subsets of it, are a good starting point), that is, there should be a main directory (say `DatasetX`) with a subdirectory per case, named say `CaseY`, and a file called `CaseY_flair.nii.gz` in each such directory, so that the path of each flair is `DatasetX/CaseY/CaseY_flair.nii.gz`.
 
+Before running the script, you need to download voxlogica (go to www.voxlogica.org). On linux or osx, unpack the .zip file in your home directory, and rename the obtained VoxLogicA_VERSION_linux-x64 to just `VoxLogicA`. Alternatively, unpack it anywhere else and create a symlink pointing to the VoxLogicA executable into your `~/bin`, or `/usr/local/bin` directory. Alternatively, set the VOXLOGICA environment variable to point to the VoxLogicA executable, prior to running the script.
+
 For instance, to run the analysis on the HGG subdirectory of the training dataset from BraTS19, run
 
 ```./run-analysis.sh ./MICCAI_BraTS_2019_Data_Training/HGG/ GBM-HGG-TACAS19.imgql```
 
 This will create the `output` directory, where you will find a `.csv` file, which summarises all results obtained via `print` statements in the `.imgql` file, and one subdirectory for each dataset, script and case, containing output images, VoxLogicA log files, and .imgql files with variables replaced for that specific case (so that one can run VoxLogicA directly on it).
-
-Before that, you need to download voxlogica (go to www.voxlogica.org). On linux, unpack the .zip file in `/opt`, or alternatively unpack it elsewhere and link the VoxLogicA executable to your `~/bin`, or `/usr/local/bin`. That should work, or if you just keep it elsewhere, set the VOXLOGICA environment variable to point to the VoxLogicA executable.
 
 Let us know how this works (execution times, crashes, difficulties), and feel free to ask any question!
 
