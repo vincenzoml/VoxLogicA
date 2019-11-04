@@ -34,11 +34,17 @@ type SITKModel() =
     let mutable baseImg : option<Image> = None
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
-    let supported_extensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
+    let supportedExtensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
+    let itkM = itk.simple.Version.ITKMajorVersion().ToString()
+    let itkm = itk.simple.Version.ITKMinorVersion().ToString()
+    let sitkM = itk.simple.Version.MajorVersion().ToString()
+    let sitkm = itk.simple.Version.MinorVersion().ToString()
+    let _ = ErrorMsg.Logger.Debug(sprintf "ITK Version: %s.%s" itkM itkm)
+    let _ = ErrorMsg.Logger.Debug(sprintf "SimpleITK Version: %s.%s" sitkM sitkm)
 
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
         match t with 
-        | (TValuation(_)|TModel) when List.exists (f.EndsWith : string -> bool) supported_extensions -> true 
+        | (TValuation(_)|TModel) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
         | _ -> false        
     override __.Save filename v =
         saveImage filename (v :?> Image)                      
