@@ -1,0 +1,76 @@
+import "stdlib.imgql"
+
+//Function for computing the Dice-Soerensen index
+let dice(x,y) = (2 .*. volume(x & y)) ./. (volume(x) .+. volume(y))
+
+// distlt and distgeq are just shorthands for thresholding dt(something), 
+// where dt is "distance transform", that is an image where intensity 
+// means distance from a given target
+let distlt(x,y) = dt(y) <. x
+
+// grow(a,b) is "a" union "those regions b that thouch regions of a" 
+let grow(a,b) = (a|touch(b,a))
+
+// simple smoothening function: first shrink by radius "r" 
+// -- note that ! is complement -- then enlarge by "r" again.
+let flt(r,a) = distlt(r,distgeq(r,!a))
+
+// Load data
+load imgFLAIR = "$INPUTDIR/$NAME_flair.nii.gz"
+
+// An image could have many attributes (e.g. RGB). We extract the intensity.
+let flair = intensity(imgFLAIR)
+
+// Load the manual segmentation for comparison
+load imgManualSeg = "$INPUTDIR/$NAME_seg.nii.gz"
+let manualContouringGTV = intensity(imgManualSeg) >. 0
+
+// Function diceM(x) computes the Dice-Soerensen score against the manual segmentation
+let diceM(x) = dice(x,manualContouringGTV)
+
+// Auxiliary function to compute texture similarity. The function similarFLAIRTo(a) 
+// computes the local statistical similarity score (namely cross-correlation 
+// of a local histogram w.r.t. that of "target region" a) at each point.
+// We just fix some parameters (radius, number of bins, minimum and maximum values).
+let similarFLAIRTo(a) = crossCorrelation(3,flair,flair,a,min(flair),max(flair),20)
+
+// The actual analysis session starts here
+
+// 1. Normalisation
+let background = touch(flair <. 0.1,border)
+let brain = !background
+let pflair = percentiles(flair,brain,0.5)
+
+// 2. Thresholding
+let hI = pflair >. 0.95 
+let vI = pflair >. 0.86 
+let hyperIntense = flt(5.0,hI)
+let veryIntense =  flt(2.0,vI) 
+
+// 3. Semantic noise removal via growing
+let growTum = grow(hyperIntense,veryIntense)
+
+// 4. Statistical texture similarity
+let tumSim = similarFLAIRTo(growTum) 
+let tumStatCC = flt(2.0,tumSim >. 0.6)
+let gtv = grow(growTum,tumStatCC)
+
+// Print some interesting Dice-Soerensen scores
+// In particular: growTum already says a lot about the tumour.
+print "01_dice_hyperIntense" diceM(hyperIntense)
+print "02_dice_veryIntense" diceM(veryIntense)
+print "03_dice_growTum" diceM(growTum)
+print "04_dice_gtv" diceM(gtv)
+
+// Save the results growTum and gtv (uncomment the other lines to get the 
+// intermediate steps, keep them commented to save disk space).
+// save "$OUTPUTDIR/flair.nii.gz" flair
+// save "$OUTPUTDIR/pflair.nii.gz" pflair
+// save "$OUTPUTDIR/hyperIntense.nii.gz" hyperIntense
+// save "$OUTPUTDIR/veryIntense.nii.gz" veryIntense
+save "$OUTPUTDIR/growTum.nii.gz" growTum
+// save "$OUTPUTDIR/tumSim.nii.gz" tumSim
+// save "$OUTPUTDIR/tumStatCC.nii.gz" tumStatCC
+save "$OUTPUTDIR/gtv.nii.gz" gtv
+
+
