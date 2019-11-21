@@ -1,4 +1,4 @@
-# Automated contouring of High-Grade Gliomas using VoxLogicA 
+# Automated contouring of High-Grade Gliomas in skull-stripped MR-FLAIR using VoxLogicA 
 
 This directory contains the necessary files to execute the specification presented in [1,2] using VoxLogicA
 
