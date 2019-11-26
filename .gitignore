@@ -2,3 +2,4 @@ example/output
 bin
 obj
 releases/
+.ionide

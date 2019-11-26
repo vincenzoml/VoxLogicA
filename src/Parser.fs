@@ -63,12 +63,12 @@ let private parseExpression =
         let opapplication = optlst (sqbrackets (commaSepList expr)) <?> "operator arguments list"
         callImpl := getPosition .>>. (attempt ide) .>>. application |>> (fun ((x,y),z) -> Call (x,y,z))
         exprImpl := 
-            ((getPosition .>>. (attempt operator) .>>. expr) |>> (fun ((p,x),y) -> Call (p,x,[y])))
-            <|> 
             ((attempt (getPosition .>>. (simpleExpr <|> brackets expr) .>>. operator) .>>. opapplication .>>. expr) |>> (fun ((((p,x),y),t),z) -> Call (p,y,[x;z]@t)))
             <|>            
-            simpleExpr
+            (attempt simpleExpr)
             <|>
+            ((getPosition .>>. (attempt operator) .>>. expr) |>> (fun ((p,x),y) -> Call (p,x,[y])))
+            <|>                         
             (brackets expr)
         expr
 
