@@ -20,6 +20,7 @@ open System.Collections.Generic
 open Hopac
 
 type OperatorAttribute (name : string, argtype : string array, rettype : string, commutative : bool, docstring : string) =
+    inherit System.Attribute()
     let at = Array.map Type.Parse argtype
     let rt = Type.Parse rettype
     member __.Name = name
