@@ -229,6 +229,8 @@ let inline decode (size : array<int>) (idx : int) (res : array<int>) =
         res.[i] <- div % size.[i]
         div <- div / size.[i]    
 let mkConst value img = createFloat32(img,value)
+let mkBConst value img = createUint8(img,if value then 1uy else 0uy)
+
 let border (img : Image) = 
     // TODO: make this faster by first filling the result with zeroes and then iterating only over the borders
     let szv = img.GetSize()

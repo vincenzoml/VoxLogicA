@@ -24,6 +24,8 @@ type ILogicModel<'Value> = // empty interface used to constrain all implemented 
 
 type IBooleanModel<'Value when 'Value : equality> =  
     inherit ILogicModel<'Value>
+    [<OperatorAttribute("bconstant","bool","valuation(bool)","The image which has the given boolean value at each voxel")>]
+    abstract member BConst : bool -> Job<'Value>
     [<OperatorAttribute("tt","valuation(bool)","The image which is true at each voxel")>]
     abstract member TT : Job<'Value>
     [<OperatorAttribute("ff","valuation(bool)","The image which is false at each voxel")>]

@@ -89,6 +89,7 @@ type SITKModel() =
         member __.Percentiles img mask correction = job { return percentiles img mask correction }
 
     interface IBooleanModel<Image> with
+        member __.BConst value = job { return mkBConst value (getBaseImg()) }
         member __.And img1 img2 = lift2 logand img1 img2
         member __.Or img1 img2 = lift2 logor img1 img2
         member __.Not img = lift lognot img

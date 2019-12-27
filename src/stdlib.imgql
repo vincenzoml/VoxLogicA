@@ -68,3 +68,10 @@ let ~ (a,b,rad,bins) = crossCorrelation(rad,a,b,tt,min(b),max(b),bins)
 let booleanToNumber(k,x) = mask(constant(k),x)
 
 let norm(k,x) = (k .* x) /. max(x)
+
+// Poor man's ifthenelse
+let ifB (cond,th,el) = 
+    or(and(th,bconstant(cond)),and(el,not(bconstant(cond))))
+    
+let ifN (cond,th,el) =
+    mask(th,bconstant(cond)) + mask(el,not(bconstant(cond)))
