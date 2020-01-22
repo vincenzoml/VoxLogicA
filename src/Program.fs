@@ -28,7 +28,7 @@ type LoadFlags = {
 
 type CmdLine = 
     | Ops 
-    | NCpu of int
+    | Sequential
     | [<MainCommandAttribute;UniqueAttribute>] Filename of string    
 with
     interface Argu.IArgParserTemplate with
@@ -36,7 +36,7 @@ with
             match s with
             | Ops ->  "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
-            | NCpu _ ->  "Number of cores to use (default: all available, use 1 for sequential execution)"
+            | Sequential ->  "Run on one CPU only"
     
 [<EntryPoint>]
 let main (argv : string array) =
@@ -55,20 +55,16 @@ let main (argv : string array) =
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-
-        let pcount = System.Environment.ProcessorCount
-        let ncpu = 
-            let tmp = parsed.GetResult (NCpu,pcount)
-            if tmp < 1 || tmp > pcount then pcount else tmp    
-        ErrorMsg.Logger.Debug (sprintf "Number of CPUs used: %d" ncpu)  
+        if parsed.Contains Sequential 
+        then 
+            let proc = System.Diagnostics.Process.GetCurrentProcess()
+            proc.ProcessorAffinity <- nativeint 0x1                            
         let ofilename = parsed.TryGetResult Filename
         match ofilename with
             | None -> 
                 printfn "%s\n" (cmdLineParser.PrintUsage ())
                 0
             | Some filename -> 
-                let proc = System.Diagnostics.Process.GetCurrentProcess()
-                proc.ProcessorAffinity <- nativeint ncpu                
                 let interpreter = Interpreter(model,checker)
                 interpreter.Batch 
                     interpreter.DefaultLibDir 
@@ -77,7 +73,6 @@ let main (argv : string array) =
                     filename    
                 0
     with e ->        
-            printfn "---\n%A---\n" e           
             ErrorMsg.Logger.DebugExn e
             ErrorMsg.Logger.Failure "exiting."
             1
