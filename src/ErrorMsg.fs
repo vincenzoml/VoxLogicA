@@ -48,5 +48,5 @@ type Logger private () =
         static member Warning s = print "warn" s
         static member Failure s = print "fail" s
         static member Result name value = print "user" (sprintf "%s=%A" name value)
-        static member DebugExn (exn : exn) = Logger.Debug <| if isDebug() then exn.ToString() else exn.Message
+        static member DebugExn (exn : exn) = print "...." (sprintf "\n%s" (if isDebug() then exn.ToString() else exn.Message))
         

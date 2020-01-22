@@ -23,6 +23,7 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Argu" Version="6.0.0" />
     <PackageReference Include="FParsec" Version="1.0.3" />
     <PackageReference Include="hopac" Version="0.3.23" />
     <Reference Include="SimpleITKCSharpManaged">
