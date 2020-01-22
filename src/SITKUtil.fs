@@ -15,13 +15,9 @@
 // limitations under the License.
 
 module VoxLogicA.SITKUtil 
-open VoxLogicA
 open itk.simple
 open System.IO
-open System
-open VoxLogicA
-open VoxLogicA.ErrorMsg
-open VoxLogicA.ErrorMsg
+open ErrorMsg
 
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
@@ -44,17 +40,17 @@ open Hopac
 open Microsoft.FSharp.NativeInterop
 
 let maxImg (img : Image) =
-    use flt = new itk.simple.MinimumMaximumImageFilter() // TODO: implement tuples and projections, make max and min a single operator
+    use flt = new MinimumMaximumImageFilter() // TODO: implement tuples and projections, make max and min a single operator
     flt.Execute(img)    
     flt.GetMaximum()    
     
 let minImg (img : Image) =
-    use flt = new itk.simple.MinimumMaximumImageFilter() // TODO: implement tuples and projections, make max and min a single operator
+    use flt = new MinimumMaximumImageFilter() // TODO: implement tuples and projections, make max and min a single operator
     flt.Execute(img)
     flt.GetMinimum()
 
 let loadImage (filename : string) = // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
-    ErrorMsg.Logger.Debug <| sprintf "Loading file %s" filename
+    Logger.Debug <| sprintf "Loading file %s" filename
     let img = SimpleITK.ReadImage(filename)
     let fname = System.IO.Path.GetFileName(filename)
     let sz = img.GetSize()
@@ -63,29 +59,29 @@ let loadImage (filename : string) = // WARNING: the program assumes this functio
         if sz.[i] = 1u then (sz.[i] <- 0u; found <- true)
     let img = 
         if found then 
-            ErrorMsg.Logger.Warning (sprintf "image %s has size 1 in some dimensions; image flattened" fname)    
+            Logger.Warning (sprintf "image %s has size 1 in some dimensions; image flattened" fname)    
             SimpleITK.Extract(img,sz) 
         else img
-    ErrorMsg.Logger.DebugOnly (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
+    Logger.DebugOnly (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
     match img.GetPixelID(),img.GetNumberOfComponentsPerPixel() with 
         | (x,_) when x = PixelIDValueEnum.sitkFloat32 -> img
         | (x,_) when x = PixelIDValueEnum.sitkVectorFloat32 -> img
         | (_,y) when y = 1u -> 
-            ErrorMsg.Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
+            Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
             SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
         | (_,y) when y = 3u || y = 4u -> 
-            ErrorMsg.Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
+            Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
             if y = 4u then 
-                ErrorMsg.Logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 
+                Logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 
                 if fname.EndsWith ".jpg" then 
-                    ErrorMsg.Logger.Warning <| sprintf "image %s\nhas jpg extension and 4 components per pixel, therefore it is in CMYK color space. Only proceed if you know what you are doing. Colors and intensity of the image will be messed up in processing." fname
+                    Logger.Warning <| sprintf "image %s\nhas jpg extension and 4 components per pixel, therefore it is in CMYK color space. Only proceed if you know what you are doing. Colors and intensity of the image will be messed up in processing." fname
             SimpleITK.Cast(img,PixelIDValueEnum.sitkVectorFloat32)
         | (x,y) -> raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
 
 let saveImage (filename : string) (img : Image) =
     let fname = System.IO.Path.GetFileName(filename)
     if fname.EndsWith(".jpg") && img.GetNumberOfComponentsPerPixel() > 3ul then
-        ErrorMsg.Logger.Warning <| sprintf "Saving to %s\nusing 4 components per pixel. The resulting image will be CMYK; only proceed if you know what you are doing." fname
+        Logger.Warning <| sprintf "Saving to %s\nusing 4 components per pixel. The resulting image will be CMYK; only proceed if you know what you are doing." fname
     let tmp = 
         if filename.EndsWith(".nii") || filename.EndsWith(".nii.gz") then img
         else 
@@ -93,7 +89,7 @@ let saveImage (filename : string) (img : Image) =
                 if img.GetSize().Count = 2 then 
                     if img.GetPixelID() <> PixelIDValueEnum.sitkUInt8 then
                         // TODO: double-check that "nearest integer" in the message below is correct
-                        ErrorMsg.Logger.Warning (sprintf "saving to %s\nrequires cast to uint8. For each component, only values between 0 and 255 are preserved, rounded to the nearest integer; the behaviour on values outside this range is unspecified." fname)                    
+                        Logger.Warning (sprintf "saving to %s\nrequires cast to uint8. For each component, only values between 0 and 255 are preserved, rounded to the nearest integer; the behaviour on values outside this range is unspecified." fname)                    
                         let ncomp = img.GetNumberOfComponentsPerPixel()
                         if ncomp = 1ul
                         then SimpleITK.Cast(img,PixelIDValueEnum.sitkUInt8)
@@ -103,11 +99,11 @@ let saveImage (filename : string) (img : Image) =
                             use v = new VectorOfImage(comps)
                             flt.Execute(v)                            
                     else
-                        ErrorMsg.Logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
+                        Logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
                         SimpleITK.RescaleIntensity(img,0.0,255.0)
                 else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
             else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
-    ErrorMsg.Logger.Debug <| sprintf "Saving file %s" filename        
+    Logger.Debug <| sprintf "Saving file %s" filename        
     SimpleITK.WriteImage(tmp,filename)  
 
 let floatV (img : Image) = 

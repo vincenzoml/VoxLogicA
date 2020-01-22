@@ -35,10 +35,10 @@ type SITKModel() =
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
     let supportedExtensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
-    let itkM = itk.simple.Version.ITKMajorVersion().ToString()
-    let itkm = itk.simple.Version.ITKMinorVersion().ToString()
-    let sitkM = itk.simple.Version.MajorVersion().ToString()
-    let sitkm = itk.simple.Version.MinorVersion().ToString()
+    let itkM = Version.ITKMajorVersion().ToString()
+    let itkm = Version.ITKMinorVersion().ToString()
+    let sitkM = Version.MajorVersion().ToString()
+    let sitkm = Version.MinorVersion().ToString()
     let _ = ErrorMsg.Logger.Debug(sprintf "ITK Version: %s.%s" itkM itkm)
     let _ = ErrorMsg.Logger.Debug(sprintf "SimpleITK Version: %s.%s" sitkM sitkm)
 

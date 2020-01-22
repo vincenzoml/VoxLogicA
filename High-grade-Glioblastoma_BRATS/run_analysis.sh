@@ -9,6 +9,8 @@ usage() {
 }
 
 process() {
+    NAME=$1
+    INPUTDIR=$2
     OUTPUTDIR="$OUTPUT/$OUTPUTPREFIX/$INPUTDIR"
     EXECUTE="$OUTPUTDIR"/input.imgql
     LOG="$OUTPUTDIR"/log.txt
@@ -19,7 +21,7 @@ process() {
 	sed 's@$OUTPUTDIR@'"$OUTPUTDIR"'@g' > "$EXECUTE"
     echo -n "$SCRIPTNAME started at $(date) on $NAME..."
     echo "$SCRIPTNAME started at $(date) on $NAME" > "$LOG"
-    "$VOXLOGICA" "$EXECUTE" >> "$LOG"
+    "$VOXLOGICA" --sequential "$EXECUTE" >> "$LOG"
     RET=$?
     if [ "$RET" -ne "0" ]; then
 	echo " [failed with code $RET (see $LOG for details)]"
@@ -59,6 +61,32 @@ if [ "$VOXLOGICA" == "" ]; then
     exit 1
 fi
 
+#see https://unix.stackexchange.com/questions/103920/parallelize-a-bash-for-loop
+open_sem(){
+    mkfifo pipe-$$
+    exec 3<>pipe-$$
+    rm pipe-$$
+    local i=$1
+    for((;i>0;i--)); do
+        printf %s 000 >&3
+    done
+}
+
+run_with_lock(){
+    local x
+    # this read waits until there is something to read
+    read -u 3 -n 3 x && ((0==x)) || exit $x
+    (
+     ( "$@"; )
+    # push the return code of the command to the semaphore
+    printf '%.3d' $? >&3
+    )&
+}
+
+NCORES=$(grep -c ^processor /proc/cpuinfo)
+
+open_sem $NCORES
+
 if [ "$#" -ne 2 ]; then
     usage
 else
@@ -68,11 +96,11 @@ else
     SCRIPTNAME=$(canonical "$2")
     OUTPUTPREFIX=$(basename "$SCRIPTNAME" ".imgql")
     STATS="$OUTPUT/$OUTPUTPREFIX-stats.csv"
-    rm -f "$STATS"
+    rm -f "$STATS"    
     find -L "$DIR" -mindepth 1 -maxdepth 1 -type d -print0 |
     while read -d $'\0' INPUTDIR
     do NAME=$(basename "$INPUTDIR")
-        process
+        run_with_lock process $NAME $INPUTDIR
     done
 fi
 

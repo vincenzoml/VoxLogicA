@@ -55,10 +55,11 @@ let main (argv : string array) =
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-        if parsed.Contains Sequential 
-        then 
-            let proc = System.Diagnostics.Process.GetCurrentProcess()
-            proc.ProcessorAffinity <- nativeint 0x1                            
+        let sequential = parsed.Contains Sequential         
+        // if sequential
+        // then 
+        //     let proc = System.Diagnostics.Process.GetCurrentProcess()
+        //     proc.ProcessorAffinity <- nativeint 0x1  
         let ofilename = parsed.TryGetResult Filename
         match ofilename with
             | None -> 
@@ -66,11 +67,7 @@ let main (argv : string array) =
                 0
             | Some filename -> 
                 let interpreter = Interpreter(model,checker)
-                interpreter.Batch 
-                    interpreter.DefaultLibDir 
-                    (System.IO.Path.GetFullPath ".") 
-                    (System.IO.Path.GetFullPath ".") 
-                    filename    
+                interpreter.Batch sequential interpreter.DefaultLibDir filename    
                 0
     with e ->        
             ErrorMsg.Logger.DebugExn e
