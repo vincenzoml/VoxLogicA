@@ -50,7 +50,8 @@ type SITKModel() =
         saveImage filename (v :?> Image)                      
     override __.Load s =
         let img = loadImage s 
-        let res = match baseImg with
+        let res = 
+            match baseImg with
             | None -> 
                 baseImg <- Some img
                 img 
