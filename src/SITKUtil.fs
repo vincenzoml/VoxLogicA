@@ -135,25 +135,25 @@ let private allocate (img : Image, pixeltype : PixelIDValueEnum) = // Does not g
 let createUint8 (img : Image, value : uint8) =
     let res = allocate(img,PixelIDValueEnum.sitkUInt8)
     let buf = uint8V res
-    buf.fill value
+    buf.Fill value
     res
 
 let createInt8 (img : Image, value : int8) =
     let res = allocate(img,PixelIDValueEnum.sitkInt8)
     let buf = int8V res
-    buf.fill value
+    buf.Fill value
     res
 
 let createUint32 (img : Image, value : uint32) =
     let res = allocate(img,PixelIDValueEnum.sitkUInt32)
     let buf = uint32V res
-    buf.fill value
+    buf.Fill value
     res
 
 let createFloat32 (img : Image, value : float32) =
     let res = allocate(img,PixelIDValueEnum.sitkFloat32)
     let buf = floatV res
-    buf.fill value
+    buf.Fill value
     res
 
 let changePhysicalSpace(dest : Image, source : Image) = // NOTE: only works with float32 images
@@ -233,7 +233,7 @@ let border (img : Image) =
     let res = createUint8(img,0uy)
     let buf = uint8V res               
     let coords = Array.create dim 0  
-    buf.replace <|
+    buf.Replace <|
         fun i ->
             decode sz i coords
             if Array.exists2 (fun c max -> c = 0 || c = max-1) coords sz 

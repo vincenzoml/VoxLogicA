@@ -48,12 +48,12 @@ type NativeArray<'T when 'T : unmanaged> =
     member this.Get n =
         if this.InBounds n 
         then this.UGet n 
-        else raise (new System.IndexOutOfRangeException())
+        else raise (System.IndexOutOfRangeException())
 
     member this.Set n v =
         if this.InBounds n 
         then this.USet n v 
-        else raise (new System.IndexOutOfRangeException())
+        else raise (System.IndexOutOfRangeException())
     
     member this.Iter f =
         for i = 0 to this.length - 1 do
@@ -63,34 +63,18 @@ type NativeArray<'T when 'T : unmanaged> =
         for i = 0 to this.length - 1 do
             f i (this.UGet i)
     
-    member this.apply f =
+    member this.Apply f =
         for i = 0 to this.length do
             this.USet i (f (this.UGet i))
 
-    member this.applyi f =
+    member this.Applyi f =
         for i = 0 to this.length - 1 do
             this.USet i (f i (this.UGet i))
 
-    member this.replace f =
+    member this.Replace f =
         for i = 0 to this.length - 1 do
             this.USet i (f i)
     
-    member this.fill v =
+    member this.Fill v =
         for i = 0 to this.length - 1 do
             this.USet i v
-
-
-// type NativeArraytmp<'T when 'T : unmanaged> =
-//     struct
-//         val ptr : nativeptr<'T>
-//         val object : obj option // used to pin an object for the lifetime of the array            
-//         val length : int
-//         new (p : nativeptr<'T>, l: int, o: obj option) = 
-//             {   ptr = p
-//                 length = l
-//                 object = o }
-        
-//         member this.UGet n =  
-//             NativePtr.get this.ptr n
-                    
-//     end
