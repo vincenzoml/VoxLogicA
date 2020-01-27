@@ -604,13 +604,13 @@ let maxvol (img : Image) =
 let percentiles (img : Image) (mask : Image) (correction : float) =    
     let bufimg = floatV img
     let bufmask = uint8V mask
-    let npixels = int <| img.GetNumberOfPixels()
+    let npixels = bufimg.Length
     let population = Seq.filter (fun i -> bufmask.UGet i > 0uy) (seq {0..npixels - 1})
     let data =         
         population  |> 
         Seq.groupBy bufimg.UGet |> 
         Seq.sortBy fst |>
-        Seq.map (fun (key,indices) -> (Seq.length indices,indices))
+        Seq.map (fun (_,indices) -> (Seq.length indices,indices))
     let res = SimpleITK.Mask(img,mask,-1.0)
     let bufres = floatV res
     let mutable curvol = 0

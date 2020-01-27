@@ -25,6 +25,8 @@ type NativeArray<'T when 'T : unmanaged> =
     val ptr : nativeptr<'T>
     val handle : GCHandle
     val length : int
+
+    member inline this.Length = this.length
     
     new (p : nativeptr<'T>, l: int, o: obj) = 
         {   ptr = p
@@ -34,47 +36,47 @@ type NativeArray<'T when 'T : unmanaged> =
     override this.Finalize() =
         this.handle.Free()
 
-    member this.UGet n =  
+    member inline this.UGet n =  
         assert (this.InBounds n)              
         NativePtr.get this.ptr n
     
-    member this.USet n v =
+    member inline this.USet n v =
         assert (this.InBounds n)
         NativePtr.set this.ptr n v
     
-    member this.InBounds n =
+    member inline this.InBounds n =
         n >= 0 && n < this.length
 
-    member this.Get n =
+    member inline this.Get n =
         if this.InBounds n 
         then this.UGet n 
         else raise (System.IndexOutOfRangeException())
 
-    member this.Set n v =
+    member inline this.Set n v =
         if this.InBounds n 
         then this.USet n v 
         else raise (System.IndexOutOfRangeException())
     
-    member this.Iter f =
+    member inline this.Iter f =
         for i = 0 to this.length - 1 do
             f (this.UGet i)
 
-    member this.Iteri f =
+    member inline this.Iteri f =
         for i = 0 to this.length - 1 do
             f i (this.UGet i)
     
-    member this.Apply f =
+    member inline this.Apply f =
         for i = 0 to this.length do
             this.USet i (f (this.UGet i))
 
-    member this.Applyi f =
+    member inline this.Applyi f =
         for i = 0 to this.length - 1 do
             this.USet i (f i (this.UGet i))
 
-    member this.Replace f =
+    member inline this.Replace f =
         for i = 0 to this.length - 1 do
             this.USet i (f i)
     
-    member this.Fill v =
+    member inline this.Fill v =
         for i = 0 to this.length - 1 do
             this.USet i v
