@@ -20,7 +20,6 @@ namespace VoxLogicA
 open Microsoft.FSharp.NativeInterop
 open System.Runtime.InteropServices
 
-// TODO: https://docs.microsoft.com/en-us/dotnet/api/system.span-1?view=netcore-3.1
 
 type NativeArray<'T when 'T : unmanaged> = 
     val ptr : nativeptr<'T>
@@ -32,9 +31,8 @@ type NativeArray<'T when 'T : unmanaged> =
             length = l
             handle = GCHandle.Alloc(o) }
 
-    interface System.IDisposable with
-        member this.Dispose() =
-            this.handle.Free()
+    override this.Finalize() =
+        this.handle.Free()
 
     member this.UGet n =  
         assert (this.InBounds n)              
