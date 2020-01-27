@@ -616,7 +616,8 @@ let percentiles (img : Image) (mask : Image) (correction : float) =
     let mutable curvol = 0
     let vol = float32 (Seq.length population)
     for (size,indices) in data do
+        let value = ((float32 curvol) + ((float32 correction) * (float32 size))) / vol
         for idx in indices do
-            bufres.USet idx (((float32 curvol) + ((float32 correction) * (float32 size))) / vol)
+            bufres.USet idx value
         curvol <- curvol + size        
     res    
