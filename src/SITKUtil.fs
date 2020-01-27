@@ -163,8 +163,8 @@ let changePhysicalSpace(dest : Image, source : Image) = // NOTE: only works with
     for i = 0 to int <| dest.GetNumberOfPixels() do
         for j = 0 to int <| source.GetNumberOfComponentsPerPixel() do
             dmem.USet (i+j) (smem.UGet(i+j))
-    res            
-    
+    res
+
 
 let intensity (img : Image) =
             if img.GetNumberOfComponentsPerPixel() = 1ul

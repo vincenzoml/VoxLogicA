@@ -19,8 +19,8 @@ namespace VoxLogicA
 open Hopac  
 
 type ModelChecker(model : IModel) =
-    let operatorFactory = new OperatorFactory(model)
-    let formulaFactory = new FormulaFactory()       
+    let operatorFactory = OperatorFactory(model)
+    let formulaFactory = FormulaFactory()       
     let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0
     let startChecker i = 
@@ -47,7 +47,7 @@ type ModelChecker(model : IModel) =
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
                     do! startChecker i
                 alreadyChecked <- formulaFactory.Count                  }
-    member this.Get (f : Formula) = cache.[f.Uid]   
+    member __.Get (f : Formula) = cache.[f.Uid]   
         
 
 
