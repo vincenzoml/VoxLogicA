@@ -107,23 +107,23 @@ let saveImage (filename : string) (img : Image) =
     SimpleITK.WriteImage(tmp,filename)  
 
 let floatV (img : Image) = 
-    let ptr = NativePtr.ofNativeInt<float32> (lock img <| fun () -> img.GetBufferAsFloat()) in
+    let ptr = NativePtr.ofNativeInt<float32> (lock img <| fun () -> img.MakeUnique(); img.GetBufferAsFloat()) in
     let len = int (img.GetNumberOfPixels()) in
-    new NativeArray<float32>(ptr,len,Some (img :> obj))
+    new NativeArray<float32>(ptr,len,img)
 
 let int8V (img : Image) = 
-    let ptr = NativePtr.ofNativeInt<int8> (lock img <| fun () -> img.GetBufferAsInt8()) in
+    let ptr = NativePtr.ofNativeInt<int8> (lock img <| fun () -> img.MakeUnique(); img.GetBufferAsInt8()) in
     let len = int (img.GetNumberOfPixels() * img.GetNumberOfComponentsPerPixel()) in
-    new NativeArray<int8>(ptr,len,Some (img :> obj))
+    new NativeArray<int8>(ptr,len,img)
 
 let uint8V (img : Image) = 
-    let ptr = NativePtr.ofNativeInt<uint8> (lock img <| fun () -> img.GetBufferAsUInt8()) in
+    let ptr = NativePtr.ofNativeInt<uint8> (lock img <| fun () -> img.MakeUnique(); img.GetBufferAsUInt8()) in
     let len = int (img.GetNumberOfPixels() * img.GetNumberOfComponentsPerPixel()) in
-    new NativeArray<uint8>(ptr,len,Some (img :> obj))
+    new NativeArray<uint8>(ptr,len,img)
 let uint32V (img : Image) = 
-    let ptr = NativePtr.ofNativeInt<uint32> (lock img <| fun () -> img.GetBufferAsUInt32()) in
+    let ptr = NativePtr.ofNativeInt<uint32> (lock img <| fun () -> img.MakeUnique(); img.GetBufferAsUInt32()) in
     let len = int (img.GetNumberOfPixels()) in
-    new NativeArray<uint32>(ptr,len,Some (img :> obj))
+    new NativeArray<uint32>(ptr,len,img)
 
 let private allocate (img : Image, pixeltype : PixelIDValueEnum) = // Does not guarantee the memory is cleared.
     match (img.GetNumberOfComponentsPerPixel(),img.GetPixelID() = pixeltype) with
