@@ -112,10 +112,11 @@ let private getBuf<'t when 't : unmanaged> (img : Image) accessor =
     let nativeInt = 
         if table.ContainsKey(img) then table.[img]
         else 
-            img.MakeUnique()
-            let ni = accessor()
-            table.[img] <- ni
-            ni
+            lock img (fun () ->
+                        img.MakeUnique()
+                        let ni = accessor()
+                        table.[img] <- ni
+                        ni)
 
     let ptr = NativePtr.ofNativeInt<'t> nativeInt in
     let len = int (img.GetNumberOfPixels() * img.GetNumberOfComponentsPerPixel()) in
