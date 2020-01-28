@@ -31,7 +31,7 @@ type NativeArray<'T when 'T : unmanaged> =
     new (p : nativeptr<'T>, l: int, o: obj) = 
         {   ptr = p
             length = l
-            handle = GCHandle.Alloc(o,GCHandleType.Pinned) }
+            handle = GCHandle.Alloc(o) }
 
     override this.Finalize() =
         this.handle.Free()
