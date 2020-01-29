@@ -27,6 +27,9 @@ type NativeArray<'T when 'T : unmanaged> =
     val length : int
 
     member inline this.Length = this.length
+
+    member inline this.InBounds n =
+        n >= 0 && n < this.Length
     
     new (p : nativeptr<'T>, l: int, o: obj) = 
         {   ptr = p
@@ -44,9 +47,6 @@ type NativeArray<'T when 'T : unmanaged> =
         assert (this.InBounds n)
         NativePtr.set this.ptr n v
     
-    member inline this.InBounds n =
-        n >= 0 && n < this.length
-
     member inline this.Get n =
         if this.InBounds n 
         then this.UGet n 
