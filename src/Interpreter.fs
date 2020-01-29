@@ -164,12 +164,13 @@ type Interpreter(model : IModel, checker : ModelChecker) =
     member __.DefaultLibDir = defaultLibDir        
 
     member __.Batch sequential libdir filename =
-        let size = 1024L * 1024L *1024L * 9L
-        if not (System.GC.TryStartNoGCRegion(size)) 
-        then raise (ImpossibleToDisableGCException(size))
-        try
-            let s = new FileStream(filename,FileMode.Open)
-            batchHopac sequential <| interpreterJob libdir filename model checker s
-        with e ->        
-            System.GC.EndNoGCRegion()
-            raise e
+        // TODO: check whether using the following code (pre-allocating 9GB of data) improves performance
+        // let size = 1024L * 1024L *1024L * 9L
+        // if not (System.GC.TryStartNoGCRegion(size)) 
+        // then raise (ImpossibleToDisableGCException(size))
+        // try
+        let s = new FileStream(filename,FileMode.Open)
+        batchHopac sequential <| interpreterJob libdir filename model checker s
+        // with e ->        
+        //     System.GC.EndNoGCRegion()
+        //     raise e
