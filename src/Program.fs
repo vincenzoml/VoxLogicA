@@ -57,7 +57,7 @@ let main (argv : string array) =
             exit 0
         let sequential = parsed.Contains Sequential        
         itk.simple.ProcessObject.SetGlobalDefaultDebug true
-        itk.simple.ProcessObject.SetGlobalDefaultNumberOfThreads 1
+        itk.simple.ProcessObject.SetGlobalDefaultNumberOfThreads 1u
         // if sequential
         // then 
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
