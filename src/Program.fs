@@ -55,7 +55,9 @@ let main (argv : string array) =
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-        let sequential = parsed.Contains Sequential         
+        let sequential = parsed.Contains Sequential        
+        itk.simple.ProcessObject.SetGlobalDefaultDebug true
+        itk.simple.ProcessObject.SetGlobalDefaultNumberOfThreads 1
         // if sequential
         // then 
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
