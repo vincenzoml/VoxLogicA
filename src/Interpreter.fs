@@ -46,7 +46,10 @@ exception MalformedPathException of prefix : string * file : string * result : s
                                             this.prefix this.file this.result this.confined
 
 exception ImportNotFoundException of fname : string * libdir : string 
-    with override this.Message = sprintf"Import \"%s\" not found\n(local paths are searched in current director and \"%s\")" this.fname this.libdir                                    
+    with override this.Message = sprintf "Import \"%s\" not found\n(local paths are searched in current director and \"%s\")" this.fname this.libdir         
+
+exception ImpossibleToDisableGCException of size : int64 
+    with override this.Message = sprintf "Error when disabling garbage collection: impossible to allocate %A bytes" this.size                           
 
 type private DVal = Form of Formula | Fun of string list * Expression * Env
 
@@ -149,9 +152,9 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                 let p = parseProgram filename s
                 ErrorMsg.Logger.Debug "Preparing computation..."                
                 let jobs = evaluate (emptyEnv()) (Set.empty) (Import "stdlib.imgql"::p) []
-                ErrorMsg.Logger.Debug "Starting computation..."
+                ErrorMsg.Logger.Debug "Starting computation..."                
                 do! checker.Check
-                do! Util.Concurrent.conIgnore (Array.ofList jobs)                  
+                do! Util.Concurrent.conIgnore (Array.ofList jobs)                                  
                 ErrorMsg.Logger.Debug "... done."  }
     let batchHopac sequential job = 
         let scheduler = Scheduler.create { Scheduler.Create.Def with NumWorkers = if sequential then Some 1 else None  }
@@ -161,5 +164,12 @@ type Interpreter(model : IModel, checker : ModelChecker) =
     member __.DefaultLibDir = defaultLibDir        
 
     member __.Batch sequential libdir filename =
-        let s = new FileStream(filename,FileMode.Open)
-        batchHopac sequential <| interpreterJob libdir filename model checker s
+        let size = 1024L * 1024L *1024L * 9L
+        if not (System.GC.TryStartNoGCRegion(size)) 
+        then raise (ImpossibleToDisableGCException(size))
+        try
+            let s = new FileStream(filename,FileMode.Open)
+            batchHopac sequential <| interpreterJob libdir filename model checker s
+        with e ->        
+            System.GC.EndNoGCRegion()
+            raise e
