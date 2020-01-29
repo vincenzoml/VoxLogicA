@@ -18,74 +18,65 @@
 namespace VoxLogicA
 
 open Microsoft.FSharp.NativeInterop
+open System.Runtime.InteropServices
 
 
-type NativeArray<'T when 'T : unmanaged> = // TODO: change this to conventional collections types e.g. .Item, etc.
-    struct
-        val ptr : nativeptr<'T>
-        val object : obj option // used to pin an object for the lifetime of the array            
-        val length : int
-        new (p : nativeptr<'T>, l: int, o: obj option) = 
-            {   ptr = p
-                length = l
-                object = o }
+type NativeArray<'T when 'T : unmanaged> = 
+    val ptr : nativeptr<'T>
+    val handle : GCHandle
+    val length : int
 
-        member this.UGet n =  
-            assert (this.InBounds n)              
-            NativePtr.get this.ptr n
-        member this.USet n v =
-            assert (this.InBounds n)
-            NativePtr.set this.ptr n v
-        
-        member this.InBounds n =
-            n >= 0 && n < this.length
+    member inline this.Length = this.length
 
-        member this.Get n =
-            if this.InBounds n 
-            then this.UGet n 
-            else raise (new System.IndexOutOfRangeException())
+    member inline this.InBounds n =
+        n >= 0 && n < this.Length
+    
+    new (p : nativeptr<'T>, l: int, o: obj) = 
+        {   ptr = p
+            length = l
+            handle = GCHandle.Alloc(o) }
 
-        member this.Set n v =
-            if this.InBounds n 
-            then this.USet n v 
-            else raise (new System.IndexOutOfRangeException())
-        
-        member this.Iter f =
-            for i = 0 to this.length - 1 do
-                f (this.UGet i)
+    override this.Finalize() =
+        this.handle.Free()
 
-        member this.Iteri f =
-            for i = 0 to this.length - 1 do
-                f i (this.UGet i)
-        
-        member this.apply f =
-            for i = 0 to this.length do
-                this.USet i (f (this.UGet i))
+    member inline this.UGet n =  
+        assert (this.InBounds n)              
+        NativePtr.get this.ptr n
+    
+    member inline this.USet n v =
+        assert (this.InBounds n)
+        NativePtr.set this.ptr n v
+    
+    member inline this.Get n =
+        if this.InBounds n 
+        then this.UGet n 
+        else raise (System.IndexOutOfRangeException())
 
-        member this.applyi f =
-            for i = 0 to this.length - 1 do
-                this.USet i (f i (this.UGet i))
+    member inline this.Set n v =
+        if this.InBounds n 
+        then this.USet n v 
+        else raise (System.IndexOutOfRangeException())
+    
+    member inline this.Iter f =
+        for i = 0 to this.length - 1 do
+            f (this.UGet i)
 
-        member this.replace f =
-            for i = 0 to this.length - 1 do
-                this.USet i (f i)
-        
-        member this.fill v =
-            for i = 0 to this.length - 1 do
-                this.USet i v
-    end
+    member inline this.Iteri f =
+        for i = 0 to this.length - 1 do
+            f i (this.UGet i)
+    
+    member inline this.Apply f =
+        for i = 0 to this.length do
+            this.USet i (f (this.UGet i))
 
-type NativeArraytmp<'T when 'T : unmanaged> =
-    struct
-        val ptr : nativeptr<'T>
-        val object : obj option // used to pin an object for the lifetime of the array            
-        val length : int
-        new (p : nativeptr<'T>, l: int, o: obj option) = 
-            {   ptr = p
-                length = l
-                object = o }
-        
-        member this.UGet n =  
-            NativePtr.get this.ptr n
-                    
-    end
+    member inline this.Applyi f =
+        for i = 0 to this.length - 1 do
+            this.USet i (f i (this.UGet i))
+
+    member inline this.Replace f =
+        for i = 0 to this.length - 1 do
+            this.USet i (f i)
+    
+    member inline this.Fill v =
+        for i = 0 to this.length - 1 do
+            this.USet i v

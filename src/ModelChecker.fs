@@ -19,8 +19,8 @@ namespace VoxLogicA
 open Hopac  
 
 type ModelChecker(model : IModel) =
-    let operatorFactory = new OperatorFactory(model)
-    let formulaFactory = new FormulaFactory()       
+    let operatorFactory = OperatorFactory(model)
+    let formulaFactory = FormulaFactory()       
     let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0
     let startChecker i = 
@@ -44,10 +44,11 @@ type ModelChecker(model : IModel) =
         // corollary: this method must be called at least once before any invocation of Get        
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
+        ErrorMsg.Logger.Debug (sprintf "executing %d tasks" (formulaFactory.Count - alreadyChecked))
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
                     do! startChecker i
                 alreadyChecked <- formulaFactory.Count                  }
-    member this.Get (f : Formula) = cache.[f.Uid]   
+    member __.Get (f : Formula) = cache.[f.Uid]   
         
 
 

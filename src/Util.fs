@@ -24,7 +24,7 @@ module Concurrent =
         job {
             let x = Array.init (Array.length s) (fun _ -> new IVar<_>()) // Use Latch instead?
             for i = 0 to s.Length - 1 do
-                Hopac.queue <| 
+                queue <| 
                     Job.tryWith 
                         (job {  do! (s.[i] :> Job<unit>)
                                 do! (IVar.fill x.[i] None)  } )

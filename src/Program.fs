@@ -16,19 +16,27 @@
 
 module VoxLogicA.Main
 open System.Reflection
-open VoxLogicA
+open Argu
 
 exception CommandLineException 
     with override __.Message = "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
 
-type CmdLine = Help | Ops | Filename of string
+type LoadFlags = {
+    fname : string;
+    numCores : int
+}
 
-let parseCmdLine (argv : array<string>) =
-    match argv with
-    | [|"--help"|] -> Help 
-    | [|"--ops"|] -> Ops
-    | ([|filename|] | [|"--";filename|]) -> Filename filename
-    | _ -> raise CommandLineException 
+type CmdLine = 
+    | Ops 
+    | Sequential
+    | [<MainCommandAttribute;UniqueAttribute>] Filename of string    
+with
+    interface Argu.IArgParserTemplate with
+        member s.Usage =
+            match s with
+            | Ops ->  "display a list of all the internal operators, with their types and a brief description"
+            | Filename _ -> "VoxLogicA session file"
+            | Sequential ->  "Run on one CPU only"
     
 [<EntryPoint>]
 let main (argv : string array) =
@@ -36,33 +44,33 @@ let main (argv : string array) =
     let version = name.Version 
     let informationalVersion = ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
     ErrorMsg.Logger.Debug (sprintf "%s %s" name.Name informationalVersion)
-    if version.Revision <> 0 then   
-        ErrorMsg.Logger.Warning (sprintf "You are using a PRERELEASE version of VoxLogicA. The most recent stable release is %d.%d.%d." version.Major version.Minor version.Build)         
-    try 
-        let model = SITKModel() :> IModel   
-        let checker = ModelChecker(model)                         
-        match parseCmdLine argv with
-        | Filename filename ->             
-            let interpreter = Interpreter(model,checker)
-            interpreter.Batch 
-                interpreter.DefaultLibDir 
-                (System.IO.Path.GetFullPath ".") 
-                (System.IO.Path.GetFullPath ".") 
-                filename    
-        | Help -> 
-            printfn "%s" <| // TODO: get the executable name from the environment
-                (     "Usage:\n"
-                    + "VoxLogicA filename\t# starts an analysis described in filename\n"
-                    + "VoxLogicA --help\t# shows this text\n"
-                    + "VoxLogicA --ops \t# describes all defined operators\n"
-                    + "VoxLogicA -- filename\t# if you need to use a filename like '--help'"  )
-        | Ops -> Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
-        0
-    with 
-        | CommandLineException ->
-            printfn "Command line error. Try the \"--help\" command line switch."
-            1
-        | e ->        
+    let model = SITKModel() :> IModel   
+    let checker = ModelChecker(model)       
+    if version.Revision <> 0 then ErrorMsg.Logger.Warning (sprintf "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d." name.Name version.Major version.Minor version.Build)                        
+    try
+        let cmdLineParser = ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())     
+        let parsed = cmdLineParser.Parse argv  
+        
+        if parsed.Contains Ops
+        then 
+            Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
+            exit 0
+        let sequential = parsed.Contains Sequential        
+        itk.simple.ProcessObject.SetGlobalDefaultNumberOfThreads 1u
+        // if sequential
+        // then 
+        //     let proc = System.Diagnostics.Process.GetCurrentProcess()
+        //     proc.ProcessorAffinity <- nativeint 0x1  
+        let ofilename = parsed.TryGetResult Filename
+        match ofilename with
+            | None -> 
+                printfn "%s\n" (cmdLineParser.PrintUsage ())
+                0
+            | Some filename -> 
+                let interpreter = Interpreter(model,checker)
+                interpreter.Batch sequential interpreter.DefaultLibDir filename    
+                0
+    with e ->        
             ErrorMsg.Logger.DebugExn e
             ErrorMsg.Logger.Failure "exiting."
             1

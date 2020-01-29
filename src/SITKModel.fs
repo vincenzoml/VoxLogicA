@@ -35,10 +35,10 @@ type SITKModel() =
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
     let supportedExtensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
-    let itkM = itk.simple.Version.ITKMajorVersion().ToString()
-    let itkm = itk.simple.Version.ITKMinorVersion().ToString()
-    let sitkM = itk.simple.Version.MajorVersion().ToString()
-    let sitkm = itk.simple.Version.MinorVersion().ToString()
+    let itkM = Version.ITKMajorVersion().ToString()
+    let itkm = Version.ITKMinorVersion().ToString()
+    let sitkM = Version.MajorVersion().ToString()
+    let sitkm = Version.MinorVersion().ToString()
     let _ = ErrorMsg.Logger.Debug(sprintf "ITK Version: %s.%s" itkM itkm)
     let _ = ErrorMsg.Logger.Debug(sprintf "SimpleITK Version: %s.%s" sitkM sitkm)
 
@@ -50,14 +50,15 @@ type SITKModel() =
         saveImage filename (v :?> Image)                      
     override __.Load s =
         let img = loadImage s 
-        match baseImg with
+        let res = 
+            match baseImg with
             | None -> 
                 baseImg <- Some img
-                img :> obj
+                img 
             | Some img1 ->
                 try
                     use x = SimpleITK.Add(img1,img) 
-                    img :> obj
+                    img 
                 with _ -> // if And fails, the two images don't have the same physical structure
                     if img.GetNumberOfPixels() = img1.GetNumberOfPixels() 
                         //&& img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() 
@@ -66,11 +67,12 @@ type SITKModel() =
                     then 
                         if img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() then 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
-                            changePhysicalSpace(img,img1) :> obj 
+                            changePhysicalSpace(img,img1)                             
                         else 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
                             raise (DifferentPhysicalAndLogicalSpaceException s) //TODO: fix this, converting when possible.
                     else raise (DifferentPhysicalAndLogicalSpaceException s)
+        res :> obj     
 
     interface IBoundedModel<Image> with
         member __.Border = job { return border (getBaseImg()) }

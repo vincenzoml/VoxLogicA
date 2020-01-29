@@ -46,7 +46,10 @@ exception MalformedPathException of prefix : string * file : string * result : s
                                             this.prefix this.file this.result this.confined
 
 exception ImportNotFoundException of fname : string * libdir : string 
-    with override this.Message = sprintf"Import \"%s\" not found\n(local paths are searched in current director and \"%s\")" this.fname this.libdir                                    
+    with override this.Message = sprintf "Import \"%s\" not found\n(local paths are searched in current director and \"%s\")" this.fname this.libdir         
+
+// exception ImpossibleToDisableGCException of size : int64 
+//     with override this.Message = sprintf "Error when disabling garbage collection: impossible to allocate %A bytes" this.size                           
 
 type private DVal = Form of Formula | Fun of string list * Expression * Env
 
@@ -91,20 +94,11 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                             raise (InterpreterException (StackTrace ((ide,pos)::stack),e))
                         | e -> raise e                           
 
-
-    let getPath (dir : string) (file : string) (confineto : string) = 
-        // TODO: before publishing this as a web application, this placeholder function should be improved, and assessed for security
-        let dir2 = System.IO.Path.GetFullPath dir
-        let file2 = file.TrimStart('/').TrimStart('\\')
-        let concat = dir2 + "/" + file2 // NOTE: do not replace this with Path.Combine, since the latter will permit file to be absolute, which would be entirely fine given the check below, but would permit one to check the absolute path of "confineto": if there is no error when requiring "/blah/filename", then "confineto" is a prefix of "blah".
-        let res = System.IO.Path.GetFullPath concat // Canonicizes the file name
-        let confineto = System.IO.Path.GetFullPath confineto
-        if res.StartsWith confineto then res else raise (MalformedPathException (dir,file,concat,confineto))
-    let interpreterJob libdir inputdir outputdir confinetoRead confinetoWrite filename (model : #IModel) (checker : ModelChecker) (s : System.IO.Stream) =
+    let interpreterJob libdir filename (model : #IModel) (checker : ModelChecker) (s : System.IO.Stream) =
         let rec evaluate (env : Env) (parsedImports : Set<string>) syn jobs =        
             match syn with 
                 | ModelLoad(ide,filename) :: rest ->
-                    let filename = getPath inputdir filename confinetoRead 
+                    let filename = System.IO.Path.GetFullPath filename 
                     ErrorMsg.Logger.DebugOnly <| sprintf "ModelLoad \"%s\"" filename
                     let v = model.Load filename
                     evaluate (env.Add(ide,Form (checker.FormulaFactory.CreateConst (v,TModel)))) parsedImports rest jobs                
@@ -118,7 +112,7 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                     if model.CanSave typ filename then
                         let j = job {   
                             let! res = checker.Get formula
-                            let filename = getPath outputdir filename confinetoWrite
+                            let filename = System.IO.Path.GetFullPath filename
                             let dirname = System.IO.Path.GetDirectoryName filename
                             ignore <| Directory.CreateDirectory(dirname)
                             model.Save filename res  }
@@ -137,12 +131,12 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                     | _ -> raise <| InterpreterException(StackTrace(["print",pos]),CantPrintException(typ))                            
                 | Import fname :: rest ->
                     let path =                         
-                        let try1 = getPath (if fname.StartsWith "/" then "/" else ".") fname confinetoRead // TODO: also permit local import         
+                        let try1 = System.IO.Path.GetFullPath fname // TODO: also permit local import         
                         if File.Exists try1 
                         then try1
                         else
                             if not (fname.StartsWith "/") then
-                                let try2 = getPath libdir fname confinetoRead
+                                let try2 = System.IO.Path.GetFullPath (System.IO.Path.Combine(libdir,fname))
                                 if File.Exists try2 
                                 then try2
                                 else raise <| ImportNotFoundException(fname,libdir)
@@ -158,17 +152,25 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                 let p = parseProgram filename s
                 ErrorMsg.Logger.Debug "Preparing computation..."                
                 let jobs = evaluate (emptyEnv()) (Set.empty) (Import "stdlib.imgql"::p) []
-                ErrorMsg.Logger.Debug "Starting computation..."
+                ErrorMsg.Logger.Debug "Starting computation..."                
                 do! checker.Check
-                do! Util.Concurrent.conIgnore (Array.ofList jobs)                  
+                do! Util.Concurrent.conIgnore (Array.ofList jobs)                                  
                 ErrorMsg.Logger.Debug "... done."  }
-    let batchHopac job = 
-        match Hopac.run (Job.catch job) with
+    let batchHopac sequential job = 
+        let scheduler = Scheduler.create { Scheduler.Create.Def with NumWorkers = if sequential then Some 1 else None  }
+        match Scheduler.run scheduler (Job.catch job) with
             | Choice1Of2 () -> ()
             | Choice2Of2 e -> raise e
     member __.DefaultLibDir = defaultLibDir        
 
-    member __.Batch libdir inputdir outputdir filename =
-        let s = new System.IO.FileStream(filename,System.IO.FileMode.Open)
-        batchHopac <| interpreterJob libdir inputdir outputdir "/" "/" filename model checker s
-        
+    member __.Batch sequential libdir filename =
+        // TODO: check whether using the following code (pre-allocating 9GB of data) improves performance
+        // let size = 1024L * 1024L *1024L * 9L
+        // if not (System.GC.TryStartNoGCRegion(size)) 
+        // then raise (ImpossibleToDisableGCException(size)) // Exception declaration at the beginning of this file
+        // try
+        let s = new FileStream(filename,FileMode.Open)
+        batchHopac sequential <| interpreterJob libdir filename model checker s
+        // with e ->        
+        //     System.GC.EndNoGCRegion()
+        //     raise e
