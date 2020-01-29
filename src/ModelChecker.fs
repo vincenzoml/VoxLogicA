@@ -32,7 +32,15 @@ type ModelChecker(model : IModel) =
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph
                                     let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
-                                    let! x = op.Eval (Array.ofSeq arguments)                                                                                                
+                                    let! x = 
+                                        job {
+                                            if System.GC.TryStartNoGCRegion (1024L * 1024L * 1024L) 
+                                            then
+                                                let! x = op.Eval (Array.ofSeq arguments)                                                                                                
+                                                System.GC.EndNoGCRegion()
+                                                return x
+                                            else return (raise (BugException("Cannot disable garbage collection.")))
+                                        }
                                     do! IVar.fill iv x } )
                             (fun exn -> IVar.FillFailure (iv,exn))  
                 cache.[i] <- IVar.read iv }
