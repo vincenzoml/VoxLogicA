@@ -48,8 +48,8 @@ exception MalformedPathException of prefix : string * file : string * result : s
 exception ImportNotFoundException of fname : string * libdir : string 
     with override this.Message = sprintf "Import \"%s\" not found\n(local paths are searched in current director and \"%s\")" this.fname this.libdir         
 
-exception ImpossibleToDisableGCException of size : int64 
-    with override this.Message = sprintf "Error when disabling garbage collection: impossible to allocate %A bytes" this.size                           
+// exception ImpossibleToDisableGCException of size : int64 
+//     with override this.Message = sprintf "Error when disabling garbage collection: impossible to allocate %A bytes" this.size                           
 
 type private DVal = Form of Formula | Fun of string list * Expression * Env
 
@@ -167,7 +167,7 @@ type Interpreter(model : IModel, checker : ModelChecker) =
         // TODO: check whether using the following code (pre-allocating 9GB of data) improves performance
         // let size = 1024L * 1024L *1024L * 9L
         // if not (System.GC.TryStartNoGCRegion(size)) 
-        // then raise (ImpossibleToDisableGCException(size))
+        // then raise (ImpossibleToDisableGCException(size)) // Exception declaration at the beginning of this file
         // try
         let s = new FileStream(filename,FileMode.Open)
         batchHopac sequential <| interpreterJob libdir filename model checker s

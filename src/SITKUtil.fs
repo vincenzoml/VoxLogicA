@@ -106,18 +106,9 @@ let saveImage (filename : string) (img : Image) =
     Logger.Debug <| sprintf "Saving file %s" filename        
     SimpleITK.WriteImage(tmp,filename)  
 
-let private table = new System.Collections.Generic.Dictionary<Image,nativeint>()
-
 let private getBuf<'t when 't : unmanaged> (img : Image) accessor =
-    let nativeInt = 
-        if table.ContainsKey(img) then table.[img]
-        else 
-            lock img (fun () ->
-                        img.MakeUnique()
-                        let ni = accessor()
-                        table.[img] <- ni
-                        ni)
-
+    img.MakeUnique()
+    let nativeInt = accessor()                    
     let ptr = NativePtr.ofNativeInt<'t> nativeInt in
     let len = int (img.GetNumberOfPixels() * img.GetNumberOfComponentsPerPixel()) in
     new NativeArray<'t>(ptr,len,img)
