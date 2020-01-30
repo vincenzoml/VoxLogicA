@@ -605,9 +605,7 @@ let maxvol (img : Image) =
 
 let percentiles (img : Image) (mask : Image) (correction : float) =    
     let res = SimpleITK.Mask(img,mask,-1.0)
-    res.MakeUnique()
     use img = new Image(img)
-    img.MakeUnique()
     let bufimg = floatV img
     let bufmask = uint8V mask
     let npixels = bufimg.Length
