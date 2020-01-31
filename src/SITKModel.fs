@@ -71,7 +71,7 @@ type SITKModel() =
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
                             raise (DifferentPhysicalAndLogicalSpaceException s) 
                     else raise (DifferentPhysicalAndLogicalSpaceException s)
-        ErrorMsg.Logger.DebugOnly (sprintf "loaded image: %A" res)
+        ErrorMsg.Logger.DebugOnly (sprintf "loaded image: %A" <| res.GetHashCode())
         res :> obj     
 
     interface IBoundedModel<VoxImage> with
