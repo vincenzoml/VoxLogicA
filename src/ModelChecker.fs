@@ -32,8 +32,8 @@ type ModelChecker(model : IModel) =
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph
                                     let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
-                                    ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
-                                    ErrorMsg.Logger.DebugOnly (sprintf "Arguments: %A" (Seq.map (fun x -> x.GetHashCode()) arguments))
+                                    ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" (f.Operator.Name) f.Uid)
+                                    ErrorMsg.Logger.DebugOnly (sprintf "Arguments: %A" (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
                                     let! x = op.Eval (Array.ofSeq arguments)                                                 
                                     ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
                                     ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
