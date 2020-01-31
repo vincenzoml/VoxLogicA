@@ -115,6 +115,7 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                             let filename = System.IO.Path.GetFullPath filename
                             let dirname = System.IO.Path.GetDirectoryName filename
                             ignore <| Directory.CreateDirectory(dirname)
+                            ErrorMsg.Logger.DebugOnly (sprintf "about to save image: %A" <| res.GetHashCode())
                             model.Save filename res  }
                         evaluate env parsedImports rest (j::jobs)
                     else raise <| InterpreterException(StackTrace(["save",pos]),CantSaveException(typ,filename))                            
