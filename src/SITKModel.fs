@@ -35,7 +35,7 @@ type SITKModel() =
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
     let supportedExtensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
-    let itkM = itk.simple.Version.ITKMajorVersion().ToString() // TODO: nove these to an auxiliary function in SITKUtil 
+    let itkM = itk.simple.Version.ITKMajorVersion().ToString() // TODO: move these to an auxiliary function in SITKUtil 
     let itkm = itk.simple.Version.ITKMinorVersion().ToString()
     let sitkM = itk.simple.Version.MajorVersion().ToString()
     let sitkm = itk.simple.Version.MinorVersion().ToString()
@@ -46,6 +46,7 @@ type SITKModel() =
         match t with 
         | (TValuation(_)|TModel) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
         | _ -> false        
+
     override __.Save filename v =
         (v :?> VoxImage).Save(filename)                  
             
@@ -58,13 +59,9 @@ type SITKModel() =
                 img 
             | Some img1 ->
                 if VoxImage.SamePhysicalSpace img1 img
-                then 
-                    ErrorMsg.Logger.Debug "same image"
-                    img
-                else // if Add fails, the two images don't have the same physical structure
+                then img
+                else 
                     if img.NPixels = img1.NPixels
-                        //&& img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() 
-                        //&& img.GetPixelID() = img1.GetPixelID()
                         && img.Dimension = img1.Dimension
                     then 
                         if img.NComponents = img1.NComponents then 
@@ -72,8 +69,9 @@ type SITKModel() =
                             img.ChangePhysicalSpace img1                             
                         else 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
-                            raise (DifferentPhysicalAndLogicalSpaceException s) //TODO: fix this, converting when possible.
+                            raise (DifferentPhysicalAndLogicalSpaceException s) 
                     else raise (DifferentPhysicalAndLogicalSpaceException s)
+        ErrorMsg.Logger.DebugOnly (sprintf "loaded image: %A" res)
         res :> obj     
 
     interface IBoundedModel<VoxImage> with

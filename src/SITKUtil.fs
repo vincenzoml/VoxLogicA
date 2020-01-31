@@ -252,23 +252,29 @@ type VoxImage private (img : Image) =
             let img = 
                 if found then 
                     Logger.Warning (sprintf "image %s has size 1 in some dimensions; image flattened" fname)    
-                    SimpleITK.Extract(img,sz) 
+                    let res = SimpleITK.Extract(img,sz) 
+                    img.Dispose()
+                    res
                 else img
             Logger.DebugOnly (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
             match img.GetPixelID(),img.GetNumberOfComponentsPerPixel() with 
                 | (x,_) when x = PixelIDValueEnum.sitkFloat32 -> img
                 | (x,_) when x = PixelIDValueEnum.sitkVectorFloat32 -> img
                 | (_,y) when y = 1u -> 
-                    Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
-                    SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
+                    Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)                    
+                    let res = SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
+                    img.Dispose()
+                    res
                 | (_,y) when y = 3u || y = 4u -> 
                     Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
                     if y = 4u then 
                         Logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 
                         if fname.EndsWith ".jpg" then 
                             Logger.Warning <| sprintf "image %s\nhas jpg extension and 4 components per pixel, therefore it is in CMYK color space. Only proceed if you know what you are doing. Colors and intensity of the image will be messed up in processing." fname
-                    SimpleITK.Cast(img,PixelIDValueEnum.sitkVectorFloat32)
-                | (x,y) -> raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
+                    let res = SimpleITK.Cast(img,PixelIDValueEnum.sitkVectorFloat32)
+                    img.Dispose()
+                    res
+                | (x,y) -> img.Dispose(); raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
         new VoxImage(loadedImg)            
     
     new (img : VoxImage, pixeltype : PixelIDValueEnum) =
