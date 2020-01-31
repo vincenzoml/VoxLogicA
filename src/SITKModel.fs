@@ -20,7 +20,6 @@ exception NoModelLoadedException
     with override __.Message = "No model loaded"
 
 open SITKUtil
-open itk.simple
 open Hopac
 
 module Lifts =
@@ -29,16 +28,17 @@ module Lifts =
 
 open Lifts
 
+
 type SITKModel() =    
     inherit IModel()
-    let mutable baseImg : option<Image> = None
+    let mutable baseImg : option<VoxImage> = None
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
     let supportedExtensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
-    let itkM = Version.ITKMajorVersion().ToString()
-    let itkm = Version.ITKMinorVersion().ToString()
-    let sitkM = Version.MajorVersion().ToString()
-    let sitkm = Version.MinorVersion().ToString()
+    let itkM = itk.simple.Version.ITKMajorVersion().ToString() // TODO: nove these to an auxiliary function in SITKUtil 
+    let itkm = itk.simple.Version.ITKMinorVersion().ToString()
+    let sitkM = itk.simple.Version.MajorVersion().ToString()
+    let sitkm = itk.simple.Version.MinorVersion().ToString()
     let _ = ErrorMsg.Logger.Debug(sprintf "ITK Version: %s.%s" itkM itkm)
     let _ = ErrorMsg.Logger.Debug(sprintf "SimpleITK Version: %s.%s" sitkM sitkm)
 
@@ -47,87 +47,86 @@ type SITKModel() =
         | (TValuation(_)|TModel) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
         | _ -> false        
     override __.Save filename v =
-        saveImage filename (v :?> Image)                      
+        (v :?> VoxImage).Save(filename)                  
+            
     override __.Load s =
-        let img = loadImage s 
+        let img = new VoxImage(s) 
         let res = 
             match baseImg with
             | None -> 
                 baseImg <- Some img
                 img 
             | Some img1 ->
-                try
-                    use x = SimpleITK.Add(img1,img) 
-                    img 
-                with _ -> // if And fails, the two images don't have the same physical structure
-                    if img.GetNumberOfPixels() = img1.GetNumberOfPixels() 
+                if VoxImage.SamePhysicalSpace img1 img
+                then img
+                else // if Add fails, the two images don't have the same physical structure
+                    if img.NPixels = img1.NPixels
                         //&& img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() 
                         //&& img.GetPixelID() = img1.GetPixelID()
-                        && img.GetDimension() = img1.GetDimension()
+                        && img.Dimension = img1.Dimension
                     then 
-                        if img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() then 
+                        if img.NComponents = img1.NComponents then 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
-                            changePhysicalSpace(img,img1)                             
+                            img.ChangePhysicalSpace img1                             
                         else 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
                             raise (DifferentPhysicalAndLogicalSpaceException s) //TODO: fix this, converting when possible.
                     else raise (DifferentPhysicalAndLogicalSpaceException s)
         res :> obj     
 
-    interface IBoundedModel<Image> with
-        member __.Border = job { return border (getBaseImg()) }
+    interface IBoundedModel<VoxImage> with
+        member __.Border = job { return VoxImage.Border (getBaseImg()) }
     
-    interface IImageModel<Image> with
-        member __.Intensity (img : Image) = lift intensity img
+    interface IImageModel<VoxImage> with
+        member __.Intensity (img : VoxImage) = lift VoxImage.Intensity img
         
-        member __.Red (img : Image) = lift red img
-        member __.Green (img : Image) = lift green img
-        member __.Blue (img : Image) = lift blue img
-        member __.Alpha (img : Image) = lift alpha img
-        member __.RGB (imgr : Image) (imgg : Image) (imgb : Image) = job { return rgb imgr imgg imgb }
-        member __.RGBA (imgr : Image) (imgg : Image) (imgb : Image) (imga : Image) = job { return rgba imgr imgg imgb imga }
-        member __.Volume img = lift volume img
-        member __.MaxVol img = lift maxvol img
-        member __.Percentiles img mask correction = job { return percentiles img mask correction }
+        member __.Red (img : VoxImage) = lift VoxImage.Red img
+        member __.Green (img : VoxImage) = lift VoxImage.Green img
+        member __.Blue (img : VoxImage) = lift VoxImage.Blue img
+        member __.Alpha (img : VoxImage) = lift VoxImage.Alpha img
+        member __.RGB (imgr : VoxImage) (imgg : VoxImage) (imgb : VoxImage) = job { return VoxImage.RGB imgr imgg imgb }
+        member __.RGBA (imgr : VoxImage) (imgg : VoxImage) (imgb : VoxImage) (imga : VoxImage) = job { return VoxImage.RGBA imgr imgg imgb imga }
+        member __.Volume img = lift VoxImage.Volume img
+        member __.MaxVol img = lift VoxImage.MaxVol img
+        member __.Percentiles img mask correction = job { return VoxImage.Percentiles img mask correction }
 
-    interface IBooleanModel<Image> with
-        member __.BConst value = job { return mkBConst value (getBaseImg()) }
-        member __.And img1 img2 = lift2 logand img1 img2
-        member __.Or img1 img2 = lift2 logor img1 img2
-        member __.Not img = lift lognot img
-        member __.TT = job { return tt (getBaseImg()) }
-        member __.FF = job { return ff (getBaseImg()) }
-
-    interface ISpatialModel<Image> with
-        member __.Near img = lift near img
-        member __.Interior img = lift interior img
-        member __.Through img1 img2 = lift2 through img1 img2           
+    interface IBooleanModel<VoxImage> with
+        member __.TT = job { return VoxImage.TT (getBaseImg()) }
+        member __.FF = job { return VoxImage.FF (getBaseImg()) }
+        member __.BConst value = job { if value then return VoxImage.TT (getBaseImg()) else return VoxImage.FF (getBaseImg()) }
+        member __.And img1 img2 = lift2 VoxImage.Logand img1 img2
+        member __.Or img1 img2 = lift2 VoxImage.Logor img1 img2
+        member __.Not img = lift VoxImage.Lognot img
+ 
+    interface ISpatialModel<VoxImage> with
+        member __.Near img = lift VoxImage.Near img
+        member __.Interior img = lift VoxImage.Interior img
+        member __.Through img1 img2 = lift2 VoxImage.Through img1 img2           
    
-    
-    interface IDistanceModel<Image> with
-        member __.DT img = lift dt img
+    interface IDistanceModel<VoxImage> with
+        member __.DT img = lift VoxImage.Dt img
         
-    interface IQuantitativeModel<Image> with    
-        member __.Const value = job { return mkConst (float32 value) (getBaseImg()) }
-        member __.EqSV value img = lift2 eq value img
+    interface IQuantitativeModel<VoxImage> with    
+        member __.Const value = job { return VoxImage.CreateFloat (getBaseImg(),float32 value) }
+        member __.EqSV value img = lift2 VoxImage.Eq value img
             
-        member __.GeqSV value img = lift2 geq value img
-        member __.LeqSV value img = lift2 leq value img
-        member __.Between value1 value2 img = job { return between value1 value2 img }
-        member __.Max img = lift maxImg img
-        member __.Min img = lift minImg img
-        member __.SubtractVV img1 img2 = lift2 subtract img1 img2
-        member __.AddVV img1 img2 = lift2 add img1 img2
-        member __.MultiplyVV img1 img2 = lift2 mult img1 img2
-        member __.Mask (img : Image) (maskImg : Image) = lift2 mask img maskImg
-        member __.Avg (img : Image) (maskImg : Image)  = lift2 avg img maskImg
-        member __.AddVS (img : Image) k = job { return SimpleITK.Add(img,k) }
-        member __.MulVS (img : Image) k = job { return SimpleITK.Multiply(img,k) }
-        member __.SubVS (img : Image) k = job { return SimpleITK.Subtract(img,k) }
-        member __.DivVS (img : Image) k = job { return SimpleITK.Divide(img,k) }
-        member __.SubSV k (img : Image) = job { return SimpleITK.Subtract(k,img) }
-        member __.DivSV k (img : Image) = job { return SimpleITK.Divide(k,img) }
+        member __.GeqSV value img = lift2 VoxImage.Geq value img
+        member __.LeqSV value img = lift2 VoxImage.Leq value img
+        member __.Between value1 value2 img = job { return VoxImage.Between value1 value2 img }
+        member __.Max img = lift VoxImage.Max img
+        member __.Min img = lift VoxImage.Min img
+        member __.SubtractVV img1 img2 = job { return VoxImage.Subtract(img1,img2) }
+        member __.AddVV img1 img2 = job {return VoxImage.Add(img1,img2) }
+        member __.MultiplyVV img1 img2 = job { return VoxImage.Mult(img1,img2) }
+        member __.Mask (img : VoxImage) (maskImg : VoxImage) = job { return VoxImage.Mask img maskImg 0.0 }
+        member __.Avg (img : VoxImage) (maskImg : VoxImage)  = lift2 VoxImage.Avg img maskImg
+        member __.AddVS (img : VoxImage) k = job { return VoxImage.Add(img,k) }
+        member __.MulVS (img : VoxImage) k = job { return VoxImage.Mult(img,k) }
+        member __.SubVS (img : VoxImage) k = job { return VoxImage.Subtract(img,k) }
+        member __.DivVS (img : VoxImage) k = job { return VoxImage.Mult(img,1.0/k) }
+        member __.SubSV k (img : VoxImage) = job { return VoxImage.Subtract(k,img) }
+        member __.DivSV k (img : VoxImage) = job { return VoxImage.Div(k,img) }
         
-    interface IStatisticalModel<Image> with 
-        member __.CrossCorrelation rho a b fb m1 m2 k = crosscorrelation rho a b fb m1 m2 k
+    interface IStatisticalModel<VoxImage> with 
+        member __.CrossCorrelation rho a b fb m1 m2 k = VoxImage.Crosscorrelation rho a b fb m1 m2 k
 

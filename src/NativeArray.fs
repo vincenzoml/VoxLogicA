@@ -21,10 +21,11 @@ open Microsoft.FSharp.NativeInterop
 open System.Runtime.InteropServices
 
 
-type NativeArray<'T when 'T : unmanaged> = 
+type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and readwrite, make readwrite access possible only in certain conditions (and make sure that the handled object is owned by the current thread)
     val ptr : nativeptr<'T>
     val handle : GCHandle
     val length : int
+    val mutable disposed : bool
 
     member inline this.Length = this.length
 
@@ -34,10 +35,15 @@ type NativeArray<'T when 'T : unmanaged> =
     new (p : nativeptr<'T>, l: int, o: obj) = 
         {   ptr = p
             length = l
+            disposed = false
             handle = GCHandle.Alloc(o) }
 
+    interface System.IDisposable with
+        member this.Dispose() = 
+            lock this (fun () -> if not this.disposed then this.disposed <- true; this.handle.Free ())
+
     override this.Finalize() =
-        this.handle.Free()
+        (this :> System.IDisposable).Dispose()
 
     member inline this.UGet n =  
         assert (this.InBounds n)              
@@ -66,8 +72,13 @@ type NativeArray<'T when 'T : unmanaged> =
             f i (this.UGet i)
     
     member inline this.Apply f =
-        for i = 0 to this.length do
+        for i = 0 to this.length - 1 do
             this.USet i (f (this.UGet i))
+
+    member inline this.CopyFrom (other : NativeArray<'T>) =
+        assert (other.Length = this.Length)
+        for i = 0 to this.length - 1 do
+            this.USet i (other.UGet i)    
 
     member inline this.Applyi f =
         for i = 0 to this.length - 1 do
