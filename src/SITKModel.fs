@@ -48,7 +48,9 @@ type SITKModel() =
         | _ -> false        
 
     override __.Save filename v =
-        (v :?> VoxImage).Save(filename)                  
+        let img = v :?> VoxImage
+        ErrorMsg.Logger.DebugOnly (sprintf "saving image: %A" <| img.GetHashCode())
+        img.Save(filename)                  
             
     override __.Load s =
         let img = new VoxImage(s) 
