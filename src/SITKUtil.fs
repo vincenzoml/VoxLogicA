@@ -230,6 +230,7 @@ type VoxImage private (img : Image) =
         else if id = PixelIDValueEnum.sitkUInt8 then img.GetBufferAsUInt8()
         else if id = PixelIDValueEnum.sitkInt8 then img.GetBufferAsInt8()
         else if id = PixelIDValueEnum.sitkInt32 then img.GetBufferAsInt32()
+        else if id = PixelIDValueEnum.sitkUInt32 then img.GetBufferAsUInt32()
         else raise (UnsupportedPixelFormatException (img.GetPixelIDTypeAsString()))
 
     interface System.IDisposable with
@@ -395,17 +396,17 @@ type VoxImage private (img : Image) =
         new VoxImage(flt.Execute(img1.Image,img2.Image,img3.Image,img4.Image))
 
     static member Avg (img : VoxImage) (mask : VoxImage) = // TODO: type check that there is one component only
-        let mutable (l : list<float32>) = [] 
+        let mutable (l : list<float32>) = [0.0f] 
         img.GetBufferAsFloat(
             fun imgv ->
                 mask.GetBufferAsUInt8(
                     fun maskv ->
                         let mutable l = []
-                        for i = 0 to imgv.Length do
+                        for i = 0 to imgv.Length - 1 do
                         if maskv.UGet i > 0uy then
                             l <- (imgv.UGet i)::l    
                 ))
-        float (List.average l)
+        List.averageBy float l
     
     static member TT (img : VoxImage) = VoxImage.CreateUInt8(img,1uy)
     static member FF (img : VoxImage) = VoxImage.CreateUInt8(img,0uy)
@@ -501,7 +502,7 @@ type VoxImage private (img : Image) =
         let mutable res = 0
         img.GetBufferAsUInt8 (
             fun b ->
-                for i = 0 to b.Length do
+                for i = 0 to b.Length - 1 do
                     res <- res + (if b.UGet i > 0uy then 1 else 0))
         float res                
 

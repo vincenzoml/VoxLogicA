@@ -70,6 +70,7 @@ let main (argv : string array) =
                 interpreter.Batch sequential interpreter.DefaultLibDir filename    
                 0
     with e ->        
+            ErrorMsg.Logger.DebugOnly (e.ToString())
             ErrorMsg.Logger.DebugExn e
             ErrorMsg.Logger.Failure "exiting."
             1
