@@ -58,7 +58,9 @@ type SITKModel() =
                 img 
             | Some img1 ->
                 if VoxImage.SamePhysicalSpace img1 img
-                then img
+                then 
+                    ErrorMsg.Logger.Debug "same image"
+                    img
                 else // if Add fails, the two images don't have the same physical structure
                     if img.NPixels = img1.NPixels
                         //&& img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() 
