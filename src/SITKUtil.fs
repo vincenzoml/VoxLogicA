@@ -220,7 +220,7 @@ let private snake (innerSize : array<int>) (radius : array<int>) = // TODO: does
 
 type VoxImage private (img : Image,uniqueName : string) =
     //let threadid = System.Threading.Thread.CurrentThread       
-    let hashImg = img.GetHashCode().ToString() // TODO: hash the image data (voxels and headers) instead of using .NET's hashing (what's that based on, in this case, anyway?)
+    let hashImg = img.ToString().GetHashCode().ToString() // TODO: hash the image data (voxels and headers) instead of using .NET's hashing (what's that based on, in this case, anyway?)
     let disposed = ref false
     // static let internalNum = ref 0
     // static let internalId () = 
