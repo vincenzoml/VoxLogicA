@@ -218,9 +218,17 @@ let private snake (innerSize : array<int>) (radius : array<int>) = // TODO: does
         dir <- step()
     (pathidx,pathdir)  
 
-type VoxImage private (img : Image) =
+type VoxImage private (img : Image,uniqueName : string) =
     //let threadid = System.Threading.Thread.CurrentThread       
+    let hashImg = img.GetHashCode().ToString() // TODO: hash the image data (voxels and headers) instead of using .NET's hashing (what's that based on, in this case, anyway?)
     let disposed = ref false
+    static let internalNum = ref 0
+    static let internalId () = 
+        lock internalNum 
+            (fun () -> 
+                let res = !internalNum
+                internalNum := res + 1
+                res)
     let dispose () =
         lock disposed (fun () -> if not !disposed then disposed := true; img.Dispose())
 
@@ -240,7 +248,13 @@ type VoxImage private (img : Image) =
 
     member private __.Image = img
 
-    new (filename : string) = // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
+    override __.ToString() = sprintf "{ hash: %s; uniqueName : %s }" hashImg uniqueName
+
+    new (img : Image) =
+        new VoxImage(img,sprintf "internal:%d" (internalId()))
+
+    new (filename : string) = 
+        // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
         let loadedImg =
             Logger.Debug <| sprintf "Loading file %s" filename
             let img = SimpleITK.ReadImage(filename)
@@ -275,12 +289,15 @@ type VoxImage private (img : Image) =
                     img.Dispose()
                     res
                 | (x,y) -> img.Dispose(); raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
-        new VoxImage(loadedImg)            
+        new VoxImage(loadedImg,sprintf "file:%s" filename)  // TODO: canonicize filename and / or use the file hash
     
-    new (img : VoxImage, pixeltype : PixelIDValueEnum) =
-        new VoxImage(allocate(img.Image,pixeltype))
+    new (img : VoxImage, pixeltype : PixelIDValueEnum) =        
+        new VoxImage(
+                allocate(img.Image,pixeltype),
+                (   Logger.DebugOnly <| sprintf "Allocating image from %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
+                    sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))
 
-    new (img : VoxImage) = new VoxImage(new Image(img.Image))   
+    new (img : VoxImage) = new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
     
     static member CreateUInt8 (img : VoxImage,v : uint8) =
         let res = new VoxImage(img,PixelIDValueEnum.sitkUInt8)

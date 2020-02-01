@@ -33,7 +33,6 @@ type OperatorAttribute (name : string, argtype : string array, rettype : string,
     new (name, rettype, docstring) = new OperatorAttribute(name,[||],rettype,false,docstring)    
     new (name, argtype, rettype, docstring) = new OperatorAttribute(name,[|argtype|],rettype,false,docstring)
     
-
 type Operator(name : string, argtype : array<Type>, rettype : Type, fn : array<obj> -> Job<obj>,commutative : bool,constant : bool, docstring : string) =
     do if commutative && argtype.Length > 0 then 
         if Array.exists (fun t -> t <> argtype.[0]) argtype then 
@@ -52,7 +51,8 @@ type Operator(name : string, argtype : array<Type>, rettype : Type, fn : array<o
         sprintf "%s%s : %s\n%s\n" name args (rettype.ToString()) docstring
 
 and Constant(x,t) =
-    inherit Operator(x.ToString(),[||],t,(fun _ -> Job.result (x :> obj)),false,true)
+    inherit Operator((ErrorMsg.Logger.DebugOnly(sprintf "Warning: creating a constant calling the ToString() method on an object of type %A; check that the ToString() method is as unique as you want your objects to be." <| x.GetType());
+x.ToString()),[||],t,(fun _ -> Job.result (x :> obj)),false,true)
 
 and OperatorFactory() =
     let dict = new Dictionary<string,Operator>(1000)    
