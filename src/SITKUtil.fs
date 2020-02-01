@@ -218,9 +218,17 @@ let private snake (innerSize : array<int>) (radius : array<int>) = // TODO: does
         dir <- step()
     (pathidx,pathdir)  
 
-type VoxImage private (img : Image) =
+type VoxImage private (img : Image,uniqueName : string) =
     //let threadid = System.Threading.Thread.CurrentThread       
+    let hashImg = img.GetHashCode().ToString() // TODO: hash the image data (voxels and headers) instead of using .NET's hashing (what's that based on, in this case, anyway?)
     let disposed = ref false
+    static let internalNum = ref 0
+    let internalId = 
+        lock internalNum 
+            (fun () -> 
+                let res = !internalNum
+                internalNum := res + 1
+                res)
     let dispose () =
         lock disposed (fun () -> if not !disposed then disposed := true; img.Dispose())
 
@@ -240,7 +248,13 @@ type VoxImage private (img : Image) =
 
     member private __.Image = img
 
-    new (filename : string) = // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
+    override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
+
+    new (img : Image) =
+        new VoxImage(img,"") 
+
+    new (filename : string) = 
+        // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
         let loadedImg =
             Logger.Debug <| sprintf "Loading file %s" filename
             let img = SimpleITK.ReadImage(filename)
@@ -275,12 +289,15 @@ type VoxImage private (img : Image) =
                     img.Dispose()
                     res
                 | (x,y) -> img.Dispose(); raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
-        new VoxImage(loadedImg)            
+        new VoxImage(loadedImg,sprintf "file:%s" filename)  // TODO: canonicize filename and / or use the file hash
     
-    new (img : VoxImage, pixeltype : PixelIDValueEnum) =
-        new VoxImage(allocate(img.Image,pixeltype))
+    new (img : VoxImage, pixeltype : PixelIDValueEnum) =        
+        new VoxImage(
+                allocate(img.Image,pixeltype),
+                (   Logger.DebugOnly <| sprintf "Allocating image from %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
+                    sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))
 
-    new (img : VoxImage) = new VoxImage(new Image(img.Image))   
+    new (img : VoxImage) = new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
     
     static member CreateUInt8 (img : VoxImage,v : uint8) =
         let res = new VoxImage(img,PixelIDValueEnum.sitkUInt8)
@@ -368,7 +385,7 @@ type VoxImage private (img : Image) =
 
     static member Intensity (img : VoxImage) =
             if img.Image.GetNumberOfComponentsPerPixel() = 1ul
-            then new VoxImage(img)
+            then new VoxImage(img) 
             else  // TODO check color space correctly!!! Assumes it's rgb                
                 use r = SimpleITK.VectorIndexSelectionCast(img.Image,0ul)
                 use g = SimpleITK.VectorIndexSelectionCast(img.Image,1ul) 
@@ -402,15 +419,14 @@ type VoxImage private (img : Image) =
         new VoxImage(flt.Execute(img1.Image,img2.Image,img3.Image,img4.Image))
 
     static member Avg (img : VoxImage) (mask : VoxImage) = // TODO: type check that there is one component only
-        let mutable (l : list<float32>) = [0.0f] 
+        let mutable (l : list<float32>) = [] 
         img.GetBufferAsFloat(
             fun imgv ->
                 mask.GetBufferAsUInt8(
                     fun maskv ->
-                        let mutable l = []
                         for i = 0 to imgv.Length - 1 do
                         if maskv.UGet i > 0uy then
-                            l <- (imgv.UGet i)::l    
+                            l <- (imgv.UGet i)::l    // TODO: URGENT: BUG: check why results are slightly different from the master branch (commmit: e24602f1c54348a0c6f8188b3bf44573bd393703)
                 ))
         List.averageBy float l
     
