@@ -426,7 +426,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                     fun maskv ->
                         for i = 0 to imgv.Length - 1 do
                         if maskv.UGet i > 0uy then
-                            l <- (imgv.UGet i)::l    
+                            l <- (imgv.UGet i)::l    // TODO: URGENT: BUG: check why results are slightly different from the master branch (commmit: e24602f1c54348a0c6f8188b3bf44573bd393703)
                 ))
         List.averageBy float l
     
