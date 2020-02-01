@@ -220,15 +220,15 @@ let private snake (innerSize : array<int>) (radius : array<int>) = // TODO: does
 
 type VoxImage private (img : Image,uniqueName : string) =
     //let threadid = System.Threading.Thread.CurrentThread       
-    let hashImg = img.ToString().GetHashCode().ToString() // TODO: hash the image data (voxels and headers) instead of using .NET's hashing (what's that based on, in this case, anyway?)
+    let hashImg = img.GetHashCode.ToString() // TODO: hash the image data (voxels and headers) instead of using .NET's hashing (what's that based on, in this case, anyway?)
     let disposed = ref false
-    // static let internalNum = ref 0
-    // static let internalId () = 
-    //     lock internalNum 
-    //         (fun () -> 
-    //             let res = !internalNum
-    //             internalNum := res + 1
-    //             res)
+    static let internalNum = ref 0
+    let internalId = 
+        lock internalNum 
+            (fun () -> 
+                let res = !internalNum
+                internalNum := res + 1
+                res)
     let dispose () =
         lock disposed (fun () -> if not !disposed then disposed := true; img.Dispose())
 
@@ -248,10 +248,10 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     member private __.Image = img
 
-    override __.ToString() = sprintf "{ hash: %s; uniqueName : %s }" hashImg uniqueName
+    override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
     new (img : Image) =
-        new VoxImage(img,"internal") // sprintf "internal:%d" (internalId()))
+        new VoxImage(img,"") 
 
     new (filename : string) = 
         // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
