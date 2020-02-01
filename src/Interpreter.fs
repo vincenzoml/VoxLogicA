@@ -152,7 +152,7 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                                 then try2
                                 else raise <| ImportNotFoundException(fname,libdir)
                             else raise <| ImportNotFoundException(fname,libdir)                            
-                    // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: Import \"%s\"" fname
+                    ErrorMsg.Logger.DebugOnly <| sprintf "Import \"%s\"" fname
                     if not (parsedImports.Contains(path)) then 
                         ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path                                                               
                         let parsed = parseImport path                    

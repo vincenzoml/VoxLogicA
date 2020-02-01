@@ -33,6 +33,7 @@ type OperatorAttribute (name : string, argtype : string array, rettype : string,
     new (name, rettype, docstring) = new OperatorAttribute(name,[||],rettype,false,docstring)    
     new (name, argtype, rettype, docstring) = new OperatorAttribute(name,[|argtype|],rettype,false,docstring)
     
+
 type Operator(name : string, argtype : array<Type>, rettype : Type, fn : array<obj> -> Job<obj>,commutative : bool,constant : bool, docstring : string) =
     do if commutative && argtype.Length > 0 then 
         if Array.exists (fun t -> t <> argtype.[0]) argtype then 
