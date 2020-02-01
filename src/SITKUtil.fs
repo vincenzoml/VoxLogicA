@@ -385,7 +385,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member Intensity (img : VoxImage) =
             if img.Image.GetNumberOfComponentsPerPixel() = 1ul
-            then img // new VoxImage(img) URGENT: BUG: uncomment new and get funny results
+            then new VoxImage(img) 
             else  // TODO check color space correctly!!! Assumes it's rgb                
                 use r = SimpleITK.VectorIndexSelectionCast(img.Image,0ul)
                 use g = SimpleITK.VectorIndexSelectionCast(img.Image,1ul) 
