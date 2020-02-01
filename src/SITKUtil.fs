@@ -385,7 +385,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member Intensity (img : VoxImage) =
             if img.Image.GetNumberOfComponentsPerPixel() = 1ul
-            then img // new VoxImage(img)
+            then img // new VoxImage(img) URGENT: BUG: uncomment new and get funny results
             else  // TODO check color space correctly!!! Assumes it's rgb                
                 use r = SimpleITK.VectorIndexSelectionCast(img.Image,0ul)
                 use g = SimpleITK.VectorIndexSelectionCast(img.Image,1ul) 
@@ -419,12 +419,11 @@ type VoxImage private (img : Image,uniqueName : string) =
         new VoxImage(flt.Execute(img1.Image,img2.Image,img3.Image,img4.Image))
 
     static member Avg (img : VoxImage) (mask : VoxImage) = // TODO: type check that there is one component only
-        let mutable (l : list<float32>) = [0.0f] 
+        let mutable (l : list<float32>) = [] 
         img.GetBufferAsFloat(
             fun imgv ->
                 mask.GetBufferAsUInt8(
                     fun maskv ->
-                        let mutable l = []
                         for i = 0 to imgv.Length - 1 do
                         if maskv.UGet i > 0uy then
                             l <- (imgv.UGet i)::l    
