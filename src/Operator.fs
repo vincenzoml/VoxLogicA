@@ -51,8 +51,10 @@ type Operator(name : string, argtype : array<Type>, rettype : Type, fn : array<o
         sprintf "%s%s : %s\n%s\n" name args (rettype.ToString()) docstring
 
 and Constant(x,t) =
-    inherit Operator((ErrorMsg.Logger.DebugOnly(sprintf "Warning: creating a constant calling the ToString() method on an object of type %A; check that the ToString() method is as unique as you want your objects to be." <| x.GetType());
-x.ToString()),[||],t,(fun _ -> Job.result (x :> obj)),false,true)
+    inherit Operator(
+        (   ErrorMsg.Logger.DebugOnly(sprintf "Warning: creating a constant calling the ToString() method on an object of type %A; check that the ToString() method is as unique as you want your objects to be." <| x.GetType());
+            x.ToString()),
+        [||],t,(fun _ -> Job.result (x :> obj)),false,true)
 
 and OperatorFactory() =
     let dict = new Dictionary<string,Operator>(1000)    
