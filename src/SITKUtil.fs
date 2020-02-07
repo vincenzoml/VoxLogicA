@@ -234,11 +234,11 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     let niBuffer = 
         let id = img.GetPixelID() 
-        if (id = PixelIDValueEnum.sitkFloat32) || (id = PixelIDValueEnum.sitkFloat64) then img.GetBufferAsFloat()
-        else if id = PixelIDValueEnum.sitkUInt8 then img.GetBufferAsUInt8()
-        else if id = PixelIDValueEnum.sitkInt8 then img.GetBufferAsInt8()
-        else if id = PixelIDValueEnum.sitkInt32 then img.GetBufferAsInt32()
-        else if id = PixelIDValueEnum.sitkUInt32 then img.GetBufferAsUInt32()
+        if id = PixelIDValueEnum.sitkFloat32 || id = PixelIDValueEnum.sitkFloat64 || id = PixelIDValueEnum.sitkVectorFloat32 || id = PixelIDValueEnum.sitkVectorFloat64 then img.GetBufferAsFloat()
+        else if id = PixelIDValueEnum.sitkUInt8 || id = PixelIDValueEnum.sitkVectorUInt8 then img.GetBufferAsUInt8()
+        else if id = PixelIDValueEnum.sitkInt8 || id = PixelIDValueEnum.sitkVectorInt8 then img.GetBufferAsInt8()
+        else if id = PixelIDValueEnum.sitkInt32 || id = PixelIDValueEnum.sitkVectorInt32 then img.GetBufferAsInt32()
+        else if id = PixelIDValueEnum.sitkUInt32 || id = PixelIDValueEnum.sitkVectorUInt32 then img.GetBufferAsUInt32()        
         else raise (UnsupportedPixelFormatException (img.GetPixelIDTypeAsString()))
 
     interface System.IDisposable with
