@@ -114,7 +114,8 @@ type SITKModel() =
             
         member __.GeqSV value img = lift2 VoxImage.Geq value img
         member __.LeqSV value img = lift2 VoxImage.Leq value img
-        member __.Between value1 value2 img = job { return VoxImage.Between value1 value2 img }
+        member __.Between value1 value2 img = job { return VoxImage.Between value1 value2 img }        
+        member __.Abs img = job { return VoxImage.Abs img }
         member __.Max img = lift VoxImage.Max img
         member __.Min img = lift VoxImage.Min img
         member __.SubtractVV img1 img2 = job { return VoxImage.Subtract(img1,img2) }

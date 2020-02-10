@@ -362,6 +362,9 @@ type VoxImage private (img : Image,uniqueName : string) =
         with _ -> 
             false
 
+    static member Abs (img : VoxImage) =
+        new VoxImage(SimpleITK.Abs(img.Image))
+
     static member Max (img : VoxImage) =
         use flt = new MinimumMaximumImageFilter() // TODO: implement tuples and projections, make max and min a single operator
         flt.Execute(img.Image)    

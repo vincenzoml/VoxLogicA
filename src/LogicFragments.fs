@@ -56,6 +56,8 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     abstract member Between : float -> float -> 'Value -> Job<'Value>
     [<OperatorAttribute("max","valuation(number)","number","Finds the maximum value among the voxels in its argument")>]
     abstract member Max : 'Value -> Job<float>
+    [<OperatorAttribute("abs","valuation(number)","valuation(number)","Computes an image where each voxel contains the absolute value of the corresponding voxel in the input image")>]
+    abstract member Abs : 'Value -> Job<'Value>
     [<OperatorAttribute("min","valuation(number)","number","Finds the minimum value among the voxels in its argument")>]
     abstract member Min : 'Value -> Job<float>
     [<OperatorAttribute("+",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise addition")>]    
