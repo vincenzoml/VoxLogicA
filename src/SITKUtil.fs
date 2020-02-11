@@ -299,16 +299,6 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     new (img : VoxImage) = new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
     
-    static member CreateUInt8 (img : VoxImage,v : uint8) =
-        let res = new VoxImage(img,PixelIDValueEnum.sitkUInt8)
-        res.GetBufferAsUInt8 (fun (buf : NativeArray<_>) -> buf.Fill v)
-        res
-
-    static member CreateFloat (img : VoxImage,v : float32) =
-        let res = new VoxImage(img,PixelIDValueEnum.sitkFloat32)
-        res.GetBufferAsFloat (fun (buf : NativeArray<_>) -> buf.Fill v)    
-        res
-
     member __.Save (filename : string) =
         let fname = System.IO.Path.GetFileName(filename)
         if fname.EndsWith(".jpg") && img.GetNumberOfComponentsPerPixel() > 3ul then
@@ -354,6 +344,16 @@ type VoxImage private (img : Image,uniqueName : string) =
     member this.GetBufferAsUInt32 fn = 
         use vect = new NativeArray<uint32>(NativePtr.ofNativeInt niBuffer,(int <| img.GetNumberOfPixels()) * (int <| img.GetNumberOfComponentsPerPixel()),this)
         fn vect
+
+    static member CreateUInt8 (img : VoxImage,v : uint8) =
+        let res = new VoxImage(img,PixelIDValueEnum.sitkUInt8)
+        res.GetBufferAsUInt8 (fun (buf : NativeArray<_>) -> buf.Fill v)
+        res
+
+    static member CreateFloat (img : VoxImage,v : float32) =
+        let res = new VoxImage(img,PixelIDValueEnum.sitkFloat32)
+        res.GetBufferAsFloat (fun (buf : NativeArray<_>) -> buf.Fill v)    
+        res
 
     static member SamePhysicalSpace (img1 : VoxImage) (img2 : VoxImage) =
         try
