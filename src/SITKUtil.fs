@@ -261,8 +261,9 @@ type VoxImage private (img : Image,uniqueName : string) =
             let fname = System.IO.Path.GetFileName(filename)
             let sz = img.GetSize()
             let mutable found = false
-            for i = 0 to sz.Count - 1 do
-                if sz.[i] = 1u then (sz.[i] <- 0u; found <- true)
+            if sz.Count > 2 then
+                for i = 0 to sz.Count - 1 do
+                    if sz.[i] = 1u then (sz.[i] <- 0u; found <- true)
             let img = 
                 if found then 
                     Logger.Warning (sprintf "image %s has size 1 in some dimensions; image flattened" fname)    
@@ -399,7 +400,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                 new VoxImage(SimpleITK.Add(SimpleITK.Multiply(rcoeff,r),SimpleITK.Add(SimpleITK.Multiply(gcoeff,g),SimpleITK.Multiply(bcoeff,b))))
 
     static member Component (img : VoxImage) (i : int) = 
-        assert (i > 0 && i < (int (img.Image.GetNumberOfComponentsPerPixel())))
+        assert (i >= 0 && i < (int (img.Image.GetNumberOfComponentsPerPixel())))
         new VoxImage(SimpleITK.VectorIndexSelectionCast(img.Image,(uint32 i)))
 
     static member Red (img : VoxImage) = VoxImage.Component img 0
@@ -506,7 +507,6 @@ type VoxImage private (img : Image,uniqueName : string) =
         let ccs = Array.create (k+1) 0uy
 
         use m1 = VoxImage.Mask cc2 img1 0.0
-        
         m1.GetBufferAsUInt32 (
             fun bufm1 ->
                 cc2.GetBufferAsUInt32 (

@@ -59,15 +59,19 @@ let main (argv : string array) =
         // if sequential
         // then 
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
-        //     proc.ProcessorAffinity <- nativeint 0x1  
-        let ofilename = parsed.TryGetResult Filename
-        match ofilename with
-            | None -> 
+        //     proc.ProcessorAffinity <- nativeint 0x1          
+        let run filename =
+            let interpreter = Interpreter(model,checker)
+            interpreter.Batch sequential interpreter.DefaultLibDir filename    
+        match (parsed.TryGetResult Filename,ErrorMsg.isDebug()) with 
+            | None,false ->                                      
                 printfn "%s\n" (cmdLineParser.PrintUsage ())
                 0
-            | Some filename -> 
-                let interpreter = Interpreter(model,checker)
-                interpreter.Batch sequential interpreter.DefaultLibDir filename    
+            | Some filename,_ -> 
+                run filename        
+                0
+            | None,true ->
+                run "test.imgql"
                 0
     with e ->        
             ErrorMsg.Logger.DebugExn e
