@@ -348,7 +348,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member CreateUInt8 (img : VoxImage,v : uint8) =
         let res = new VoxImage(img,PixelIDValueEnum.sitkUInt8)
-        res.GetBufferAsUInt8 (fun (buf : NativeArray<_>) -> buf.Fill v)
+        res.GetBufferAsUInt8 (fun (buf : NativeArray<_>) -> buf.Fill v) // TODO: instead of calling Fill each time, call fill only once in an internal buffer and then use Marhsall.Copy (in a Copy method of NativeArray)
         res
 
     static member CreateFloat (img : VoxImage,v : float32) =

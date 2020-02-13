@@ -76,7 +76,7 @@ type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and r
             this.USet i (f (this.UGet i))
 
     member inline this.CopyFrom (other : NativeArray<'T>) =
-        assert (other.Length = this.Length)
+        assert (other.Length = this.Length) // TODO: this must be replaced by Marhall.Copy
         for i = 0 to this.length - 1 do
             this.USet i (other.UGet i)    
 
@@ -89,5 +89,5 @@ type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and r
             this.USet i (f i)
     
     member inline this.Fill v =
-        for i = 0 to this.length - 1 do
+        for i = 0 to this.length - 1 do // TODO: can this be repalced by some more efficient native method?            
             this.USet i v
