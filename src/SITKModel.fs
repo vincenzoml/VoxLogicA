@@ -91,6 +91,7 @@ type SITKModel() =
         member __.Volume img = lift VoxImage.Volume img
         member __.MaxVol img = lift VoxImage.MaxVol img
         member __.Percentiles img mask correction = job { return VoxImage.Percentiles img mask correction }
+        member __.LCC img = job { return VoxImage.Lcc img }
 
     interface IBooleanModel<VoxImage> with
         member __.TT = job { return VoxImage.TT (getBaseImg()) }

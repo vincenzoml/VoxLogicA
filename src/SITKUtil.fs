@@ -246,7 +246,8 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     override __.Finalize () = dispose()
 
-    member private __.Image = img
+    // TODO: make private!
+    member __.Image = img
 
     override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
@@ -501,6 +502,11 @@ type VoxImage private (img : Image,uniqueName : string) =
         flt.SetFullyConnected(true)
         (new VoxImage(flt.Execute(img.Image)),int <| flt.GetObjectCount())
 
+    static member Lcc (img : VoxImage) =        
+        let (tmp,_) = VoxImage.LabelConnectedComponents img
+        use tmp = tmp
+        new VoxImage(SimpleITK.Cast(tmp.Image,PixelIDValueEnum.sitkFloat32))
+
     static member Through (img1 : VoxImage) (img2 : VoxImage) =  // x satisfies (through phi1 phi2) iff there is path p and index l s.t. p(l) satisfies phi1, and for all k in [0,l] p(k) satisfies phi2
         let (cc,k) = VoxImage.LabelConnectedComponents img2
         use cc2 = cc
@@ -558,8 +564,8 @@ type VoxImage private (img : Image,uniqueName : string) =
                         for i = 0 to bufres.Length - 1 do
                             let cc = int <| bufccs.UGet i
                             bufres.USet i (uint8 (volumes.[cc]))))
-        res
-        
+        res       
+
     static member Percentiles (img : VoxImage) (mask : VoxImage) (correction : float) =    
         let res = VoxImage.Mask img mask -1.0
         img.GetBufferAsFloat (
