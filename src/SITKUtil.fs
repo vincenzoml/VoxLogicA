@@ -322,7 +322,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                                 flt.Execute(v)                            
                         else
                             Logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
-                            SimpleITK.RescaleIntensity(img,0.0,255.0)
+                            SimpleITK.Multiply(img,255.0)                            
                     else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
                 else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
         Logger.Debug <| sprintf "Saving file %s" filename        
