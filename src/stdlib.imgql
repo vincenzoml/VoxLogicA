@@ -75,3 +75,11 @@ let ifB (cond,th,el) =
     
 let ifN (cond,th,el) =
     mask(th,bconstant(cond)) + mask(el,not(bconstant(cond)))
+
+let maskCC(phi1,phi2) = mask(Lcc(phi2),phi1)
+let minCC(phi1,phi2) = min(maskCC(phi1,phi2))
+let maxCC(phi1,phi2) = max(maskCC(phi1,phi2))
+
+let collect(phi1,phi2) = // Collective operator: M,X |= phi1 -< Gr phi2
+    (vol(phi1) .=. 0) | ((minCC(phi1,phi2) .=. maxCC(phi1,phi2)) & (maxCC(phi1,phi2) .>. 0))
+    

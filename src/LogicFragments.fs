@@ -124,4 +124,8 @@ type IImageModel<'Value when 'Value : equality> =
     abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]
     abstract member RGBA : 'Value -> 'Value -> 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("lcc",[|"valuation(bool)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]
+    abstract member LCC : 'Value -> Job<'Value>
+    
+    
     
