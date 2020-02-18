@@ -83,3 +83,11 @@ let maxCC(phi1,phi2) = max(maskCC(phi1,phi2))
 let collect(phi1,phi2) = // Collective operator: M,X |= phi1 -< Gr phi2
     (vol(phi1) .=. 0) | ((minCC(phi1,phi2) .=. maxCC(phi1,phi2)) & (maxCC(phi1,phi2) .>. 0))
     
+let emptyB(phi) = volume(phi) .=. 0
+let nemptyB(phi) = volume(phi) .>. 0
+
+let xor(phi1,phi2) = (phi1 & !phi2) | (phi2 & !phi1)
+let eqB(phi1,phi2) = emptyB(xor(phi1,phi2))
+let neqB(phi) = nemptyB(xor(phi1,phi2))
+let leqB(phi1,phi2) = emptyB(phi1 & !phi2)
+

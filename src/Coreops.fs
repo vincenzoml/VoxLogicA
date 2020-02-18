@@ -31,3 +31,13 @@ type Coreops() =
 
     [<OperatorAttribute(".-.",[|"number";"number"|],"number","Floating point subtraction")>]
     member __.Sub (a : float) (b: float) : Job<float> = job { return a - b }
+
+    [<OperatorAttribute(".&.",[|"bool";"bool"|],"bool","Boolean and")>]
+    member __.And (a : bool) (b: bool) : Job<bool> = job { return a && b }
+
+    [<OperatorAttribute(".|.",[|"bool";"bool"|],"bool","Boolean or")>]
+    member __.Or (a : bool) (b: bool) : Job<bool> = job { return a || b }
+
+    [<OperatorAttribute("!.",[|"bool"|],"bool","Boolean not")>]
+    member __.Not (a : bool) : Job<bool> = job { return not a }
+    
