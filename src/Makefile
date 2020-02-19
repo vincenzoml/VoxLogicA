@@ -46,7 +46,7 @@ restore:
 publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
-	cp -a bin/release/netcoreapp2.2/$(RID)/publish/* $(RELEASE)
+	cp -a bin/release/netcoreapp3.1/$(RID)/publish/* $(RELEASE)
 	cp -a BINARY_LICENSE.txt $(RELEASE)
 	cd ../releases && rm -f $(RELEASENAME).zip && zip -r $(RELEASENAME).zip $(RELEASENAME)
 

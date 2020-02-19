@@ -45,7 +45,7 @@ let main (argv : string array) =
     let informationalVersion = ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
     ErrorMsg.Logger.Debug (sprintf "%s %s" name.Name informationalVersion)
     let model = SITKModel() :> IModel   
-    let checker = ModelChecker(model)       
+    let checker = ModelChecker(model)          
     if version.Revision <> 0 then ErrorMsg.Logger.Warning (sprintf "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d." name.Name version.Major version.Minor version.Build)                        
     try
         let cmdLineParser = ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())     
