@@ -52,7 +52,7 @@ https://link.springer.com/chapter/10.1007/978-3-030-17462-0_16
 Quickstart
 ==========
 
-See the directory "example" and the comments in the file "example.imgql" 
+See the directory "examples/tutorial": in particular the comments in the file "examples/tutorial/tutorial.imgql" 
 
 
 Using the tool

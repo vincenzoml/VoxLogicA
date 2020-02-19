@@ -88,6 +88,11 @@ let nemptyB(phi) = volume(phi) .>. 0
 
 let xor(phi1,phi2) = (phi1 & !phi2) | (phi2 & !phi1)
 let eqB(phi1,phi2) = emptyB(xor(phi1,phi2))
-let neqB(phi) = nemptyB(xor(phi1,phi2))
+let neqB(phi1,phi2) = nemptyB(xor(phi1,phi2))
 let leqB(phi1,phi2) = emptyB(phi1 & !phi2)
 
+let overlayB(boolean,maskfalse,masktrue) =
+    mask(masktrue,boolean) + mask(maskfalse,!boolean)
+
+let overlayColor(boolean,img,r,g,b) =
+    rgb(overlayB(boolean,red(img),constant(r)),overlayB(boolean,green(img),constant(g)),overlayB(boolean,blue(img),constant(b)))

@@ -69,6 +69,8 @@ type Interpreter(model : IModel, checker : ModelChecker) =
             | Float f -> 
                 // // ErrorMsg.Logger.DebugOnly (sprintf "Translating float(%A)" f)
                 formFactory.CreateConst (f,TNumber)
+            | Bool b ->
+                formFactory.CreateConst (b,TBool)
             | String s -> 
                 // ErrorMsg.Logger.DebugOnly (sprintf "Translating string(%A)" s)
                 formFactory.CreateConst (s,TString)
@@ -141,17 +143,25 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                             evaluate env parsedImports rest (j::jobs)
                     | _ -> raise <| InterpreterException(StackTrace(["print",pos]),CantPrintException(typ))                            
                 | Import fname :: rest ->
+                    let find filename = 
+                        if File.Exists filename 
+                        then Some filename 
+                        else 
+                            let nfilename = filename + ".imgql" 
+                            if File.Exists nfilename 
+                            then Some nfilename
+                            else None
                     let path =                         
                         let try1 = System.IO.Path.GetFullPath fname // TODO: also permit local import         
-                        if File.Exists try1 
-                        then try1
-                        else
-                            if not (fname.StartsWith "/") then
-                                let try2 = System.IO.Path.GetFullPath (System.IO.Path.Combine(libdir,fname))
-                                if File.Exists try2 
-                                then try2
-                                else raise <| ImportNotFoundException(fname,libdir)
-                            else raise <| ImportNotFoundException(fname,libdir)                            
+                        match find try1 with
+                            | Some try1 -> try1
+                            | None ->
+                                if not (fname.StartsWith "/") then
+                                    let try2 = System.IO.Path.GetFullPath (System.IO.Path.Combine(libdir,fname))
+                                    match find try2 with
+                                        | Some try2 -> try2
+                                        | None -> raise <| ImportNotFoundException(fname,libdir)
+                                else raise <| ImportNotFoundException(fname,libdir)                            
                     ErrorMsg.Logger.DebugOnly <| sprintf "Import \"%s\"" fname
                     if not (parsedImports.Contains(path)) then 
                         ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path                                                               

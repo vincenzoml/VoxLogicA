@@ -1,0 +1,38 @@
+import "RegionCalculus"
+
+load img = "example-rcc8d.png"
+let r = red(img)
+let g = green(img)
+let b = blue(img)
+
+let left  = g =. 255
+let right = r =. 255
+let row1  = b =.   0
+let row2  = b =.  40
+let row3  = b =.  80
+let row4  = b =. 120
+let row5  = b =. 160
+let row6  = b =. 200
+let yes   = g =. 100
+let no    = g =. 200 
+
+let checkdc(row) = ifB (dc(row & left,row & right),yes & row,no & row)
+let checkec(row) = ifB (ec(row & left,row & right),yes & row,no & row)
+let checktpp(row) = ifB (tpp(row & left,row & right),yes & row,no & row)
+let checkntpp(row) = ifB (ntpp(row & left,row & right),yes & row,no & row)
+let checkpo(row) = ifB (po(row & left,row & right),yes & row,no & row) 
+let checkeq(row) = ifB (eq(row & left,row & right),yes & row,no & row)
+
+let layerDc = checkdc(row1) | checkdc(row2) | checkdc(row3) | checkdc(row4) | checkdc(row5) | checkdc(row6)
+let layerEc = checkec(row1) | checkec(row2) | checkec(row3) | checkec(row4) | checkec(row5) | checkec(row6)
+let layerTpp = checktpp(row1) | checktpp(row2) | checktpp(row3) | checktpp(row4) | checktpp(row5) | checktpp(row6)
+let layerNtpp = checkntpp(row1) | checkntpp(row2) | checkntpp(row3) | checkntpp(row4) | checkntpp(row5) | checkntpp(row6)
+let layerPo = checkpo(row1) | checkpo(row2) | checkpo(row3) | checkpo(row4) | checkpo(row5) | checkpo(row6)
+let layerEq = checkeq(row1) | checkeq(row2) | checkeq(row3) | checkeq(row4) | checkeq(row5) | checkeq(row6)
+
+save "output/dc.png" overlayColor(layerDc,img,255,0,0)
+save "output/ec.png" overlayColor(layerEc,img,255,0,0)
+save "output/tpp.png" overlayColor(layerTpp,img,255,0,0)
+save "output/ntpp.png" overlayColor(layerNtpp,img,255,0,0)
+save "output/po.png" overlayColor(layerPo,img,255,0,0)
+save "output/eq.png" overlayColor(layerEq,img,255,0,0)

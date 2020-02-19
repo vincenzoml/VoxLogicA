@@ -40,4 +40,18 @@ type Coreops() =
 
     [<OperatorAttribute("!.",[|"bool"|],"bool","Boolean not")>]
     member __.Not (a : bool) : Job<bool> = job { return not a }
+
+    [<OperatorAttribute(".=.",[|"number";"number"|],"bool","Equality")>]
+    member __.Eq (a : float) (b: float) : Job<bool> = job { return (a = b) }
     
+    [<OperatorAttribute(".<=.",[|"number";"number"|],"bool","Less or equal than")>]
+    member __.Leq (a : float) (b: float) : Job<bool> = job { return (a <= b) }
+
+    [<OperatorAttribute(".<.",[|"number";"number"|],"bool","Less than")>]
+    member __.Lt (a : float) (b: float) : Job<bool> = job { return (a < b) }
+
+    [<OperatorAttribute(".>=.",[|"number";"number"|],"bool","Greater or equal than")>]
+    member __.Geq (a : float) (b: float) : Job<bool> = job { return (a >= b) }
+
+    [<OperatorAttribute(".>.",[|"number";"number"|],"bool","Greater than")>]
+    member __.Gt (a : float) (b: float) : Job<bool> = job { return (a > b) }

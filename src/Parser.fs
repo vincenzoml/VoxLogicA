@@ -24,6 +24,7 @@ exception ParseErrorException of s : string
 type Expression = 
     | Call of Position * string * (Expression list)
     | Float of float
+    | Bool of bool
     | String of string
 
 type ParsedItem = 
@@ -55,8 +56,9 @@ let private optlst p = opt p |>> Option.defaultValue []
 let private farglist = brackets (commaSepList ide) <?> "formal arguments list" .>> spacesOrComment
     
 let private parseExpression = 
-        let (call,callImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()            
-        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> Float) <|> ((attempt strConst) .>> spacesOrComment |>> String) <|> call 
+        let (call,callImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()      
+        let pbool = (attempt (pstring "true" >>. parse {return true}) <|> attempt (pstring "false" >>. parse {return false})) <?> "boolean value"
+        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> Float) <|> ((attempt pbool) .>> spacesOrComment |>> Bool) <|> ((attempt strConst) .>> spacesOrComment |>> String) <|> call 
         let (expr',exprImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()
         let expr = expr' <?> "expression"
         let application = optlst (brackets (commaSepList expr)) <?> "actual arguments list"
