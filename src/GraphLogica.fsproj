@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Exceptions.fs" />
+    <Compile Include="Util.fs" />
+    <Compile Include="ErrorMsg.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="UniqueFactory.fs" />
+    <Compile Include="Operator.fs" />
+    <Compile Include="Formula.fs" />
+    <Compile Include="Coreops.fs" />
+    <Compile Include="Model.fs" />
+    <Compile Include="ModelChecker.fs" />
+    <Compile Include="LogicFragments.fs" />
+    <Compile Include="Parser.fs" />
+    <Compile Include="Interpreter.fs" />
+    <Compile Include="NativeArray.fs" />
+    <Compile Include="Graph.fs" />
+    <Compile Include="GraphModel.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Argu" Version="6.0.0" />
+    <PackageReference Include="FParsec" Version="1.0.3" />
+    <PackageReference Include="hopac" Version="0.3.23" />
+    <PackageReference Include="FSharp.Json" Version="0.4.0" />
+  </ItemGroup>
+  <Target Name="SetVersion" BeforeTargets="BeforeBuild">
+  <ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
+    <Output TaskParameter="Lines" ItemName="Version" />
+  </ReadLinesFromFile>
+  <Message Text="Current version is - @(Version)" Importance="high" />
+  <PropertyGroup>
+    <Version>@(version)</Version>
+  </PropertyGroup>
+</Target>
+  <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+  <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
+  <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
+  <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />  
+</Target>
+  <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
+  <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
+  <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
+  <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />  
+</Target>
+</Project>

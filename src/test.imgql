@@ -1,0 +1,3 @@
+load graph = "testGraph.json"
+
+save "out.json" graph
