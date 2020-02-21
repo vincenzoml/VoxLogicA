@@ -18,6 +18,7 @@
     <Compile Include="Parser.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="NativeArray.fs" />
+    <Compile Include="Truth.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="GraphModel.fs" />
     <Compile Include="Program.fs" />

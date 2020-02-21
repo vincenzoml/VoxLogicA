@@ -18,9 +18,19 @@ namespace VoxLogicA
 
 open Hopac
 
+
+exception UnknownAtomicPropositionException of ap : string
+    with override this.Message = sprintf "Unknown atomic proposition %s" this.ap
+
+
 type ILogicModel<'Value> = // empty interface used to constrain all implemented logic fragments to the same 'Value type
     interface
     end
+
+type IAtomicModel<'Value when 'Value : equality> =
+    inherit ILogicModel<'Value>
+    [<OperatorAttribute("ap","string","valuation(bool)","Valuation of atomic propositions")>]
+    abstract member Ap : string -> Job<'Value>
 
 type IBooleanModel<'Value when 'Value : equality> =  
     inherit ILogicModel<'Value>

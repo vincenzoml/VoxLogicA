@@ -33,6 +33,8 @@ open Lifts
 
 open Graph
 
+open Truth
+
 type SITKModel() =    
     inherit IModel()
     let mutable baseGraph : option<Graph> = None
@@ -42,15 +44,15 @@ type SITKModel() =
     
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
         match t with 
-        | (TValuation(_)|TModel) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
+        | (TValuation(TBool)) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
         | _ -> false        
 
     override __.Save filename v =
-        let graph = v :?> Graph
-        graph.Save(filename)    
+        let t = v :?> Truth
+        saveTruth filename t   
             
     override __.Load s =
-        let graph = new Graph(s) 
+        let graph = loadGraph s
         let res = 
             match baseGraph with
             | None -> 
@@ -58,7 +60,16 @@ type SITKModel() =
                 graph
             | Some _ ->                
                 raise MoreThanOneModelUnsupportedException
-        res :> obj     
+        res :> obj
+
+    interface IAtomicModel<Truth> with
+        member __.Ap s = job { 
+                let x = 
+                    match getAp (getBaseGraph()) s with
+                    | Some ap -> ap 
+                    | None -> raise <| UnknownAtomicPropositionException(s) 
+                return x
+            }
 
     // interface IBoundedModel<VoxImage> with
     //     member __.Border = job { return VoxImage.Border (getBaseImg()) }
@@ -77,13 +88,13 @@ type SITKModel() =
     //     member __.Percentiles img mask correction = job { return VoxImage.Percentiles img mask correction }
     //     member __.LCC img = job { return VoxImage.Lcc img }
 
-    // interface IBooleanModel<VoxImage> with
-    //     member __.TT = job { return VoxImage.TT (getBaseImg()) }
-    //     member __.FF = job { return VoxImage.FF (getBaseImg()) }
-    //     member __.BConst value = job { if value then return VoxImage.TT (getBaseImg()) else return VoxImage.FF (getBaseImg()) }
-    //     member __.And img1 img2 = lift2 VoxImage.Logand img1 img2
-    //     member __.Or img1 img2 = lift2 VoxImage.Logor img1 img2
-    //     member __.Not img = lift VoxImage.Lognot img
+    interface IBooleanModel<Truth> with
+        member __.TT = job { return TT(getBaseGraph().Nodes) }
+        member __.FF = job { return FF(getBaseGraph().Nodes) }
+        member __.BConst v = lift (BConst (getBaseGraph().Nodes)) v  
+        member __.And v1 v2 = lift2 And v1 v2
+        member __.Or v1 v2 = lift2 Or v1 v2
+        member __.Not v = lift Not v
  
     // interface ISpatialModel<VoxImage> with
     //     member __.Near img = lift VoxImage.Near img

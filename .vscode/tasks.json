@@ -5,7 +5,7 @@
     "tasks": [
         {
             "label": "build",
-            "command": "make",
+            "command": "dotnet build GraphLogicA.fsproj",
             "type": "shell",                        
             "options" : {
                 "cwd": "src"
