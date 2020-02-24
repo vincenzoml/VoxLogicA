@@ -95,12 +95,13 @@ let private mkGraph (fg : IntFileGraph) =
             b.Ptr.[i] <- b.Ptr.[i-1] + b.Len.[i-1]
             a.Ptr.[i] <- a.Ptr.[i-1] + a.Len.[i-1]
         List.iteri (fun idx value -> f.[i,idx] <- value) fArcs.[i]
-        List.iteri (fun idx value -> b.[i,idx] <- value) bArcs.[i]
+        List.iteri (fun idx value -> b.[i,idx] <- value) bArcs.[i]        
         List.iteri 
             (fun idx ap -> 
                 let h = hashAtoms.[ap]
                 a.[i,idx] <- h
                 napAux.[h,idx] <- i
+                napAux.Len.[i] <- max (napAux.Len.[i]) (idx+1)
                 )
             fg.nodes.[i].atoms
     {   Nodes = numNodes
@@ -118,4 +119,25 @@ let getAp graph ap =
         Some (graph.NodeAp n)
     with :? KeyNotFoundException -> 
         None
+
+let transpose graph =
+    { graph with 
+        FArcs = graph.BArcs
+        BArcs = graph.FArcs     }
     
+let flood graph start condition =
+    let result = Array.create graph.Nodes false
+    let visited = Array.copy result    
+    let rec fn frontier = 
+        match frontier with
+        | [] -> ()
+        | node::rest -> 
+            if not visited.[node] then 
+                visited.[node] <- true
+                let fa = graph.FArcs.Slice node
+                for f in fa do
+                    if condition f then
+                        fn (f::rest)
+                    else fn rest                            
+    fn start             
+    result
