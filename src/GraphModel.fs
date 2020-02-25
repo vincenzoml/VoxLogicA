@@ -96,10 +96,10 @@ type SITKModel() =
         member __.Or v1 v2 = lift2 Or v1 v2
         member __.Not v = lift Not v
  
-    // interface ISpatialModel<VoxImage> with
-    //     member __.Near img = lift VoxImage.Near img
-    //     member __.Interior img = lift VoxImage.Interior img
-    //     member __.Through img1 img2 = lift2 VoxImage.Through img1 img2           
+    interface ISpatialModel<VoxImage> with
+        member __.Near v = job { return (bdilate (getBaseGraph()) v) }
+        member __.Interior v = job { return (berode (getBaseGraph()) v) }
+        member __.Through v1 v2 = lift2 VoxImage.Through img1 img2           
    
     // interface IDistanceModel<VoxImage> with
     //     member __.DT img = lift VoxImage.Dt img

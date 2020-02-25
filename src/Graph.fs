@@ -124,6 +124,19 @@ let transpose graph =
     { graph with 
         FArcs = graph.BArcs
         BArcs = graph.FArcs     }
+
+
+let dilate (truth : Truth.Truth) (arcs : VariableMatrix<_>) =
+    Array.init truth.Length (fun i -> Seq.exists (fun n -> truth.[n]) (arcs.Slice i))
+
+let erode (truth : Truth.Truth) (arcs : VariableMatrix<_>) =
+    Array.init truth.Length (fun i -> not <| Seq.exists (fun n -> not truth.[n]) (arcs.Slice i))
+
+let fdilate graph truth = dilate truth graph.FArcs
+let bdilate graph truth = dilate truth graph.BArcs
+
+let ferode graph truth = erode truth graph.FArcs
+let berode graph truth = erode truth graph.BArcs
     
 let flood graph start condition =
     let result = Array.create graph.Nodes false
