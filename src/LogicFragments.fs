@@ -27,12 +27,12 @@ type ILogicModel<'Value> = // empty interface used to constrain all implemented 
     interface
     end
 
-type IAtomicModel<'Value when 'Value : equality> =
+type IAtomicModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("ap","string","valuation(bool)","Valuation of atomic propositions")>]
     abstract member Ap : string -> Job<'Value>
 
-type IBooleanModel<'Value when 'Value : equality> =  
+type IBooleanModel<'Value> =  
     inherit ILogicModel<'Value>
     [<OperatorAttribute("bconstant","bool","valuation(bool)","The image which has the given boolean value at each voxel")>]
     abstract member BConst : bool -> Job<'Value>
@@ -47,12 +47,12 @@ type IBooleanModel<'Value when 'Value : equality> =
     [<OperatorAttribute("or",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)",true,"Boolean or voxel-wise")>]
     abstract member Or : 'Value -> 'Value -> Job<'Value>
 
-type IDistanceModel<'Value when 'Value : equality> =
+type IDistanceModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("dt","valuation(bool)","valuation(number)","Euclidean distance transform of its argument: replaces each voxel with the positive (or 0) distance from the nearest voxel which is true in the argument.")>]
     abstract member DT : 'Value -> Job<'Value>
 
-type IQuantitativeModel<'Value when 'Value : equality> =
+type IQuantitativeModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("constant","number","valuation(number)","The image which has the given value at each voxel")>]
     abstract member Const : float -> Job<'Value>
@@ -93,7 +93,7 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     [<OperatorAttribute("*.",[|"valuation(number)";"number"|],"valuation(number)","multiplies each voxel by a constant")>]    
     abstract member MulVS : 'Value -> float -> Job<'Value>    
 
-type ISpatialModel<'Value when 'Value : equality> =
+type ISpatialModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("near","valuation(bool)","valuation(bool)","Spatial-logical closure (that is, dilation)")>]
     abstract member Near : 'Value -> Job<'Value>
@@ -102,17 +102,17 @@ type ISpatialModel<'Value when 'Value : equality> =
     [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2")>]
     abstract member Through : 'Value -> 'Value -> Job<'Value>
     
-type IStatisticalModel<'Value when 'Value : equality> =
+type IStatisticalModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("crossCorrelation",[|"number";"valuation(number)";"valuation(number)";"valuation(bool)";"number";"number";"number"|],"valuation(number)","crossCorrelation(radius,local,target,mask,min,max,nbins) computes similarity scores via statistical cross-correlation (see academic papers or extended documentation)")>]
     abstract member CrossCorrelation : float -> 'Value -> 'Value -> 'Value -> float -> float -> float -> Job<'Value>
     
-type IBoundedModel<'Value when 'Value : equality> =
+type IBoundedModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("border",[||],"valuation(bool)","True at voxels in the border of the image")>]
     abstract member Border : Job<'Value>
 
-type IImageModel<'Value when 'Value : equality> =
+type IImageModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("intensity","model","valuation(number)","The intensity  of an image. For RGB images this is computed with the well known colorimetric formula.")>]
     abstract member Intensity : 'Value -> Job<'Value>

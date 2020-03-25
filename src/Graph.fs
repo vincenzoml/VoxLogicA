@@ -127,10 +127,10 @@ let transpose graph =
 
 
 let dilate (truth : Truth.Truth) (arcs : VariableMatrix<_>) =
-    Array.init truth.Length (fun i -> Seq.exists (fun n -> truth.[n]) (arcs.Slice i))
+    Array.init truth.Length (fun i -> Seq.exists (fun n -> truth.[n]) (arcs.Slice i)) : Truth.Truth
 
 let erode (truth : Truth.Truth) (arcs : VariableMatrix<_>) =
-    Array.init truth.Length (fun i -> not <| Seq.exists (fun n -> not truth.[n]) (arcs.Slice i))
+    Array.init truth.Length (fun i -> not <| Seq.exists (fun n -> not truth.[n]) (arcs.Slice i)) : Truth.Truth
 
 let fdilate graph truth = dilate truth graph.FArcs
 let bdilate graph truth = dilate truth graph.BArcs
