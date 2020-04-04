@@ -64,11 +64,11 @@ type SITKModel() =
 
     interface IAtomicModel<Truth> with
         member __.Ap s = job { 
-                let x = 
-                    match getAp (getBaseGraph()) s with
-                    | Some ap -> ap 
-                    | None -> raise <| UnknownAtomicPropositionException(s) 
-                return x
+                let graph = getBaseGraph()
+                let ap = getAp graph s
+                let res = Array.create graph.NumNodes false 
+                Array.iter (fun idx -> res.[idx] <- true) ap        
+                return res
             }
 
     // interface IBoundedModel<VoxImage> with
@@ -89,17 +89,17 @@ type SITKModel() =
     //     member __.LCC img = job { return VoxImage.Lcc img }
 
     interface IBooleanModel<Truth> with
-        member __.TT = job { return TT(getBaseGraph().Nodes) }
-        member __.FF = job { return FF(getBaseGraph().Nodes) }
-        member __.BConst v = lift (BConst (getBaseGraph().Nodes)) v  
+        member __.TT = job { return TT(getBaseGraph().NumNodes) }
+        member __.FF = job { return FF(getBaseGraph().NumNodes) }
+        member __.BConst v = lift (BConst (getBaseGraph().NumNodes)) v  
         member __.And v1 v2 = lift2 And v1 v2
         member __.Or v1 v2 = lift2 Or v1 v2
         member __.Not v = lift Not v
  
     interface ISpatialModel<Truth> with
-        member __.Near v = job { return (bdilate (getBaseGraph()) v) }
-        member __.Interior v = job { return (berode (getBaseGraph()) v) }
-        member __.Through v1 v2 = failwith "stub" //lift2 VoxImage.Through img1 img2           
+        member __.Near v = job { return (fdilate (getBaseGraph()) v) }
+        member __.Interior v = job { return (ferode (getBaseGraph()) v) }
+        member __.Through v1 v2 = job {return (ftrough (getBaseGraph()) v1 v2)}           
    
     // interface IDistanceModel<VoxImage> with
     //     member __.DT img = lift VoxImage.Dt img

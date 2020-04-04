@@ -1,3 +1,4 @@
 load graph = "testGraph.json"
 
-save "out.json" ap("red")
+save "in.json" ap("red")
+save "out.json" through(ap("blue"),ap("red"))

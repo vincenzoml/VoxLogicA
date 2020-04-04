@@ -1,6 +1,7 @@
 module VoxLogicA.Graph
 
 open System.Collections.Generic
+open Truth
 
 type IntNode = { id : string; atoms : string list }
 type IntArc = { source : string; target: string }
@@ -9,148 +10,133 @@ type IntFileGraph = { nodes : IntNode list; arcs : IntArc list }
 let private loadFileGraph filename = 
     FSharp.Json.Json.deserialize<IntFileGraph>(System.IO.File.ReadAllText(filename))    
 
-type VariableMatrix<'a>(ptr : array<int>,len : array<int>, values : array<'a>) =
-    // TODO some assertions are needed in this class
-    new (majorSize, totalMinorSize, defaultValue: 'a) = new VariableMatrix<'a>(Array.create majorSize 0, Array.create majorSize 0, Array.create totalMinorSize defaultValue)
-    new (majorSize) = new VariableMatrix<'a>(Array.create majorSize 0, Array.create majorSize 0,[||]) 
-    member __.Ptr = ptr
-    member __.Len = len
-    member __.Values = values
-    member __.Item
-        with get (major,minor) = 
-            values.[ptr.[major]+minor]
-        and set (major,minor) value =
-            values.[ptr.[major]+minor] <- value
-    member __.Slice n = 
-        seq { for i in ptr.[n] .. ptr.[n] + len.[n] - 1 do yield values.[i] }
-    override __.ToString() = 
-        let strings = 
-            Seq.mapi 
-                (fun idx p ->  
-                    sprintf "%d -> { ptr = %d, len = %d, values = %s }\n" 
-                        idx 
-                        p 
-                        len.[idx]                         
-                        (String.concat " " 
-                            (Seq.map 
-                                (fun j -> values.[j].ToString()) 
-                                (seq { p .. p + len.[idx] - 1 })))
-                )                 
-                ptr
-        String.concat "\n" strings
-
 type Graph =
-    // the encoding of arcs is suitable for GPU computing and allocationless computing: 
-    // the array ArcsPointer, of size Nodes, contains an index j(x) for each node x. 
-    // The array FArcs and BArcs, the same size as the arcs of the graph, contains, starting at j(x), destinations of forward arcs (FArcs) or sources of backward arcs (BArcs) of the node x.
-    // The length of each such list of arcs can be deduced by the pointer of the next node
-    // Atomic propositions are represented similarly
-    {   Nodes : int
-        ApNum : string -> int
-        NodeAp : int -> Truth.Truth // for each ap, compute an array of size Nodes 
-        FArcs : VariableMatrix<int>
-        BArcs: VariableMatrix<int>
-        Atoms: VariableMatrix<int>   }
-    override this.ToString() =
-        sprintf "Nodes:\n%A\nFArcs:\n%A\nBArcs:\n%A\nAtoms:\n%A\n" this.Nodes this.FArcs this.BArcs this.Atoms
+    {   NumNodes : int
+        NumAtoms : int
+        FArcs : array<list<int>>
+        BArcs: array<list<int>>
+        AtomsOfNode: array<array<int>>
+        NodesOfAtom : array<array<int>>
+        NameOfAtom : array<string>
+        AtomOfName : string -> int
+        NodeId : array<string>  }
 
 let private mkGraph (fg : IntFileGraph) =
+    
     let numNodes = fg.nodes.Length
-    let numArcs = fg.arcs.Length
-    let numAtoms = List.sumBy (fun node -> node.atoms.Length) fg.nodes
-    let ndApLists = List.map (fun node -> node.atoms) fg.nodes
-    let ndAp = Seq.concat ndApLists  
-    let ap = List.ofSeq <| Seq.distinct ndAp
-    let numAp = ap.Length
-    let hashNodes = new Dictionary<string,int>(numNodes)
-    let hashAtoms = new Dictionary<string,int>(numAp)
-    List.iteri (fun idx node -> hashNodes.Add(node.id,idx)) fg.nodes
-    List.iteri (fun idx atom -> hashAtoms.Add(atom,idx)) ap    
-    let fArcs = Array.create numNodes []
-    let bArcs = Array.create numNodes []
-    List.iter 
-        (fun (arc : IntArc) -> 
-            let s = hashNodes.[arc.source]        
-            let t = hashNodes.[arc.target]
-            fArcs.[s] <- t::fArcs.[s] 
-            bArcs.[t] <- s::bArcs.[t])
-        fg.arcs
-    let f = new VariableMatrix<_>(numNodes,numArcs,0)
-    let b = new VariableMatrix<_>(numNodes,numArcs,0)
-    let a = 
-        match ap with 
-            | [] -> VariableMatrix(numNodes) 
-            | x::_ -> new VariableMatrix<_>(numNodes,numAtoms,0)
-    let napAux = VariableMatrix<_>(numAp,numAtoms,0)        
-    let nap ap =
-        let a = Array.create numNodes false
-        Seq.iter (fun node -> a.[node] <- true) (napAux.Slice ap)
-        a
-    for i = 0 to numNodes - 1 do        
-        f.Len.[i] <- fArcs.[i].Length
-        b.Len.[i] <- bArcs.[i].Length
-        a.Len.[i] <- fg.nodes.[i].atoms.Length        
-        if i > 0 then                        
-            f.Ptr.[i] <- f.Ptr.[i-1] + f.Len.[i-1]
-            b.Ptr.[i] <- b.Ptr.[i-1] + b.Len.[i-1]
-            a.Ptr.[i] <- a.Ptr.[i-1] + a.Len.[i-1]
-        List.iteri (fun idx value -> f.[i,idx] <- value) fArcs.[i]
-        List.iteri (fun idx value -> b.[i,idx] <- value) bArcs.[i]        
-        List.iteri 
-            (fun idx ap -> 
-                let h = hashAtoms.[ap]
-                a.[i,idx] <- h
-                napAux.[h,idx] <- i
-                napAux.Len.[i] <- max (napAux.Len.[i]) (idx+1)
+    let numAtoms = List.sumBy (fun node -> List.length node.atoms) fg.nodes
+    
+    let nodeDict = Dictionary<string,int>(numNodes)
+    let apDict = Dictionary<string,int>(numAtoms)
+    
+    let fArcs = Array.create numNodes Set.empty
+    let bArcs = Array.create numNodes Set.empty
+    let atomsOfNode = Array.create numNodes Set.empty
+    let nodesOfAtom = Array.create numAtoms Set.empty
+    let nodeId = Array.create numNodes ""
+    
+    let newAtomId = 
+        let mutable curid = 0
+        fun () -> 
+            let res = curid 
+            curid <- curid + 1
+            res
+
+    List.iteri 
+        (fun idx node -> 
+            nodeId.[idx] <- node.id
+            nodeDict.[node.id] <- idx
+            List.iter
+                (fun atom ->
+                    let atomId = 
+                        try apDict.[atom]
+                        with :? KeyNotFoundException ->
+                            let res = newAtomId()
+                            apDict.[atom] <- res
+                            res
+                    atomsOfNode.[idx] <- atomsOfNode.[idx].Add atomId                                           
+                    nodesOfAtom.[atomId] <- nodesOfAtom.[atomId].Add idx
                 )
-            fg.nodes.[i].atoms
-    {   Nodes = numNodes
-        ApNum = fun s -> hashAtoms.[s]
-        NodeAp = nap
-        FArcs = f
-        BArcs = b
-        Atoms = a   }    
+                node.atoms
+        )
+        fg.nodes    
+    List.iter 
+        (fun arc -> 
+            let s = nodeDict.[arc.source]
+            let t = nodeDict.[arc.target]
+            fArcs.[s] <- fArcs.[s].Add t
+            bArcs.[t] <- bArcs.[t].Add s
+        )    
+        fg.arcs
+    let nameOfAtom =
+        apDict 
+            |> Seq.sortBy (fun pair -> pair.Value)
+            |> Seq.map (fun pair -> pair.Key)
+            |> Seq.toArray        
+    {   NumNodes = numNodes
+        NumAtoms = numAtoms
+        FArcs = Array.map Set.toList fArcs
+        BArcs = Array.map Set.toList bArcs
+        AtomsOfNode = Array.map Set.toArray atomsOfNode
+        NodesOfAtom = Array.map Set.toArray nodesOfAtom
+        NameOfAtom = nameOfAtom
+        AtomOfName = fun s -> apDict.[s]
+        NodeId = nodeId }    
 
 let loadGraph filename = mkGraph(loadFileGraph(filename))
 
 let getAp graph ap = 
     try
-        let n = graph.ApNum ap
-        Some (graph.NodeAp n)
+        let n = graph.AtomOfName ap
+        graph.NodesOfAtom.[n]
     with :? KeyNotFoundException -> 
-        None
+        [||]
 
-let transpose graph =
-    { graph with 
-        FArcs = graph.BArcs
-        BArcs = graph.FArcs     }
+let dilate revArcs (truth : Truth) : Truth = 
+    // Computes the closure; the method used requires a "backward" arcs function to be passed (enumerating the nodes of the in-degree of a given node)
+    Array.mapi 
+        (fun idx v -> v || List.exists (Array.get truth) (revArcs idx))
+        truth    
 
-
-let dilate (truth : Truth.Truth) (arcs : VariableMatrix<_>) =
-    Array.init truth.Length (fun i -> Seq.exists (fun n -> truth.[n]) (arcs.Slice i)) : Truth.Truth
-
-let erode (truth : Truth.Truth) (arcs : VariableMatrix<_>) =
-    Array.init truth.Length (fun i -> not <| Seq.exists (fun n -> not truth.[n]) (arcs.Slice i)) : Truth.Truth
-
-let fdilate graph truth = dilate truth graph.FArcs
-let bdilate graph truth = dilate truth graph.BArcs
-
-let ferode graph truth = erode truth graph.FArcs
-let berode graph truth = erode truth graph.BArcs
+let erode revArcs (truth : Truth) : Truth = 
+    Array.mapi 
+        (fun idx v -> v && List.forall (Array.get truth) (revArcs idx))
+        truth    
     
-let flood graph start condition =
-    let result = Array.create graph.Nodes false
-    let visited = Array.copy result    
-    let rec fn frontier = 
+let fdilate graph truth =
+    dilate (Array.get graph.BArcs) truth
+
+let bdilate graph truth = 
+    dilate (Array.get graph.FArcs) truth
+
+let berode graph truth =
+    erode (Array.get graph.FArcs) truth
+
+let ferode graph truth = 
+    erode (Array.get graph.BArcs) truth
+
+let grow (arcs : int -> list<int>) (start : Truth) (condition : int -> bool) =        
+    let visited = Array.copy start    
+    let result = Array.copy start
+    let rec step (frontier : list<list<int>>) = 
         match frontier with
         | [] -> ()
-        | node::rest -> 
-            if not visited.[node] then 
-                visited.[node] <- true
-                let fa = graph.FArcs.Slice node
-                for f in fa do
-                    if condition f then
-                        fn (f::rest)
-                    else fn rest                            
-    fn start             
+        | []::xs -> step xs
+        | (x::xs)::ys ->     
+            result.[x] <- true
+            let future = 
+                List.filter 
+                    (fun candidate -> 
+                        if not visited.[candidate] 
+                        then 
+                            visited.[candidate] <- true
+                            condition candidate
+                        else false)  
+                    (arcs x)
+            step (future::(xs::ys))
+    let startList = [for i in 0..start.Length-1 do if start.[i] then yield i]        
+    step [startList]
     result
+
+let ftrough graph finish condition = 
+    grow (Array.get graph.BArcs) finish (Array.get condition)
