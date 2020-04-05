@@ -101,6 +101,11 @@ type SITKModel() =
         member __.Interior v = job { return (ferode (getBaseGraph()) v) }
         member __.Through v1 v2 = job {return (ftrough (getBaseGraph()) v1 v2)}           
    
+    interface IDirectedSpatialModel<Truth> with
+        member __.BNear v = job { return (bdilate (getBaseGraph()) v) }
+        member __.BInterior v = job { return (berode (getBaseGraph()) v) }
+        member __.BThrough v1 v2 = job {return (btrough (getBaseGraph()) v1 v2)}           
+
     // interface IDistanceModel<VoxImage> with
     //     member __.DT img = lift VoxImage.Dt img
         

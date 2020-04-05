@@ -18,7 +18,7 @@
 ### the program will be compiled in
 ### ./bin/release/netcoreapp2.x/win-x64/publish/voxlogica
 
-PROJ=VoxLogicA
+PROJ=GraphLogicA
 UNAME := $(shell uname)
 VERSION=$(shell cat VERSION.txt)
 RELEASENAME=$(PROJ)_$(VERSION)_$(RID)
@@ -36,6 +36,15 @@ CURRENTRID=osx-x64
 endif
 
 .PHONY: build clean restore release-linux release-osx release-win publish-internal release
+
+temporary:
+	@echo Check your makefile, this is a temporary target!
+	# dotnet warp -r linux-x64
+	# mv GraphLogicA GraphLogicA-$(VERSION)-linux
+	dotnet warp -r osx-x64
+	mv GraphLogicA GraphLogicA-$(VERSION)-osx
+	# dotnet warp -r win-x64
+	# mv GraphLogicA.exe GraphLogicA-$(VERSION)-win.exe
 
 build: *.fs $(PROJ).fsproj
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release -r $(CURRENTRID) 

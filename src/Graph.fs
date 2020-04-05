@@ -140,3 +140,6 @@ let grow (arcs : int -> list<int>) (start : Truth) (condition : int -> bool) =
 
 let ftrough graph finish condition = 
     grow (Array.get graph.BArcs) finish (Array.get condition)
+
+let btrough graph finish condition = 
+    grow (Array.get graph.FArcs) finish (Array.get condition)
