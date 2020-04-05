@@ -39,6 +39,7 @@ endif
 
 temporary:
 	@echo Check your makefile, this is a temporary target!
+	@echo To get dotnet warp run: dotnet tool install --global dotnet-warp
 	# dotnet warp -r linux-x64
 	# mv GraphLogicA GraphLogicA-$(VERSION)-linux
 	dotnet warp -r osx-x64
