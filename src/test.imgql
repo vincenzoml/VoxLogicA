@@ -1,5 +1,13 @@
-load graph = "out.json"
+load graph = "testGraph.json"
 
-save "out2.json" ap("result")
+// L'operatore "b ~> a" è vero sui punti x per cui esiste un path p da x a y, tale che p[0] |= b, p[y] |= a, e tutti i punti intermedi in (0,y) soddisfano b. 
 
-ERRORE: aggiunge "result" due volte
+let rho(a,b) = bnear((b ~> bnear(a)) | a) 
+
+let blue = ap("blue")
+let red = ap("red")
+
+save "red.json" red
+save "blue.json" blue
+save "bnear_blue.json" red ~> bnear(blue) 
+save "rho_blue_red.json" rho(blue,red)

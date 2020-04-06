@@ -161,15 +161,15 @@ let grow (arcs : int -> list<int>) (start : Truth) (condition : int -> bool) =
                         then 
                             visited.[candidate] <- true
                             condition candidate
-                        else false)  
+                        else false)
                     (arcs x)
             step (future::(xs::ys))
     let startList = [for i in 0..start.Length-1 do if start.[i] then yield i]        
     step [startList]
     result
 
-let ftrough graph finish condition = 
-    grow (Array.get graph.BArcs) finish (Array.get condition)
+let ftrough graph finish (condition : Truth) : Truth = 
+    grow (Array.get graph.BArcs) (Array.map2 (&&) finish condition) (Array.get condition)
 
-let btrough graph finish condition = 
-    grow (Array.get graph.FArcs) finish (Array.get condition)
+let btrough graph finish (condition : Truth) : Truth = 
+    grow (Array.get graph.FArcs) (Array.map2 (&&) finish condition) (Array.get condition)

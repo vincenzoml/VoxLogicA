@@ -49,6 +49,7 @@ type SITKModel() =
 
     override __.Save filename v =
         let t = v :?> Truth
+        printfn "save to '%A': %A" filename t
         saveGraph (getBaseGraph ()) filename "result" t
             
     override __.Load s =

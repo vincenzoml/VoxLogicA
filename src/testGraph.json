@@ -2,7 +2,7 @@
     "nodes": [  
         {
             "id": "0",
-            "atoms": ["white"]            
+            "atoms": ["white","red"]            
         },
         {
             "id": "1",
@@ -32,6 +32,6 @@
         { "source": "3", "target" : "4" },
         { "source": "0", "target" : "5" },
         { "source": "5", "target" : "2" },
-        { "source": "5", "target" : "4" }
+        { "source": "4", "target" : "5" }
     ]
 }
