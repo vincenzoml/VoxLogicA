@@ -45,11 +45,11 @@ type SITKModel() =
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
         match t with 
         | (TValuation(TBool)) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
-        | _ -> false        
+        | _ -> false
 
     override __.Save filename v =
         let t = v :?> Truth
-        saveTruth filename t   
+        saveGraph (getBaseGraph ()) filename "result" t
             
     override __.Load s =
         let graph = loadGraph s

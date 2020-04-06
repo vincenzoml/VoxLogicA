@@ -2,13 +2,14 @@ module VoxLogicA.Graph
 
 open System.Collections.Generic
 open Truth
+open FSharp.Json
 
 type IntNode = { id : string; atoms : string list }
 type IntArc = { source : string; target: string }
 type IntFileGraph = { nodes : IntNode list; arcs : IntArc list } 
 
 let private loadFileGraph filename = 
-    FSharp.Json.Json.deserialize<IntFileGraph>(System.IO.File.ReadAllText(filename))    
+    Json.deserialize<IntFileGraph>(System.IO.File.ReadAllText(filename))    
 
 type Graph =
     {   NumNodes : int
@@ -20,6 +21,35 @@ type Graph =
         NameOfAtom : array<string>
         AtomOfName : string -> int
         NodeId : array<string>  }
+
+let mkIntFileGraph graph atomName (truth : Truth) = {
+    nodes = [ 
+        for node in 0 .. graph.NumNodes - 1 -> {
+            id = graph.NodeId.[node] 
+            atoms = 
+                let oldAtoms = [ for atom in graph.AtomsOfNode.[node] -> graph.NameOfAtom.[atom] ]
+                if truth.[node] then atomName::oldAtoms else oldAtoms
+        }
+    ]
+    arcs = [
+        for s in 0 .. graph.NumNodes - 1 do 
+            for t in graph.FArcs.[s] -> {                
+                source = graph.NodeId.[s]
+                target = graph.NodeId.[t]                
+            }
+    ]
+}
+        
+
+let saveGraph graph (filename : string) atom truth = 
+    let extension = 
+        let x = filename.Split(".") 
+        x.[x.Length - 1]
+    match extension with
+    | "json" -> 
+        let iGraph = mkIntFileGraph graph atom truth
+        System.IO.File.WriteAllText(filename,Json.serialize iGraph)
+    | _ -> raise <| CantSaveException(TValuation TBool,extension) 
 
 let private mkGraph (fg : IntFileGraph) =
     

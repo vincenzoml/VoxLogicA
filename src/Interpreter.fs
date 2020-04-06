@@ -34,9 +34,6 @@ exception InterpreterException of st: StackTrace * e : exn
 exception UnknownIdentifierException of ide : string
     with override this.Message = sprintf "Unknown identifier %s" this.ide
 
-exception CantSaveException of t : Type * s : string
-    with override this.Message = sprintf "Saving expression of type %s to file \"%s\" is not supported" (this.t.ToString()) this.s
-
 exception CantPrintException of t : Type
     with override this.Message = sprintf "Printing expression of type %s is not supported" (this.t.ToString())
 

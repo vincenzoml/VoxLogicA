@@ -1,4 +1,5 @@
-load graph = "testGraph.json"
+load graph = "out.json"
 
-save "in.json" ap("red")
-save "out.json" through(ap("blue"),ap("red"))
+save "out2.json" ap("result")
+
+ERRORE: aggiunge "result" due volte
