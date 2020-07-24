@@ -1,0 +1,40 @@
+import "stdlib.imgql"
+
+//Function for computing the Dice-Soerensen index
+let dice(x,y) = (2 .*. volume(x & y)) ./. (volume(x) .+. volume(y))
+
+// grow(a,b) is "a" union "those regions b that thouch regions of a" 
+let grow(a,b) = (a|touch(b,a))
+
+// Load data
+load imgPFLAIR = "$INPUTDIR/$NAME_pflair-uint16-alike_slice-max-GTV-uint16-scaled.png"
+
+// An image could have many attributes (e.g. RGB). We extract the intensity.
+let pflair = intensity(imgPFLAIR)
+
+// Load the manual segmentation for comparison
+load imgManualSeg = "$INPUTDIR/$NAME_pflair-uint16-alike_seg-uint16-scaled.png"
+let manualContouringGTV = intensity(imgManualSeg) >. 0
+
+// Function diceM(x) computes the Dice-Soerensen score against the manual segmentation
+let diceM(x) = dice(x,manualContouringGTV)
+
+// The actual analysis session starts here
+
+// 1. Thresholding
+let hI = pflair >. 62258 // (0.95 * 65535) 
+let vI = pflair >. 56360 // (0.86 * 65535) 
+
+// 2. Semantic noise removal via growing
+let gtv = grow(hI,vI)
+
+// Print some interesting Dice-Soerensen scores
+// In particular: growTum already says a lot about the tumour.
+print "01_dice_hyperIntense" diceM(hI)
+print "02_dice_veryIntense" diceM(vI)
+print "03_dice_gtv" diceM(gtv)
+
+// Save the results
+save "$OUTPUTDIR/gtv.png" gtv
+
+
