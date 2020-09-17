@@ -40,8 +40,6 @@ TACAS 2019. Lecture Notes in Computer Science, vol 11427. Springer, Cham
 }
 ```
 
-https://link.springer.com/chapter/10.1007/978-3-030-17462-0_16
-
 
 Quickstart
 ==========
