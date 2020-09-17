@@ -19,13 +19,7 @@ This file is meant to be an user manual for the tool. However, one can also
 refer to the following research paper, which illustrates the philosophy of the
 tool in more detail, with a detailed case study.
 
-https://arxiv.org/abs/1811.05677
-
-NOTE: the above link points to a preprint of an academic paper to be published in 
-the proceedings of the "25th International Conference on Tools and Algorithms for 
-the Construction and Analysis of Systems (TACAS 2019)".  See:
-
-https://conf.researchr.org/track/etaps-2019/tacas-2019-papers
+https://link.springer.com/chapter/10.1007/978-3-030-17462-0_16
 
 If you use VoxLogicA in your research, please consider citing the relevant paper(s):
 
