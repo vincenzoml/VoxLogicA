@@ -507,7 +507,7 @@ type VoxImage private (img : Image,uniqueName : string) =
         use tmp = tmp
         new VoxImage(SimpleITK.Cast(tmp.Image,PixelIDValueEnum.sitkFloat32))
 
-    static member Through (img1 : VoxImage) (img2 : VoxImage) =  // x satisfies (through phi1 phi2) iff there is path p and index l s.t. p(l) satisfies phi1, and for all k in [0,l] p(k) satisfies phi2
+    static member Through (img1 : VoxImage) (img2 : VoxImage) =  // x satisfies (through phi1 phi2) iff the connected component of phi2 containing x also contains a point of phi1
         let (cc,k) = VoxImage.LabelConnectedComponents img2
         use cc2 = cc
         let ccs = Array.create (k+1) 0uy
