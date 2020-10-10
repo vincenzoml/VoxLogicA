@@ -28,10 +28,6 @@ type LoadFlags = {
 
 type CmdLine = 
     | Ops 
-<<<<<<< HEAD
-    | Sequential
-=======
->>>>>>> experimental
     | [<MainCommandAttribute;UniqueAttribute>] Filename of string    
 with
     interface Argu.IArgParserTemplate with
@@ -39,10 +35,6 @@ with
             match s with
             | Ops ->  "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
-<<<<<<< HEAD
-            | Sequential ->  "Run on one CPU only"
-=======
->>>>>>> experimental
     
 [<EntryPoint>]
 let main (argv : string array) =
@@ -51,11 +43,7 @@ let main (argv : string array) =
     let informationalVersion = ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
     ErrorMsg.Logger.Debug (sprintf "%s %s" name.Name informationalVersion)
     let model = SITKModel() :> IModel   
-<<<<<<< HEAD
-    let checker = ModelChecker(model)       
-=======
     let checker = ModelChecker(model)          
->>>>>>> experimental
     if version.Revision <> 0 then ErrorMsg.Logger.Warning (sprintf "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d." name.Name version.Major version.Minor version.Build)                        
     try
         let cmdLineParser = ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())     
@@ -65,22 +53,6 @@ let main (argv : string array) =
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-<<<<<<< HEAD
-        let sequential = parsed.Contains Sequential        
-        itk.simple.ProcessObject.SetGlobalDefaultNumberOfThreads 1u
-        // if sequential
-        // then 
-        //     let proc = System.Diagnostics.Process.GetCurrentProcess()
-        //     proc.ProcessorAffinity <- nativeint 0x1  
-        let ofilename = parsed.TryGetResult Filename
-        match ofilename with
-            | None -> 
-                printfn "%s\n" (cmdLineParser.PrintUsage ())
-                0
-            | Some filename -> 
-                let interpreter = Interpreter(model,checker)
-                interpreter.Batch sequential interpreter.DefaultLibDir filename    
-=======
         // if sequential
         // then 
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
@@ -97,7 +69,6 @@ let main (argv : string array) =
                 0
             | None,true ->
                 run "test.imgql"
->>>>>>> experimental
                 0
     with e ->        
             ErrorMsg.Logger.DebugExn e

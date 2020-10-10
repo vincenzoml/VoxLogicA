@@ -108,11 +108,7 @@ type Interpreter(model : IModel, checker : ModelChecker) =
             match syn with 
                 | ModelLoad(ide,filename) :: rest ->
                     let filename = System.IO.Path.GetFullPath filename 
-<<<<<<< HEAD
-                    ErrorMsg.Logger.DebugOnly <| sprintf "ModelLoad \"%s\"" filename
-=======
                     // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelLoad \"%s\"" filename
->>>>>>> experimental
                     let v = model.Load filename
                     let fmla = checker.FormulaFactory.CreateConst (v,TModel)
                     // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: loaded image %A name %s from file %s fmla uid %d" (v.GetHashCode()) ide filename fmla.Uid)
@@ -157,17 +153,6 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                             else None
                     let path =                         
                         let try1 = System.IO.Path.GetFullPath fname // TODO: also permit local import         
-<<<<<<< HEAD
-                        if File.Exists try1 
-                        then try1
-                        else
-                            if not (fname.StartsWith "/") then
-                                let try2 = System.IO.Path.GetFullPath (System.IO.Path.Combine(libdir,fname))
-                                if File.Exists try2 
-                                then try2
-                                else raise <| ImportNotFoundException(fname,libdir)
-                            else raise <| ImportNotFoundException(fname,libdir)                            
-=======
                         match find try1 with
                             | Some try1 -> try1
                             | None ->
@@ -177,7 +162,6 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                                         | Some try2 -> try2
                                         | None -> raise <| ImportNotFoundException(fname,libdir)
                                 else raise <| ImportNotFoundException(fname,libdir)                            
->>>>>>> experimental
                     ErrorMsg.Logger.DebugOnly <| sprintf "Import \"%s\"" fname
                     if not (parsedImports.Contains(path)) then 
                         ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path                                                               
@@ -193,34 +177,21 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                 do! checker.Check
                 do! Util.Concurrent.conIgnore (Array.ofList jobs)                                  
                 ErrorMsg.Logger.Debug "... done."  }
-<<<<<<< HEAD
-    let batchHopac sequential job = 
-        let scheduler = Scheduler.create { Scheduler.Create.Def with NumWorkers = if sequential then Some 1 else None  }
-=======
     let batchHopac job = 
         let scheduler = Scheduler.create Scheduler.Create.Def
->>>>>>> experimental
         match Scheduler.run scheduler (Job.catch job) with
             | Choice1Of2 () -> ()
             | Choice2Of2 e -> raise e
     member __.DefaultLibDir = defaultLibDir        
 
-<<<<<<< HEAD
-    member __.Batch sequential libdir filename =
-=======
     member __.Batch libdir filename =
->>>>>>> experimental
         // TODO: check whether using the following code (pre-allocating 9GB of data) improves performance
         // let size = 1024L * 1024L *1024L * 9L
         // if not (System.GC.TryStartNoGCRegion(size)) 
         // then raise (ImpossibleToDisableGCException(size)) // Exception declaration at the beginning of this file
         // try
         let s = new FileStream(filename,FileMode.Open)
-<<<<<<< HEAD
-        batchHopac sequential <| interpreterJob libdir filename model checker s
-=======
         batchHopac <| interpreterJob libdir filename model checker s
->>>>>>> experimental
         // with e ->        
         //     System.GC.EndNoGCRegion()
         //     raise e

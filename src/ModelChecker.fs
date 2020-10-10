@@ -48,11 +48,7 @@ type ModelChecker(model : IModel) =
         // corollary: this method must be called at least once before any invocation of Get        
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
-<<<<<<< HEAD
-        ErrorMsg.Logger.Debug (sprintf "executing %d tasks" (formulaFactory.Count - alreadyChecked))
-=======
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
->>>>>>> experimental
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
                     // ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
                     do! startChecker i                    

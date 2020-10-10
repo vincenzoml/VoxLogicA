@@ -21,18 +21,11 @@ open Microsoft.FSharp.NativeInterop
 open System.Runtime.InteropServices
 
 
-<<<<<<< HEAD
-type NativeArray<'T when 'T : unmanaged> = 
-    val ptr : nativeptr<'T>
-    val handle : GCHandle
-    val length : int
-=======
 type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and readwrite, make readwrite access possible only in certain conditions (and make sure that the handled object is owned by the current thread)
     val ptr : nativeptr<'T>
     val handle : GCHandle
     val length : int
     val mutable disposed : bool
->>>>>>> experimental
 
     member inline this.Length = this.length
 
@@ -42,43 +35,6 @@ type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and r
     new (p : nativeptr<'T>, l: int, o: obj) = 
         {   ptr = p
             length = l
-<<<<<<< HEAD
-            handle = GCHandle.Alloc(o) }
-
-    override this.Finalize() =
-        this.handle.Free()
-
-    member inline this.UGet n =  
-        assert (this.InBounds n)              
-        NativePtr.get this.ptr n
-    
-    member inline this.USet n v =
-        assert (this.InBounds n)
-        NativePtr.set this.ptr n v
-    
-    member inline this.Get n =
-        if this.InBounds n 
-        then this.UGet n 
-        else raise (System.IndexOutOfRangeException())
-
-    member inline this.Set n v =
-        if this.InBounds n 
-        then this.USet n v 
-        else raise (System.IndexOutOfRangeException())
-    
-    member inline this.Iter f =
-        for i = 0 to this.length - 1 do
-            f (this.UGet i)
-
-    member inline this.Iteri f =
-        for i = 0 to this.length - 1 do
-            f i (this.UGet i)
-    
-    member inline this.Apply f =
-        for i = 0 to this.length do
-            this.USet i (f (this.UGet i))
-
-=======
             disposed = false
             handle = GCHandle.Alloc(o) }
 
@@ -124,7 +80,6 @@ type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and r
         for i = 0 to this.length - 1 do
             this.USet i (other.UGet i)    
 
->>>>>>> experimental
     member inline this.Applyi f =
         for i = 0 to this.length - 1 do
             this.USet i (f i (this.UGet i))
@@ -134,9 +89,5 @@ type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and r
             this.USet i (f i)
     
     member inline this.Fill v =
-<<<<<<< HEAD
-        for i = 0 to this.length - 1 do
-=======
         for i = 0 to this.length - 1 do // TODO: can this be repalced by some more efficient native method?            
->>>>>>> experimental
             this.USet i v

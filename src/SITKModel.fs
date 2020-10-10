@@ -35,17 +35,10 @@ type SITKModel() =
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
     let supportedExtensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
-<<<<<<< HEAD
-    let itkM = Version.ITKMajorVersion().ToString()
-    let itkm = Version.ITKMinorVersion().ToString()
-    let sitkM = Version.MajorVersion().ToString()
-    let sitkm = Version.MinorVersion().ToString()
-=======
     let itkM = itk.simple.Version.ITKMajorVersion().ToString() // TODO: move these to an auxiliary function in SITKUtil 
     let itkm = itk.simple.Version.ITKMinorVersion().ToString()
     let sitkM = itk.simple.Version.MajorVersion().ToString()
     let sitkm = itk.simple.Version.MinorVersion().ToString()
->>>>>>> experimental
     let _ = ErrorMsg.Logger.Debug(sprintf "ITK Version: %s.%s" itkM itkm)
     let _ = ErrorMsg.Logger.Debug(sprintf "SimpleITK Version: %s.%s" sitkM sitkm)
 
@@ -60,49 +53,27 @@ type SITKModel() =
         img.Save(filename)                  
             
     override __.Load s =
-<<<<<<< HEAD
-        let img = loadImage s 
-=======
         let img = new VoxImage(s) 
->>>>>>> experimental
         let res = 
             match baseImg with
             | None -> 
                 baseImg <- Some img
                 img 
             | Some img1 ->
-<<<<<<< HEAD
-                try
-                    use x = SimpleITK.Add(img1,img) 
-                    img 
-                with _ -> // if And fails, the two images don't have the same physical structure
-                    if img.GetNumberOfPixels() = img1.GetNumberOfPixels() 
-                        //&& img.GetNumberOfComponentsPerPixel() = img1.GetNumberOfComponentsPerPixel() 
-                        //&& img.GetPixelID() = img1.GetPixelID()
-                        && img.GetDimension() = img1.GetDimension()
-=======
                 if VoxImage.SamePhysicalSpace img1 img
                 then img
                 else 
                     if img.NPixels = img1.NPixels
                         && img.Dimension = img1.Dimension
->>>>>>> experimental
                     then 
                         if img.NComponents = img1.NComponents then 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
-<<<<<<< HEAD
-                            changePhysicalSpace(img,img1)                             
-=======
                             img.ChangePhysicalSpace img1                             
->>>>>>> experimental
                         else 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
                             raise (DifferentPhysicalAndLogicalSpaceException s) 
                     else raise (DifferentPhysicalAndLogicalSpaceException s)
-<<<<<<< HEAD
-=======
         ErrorMsg.Logger.DebugOnly (sprintf "loaded image: %A" <| res.GetHashCode())
->>>>>>> experimental
         res :> obj     
 
     interface IBoundedModel<VoxImage> with
