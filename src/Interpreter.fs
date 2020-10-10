@@ -66,15 +66,24 @@ type Interpreter(model : IModel, checker : ModelChecker) =
 
     let rec translateExpression stack (model : #IModel) (formFactory : FormulaFactory) (opFactory : OperatorFactory) (env : Env) expression = 
             match expression with        
-            | Float f -> formFactory.CreateConst (f,TNumber)
-            | String s -> formFactory.CreateConst (s,TString)
+            | Float f -> 
+                // // ErrorMsg.Logger.DebugOnly (sprintf "Translating float(%A)" f)
+                formFactory.CreateConst (f,TNumber)
+            | Bool b ->
+                formFactory.CreateConst (b,TBool)
+            | String s -> 
+                // ErrorMsg.Logger.DebugOnly (sprintf "Translating string(%A)" s)
+                formFactory.CreateConst (s,TString)
             | Call (pos,ide,args) ->
+                // ErrorMsg.Logger.DebugOnly (sprintf "Translating call(%s)" ide)
                 if env.ContainsKey ide then
                     match env.[ide] with
                         | Form f -> 
+                            // ErrorMsg.Logger.DebugOnly (sprintf "%s is a formula: %s %d %A" ide f.Operator.Name f.Uid (Array.map (fun (a : Formula) -> a.Operator.Name) f.Arguments))
                             if args.Length = 0 then f 
                             else raise (InterpreterException (StackTrace ((ide,pos)::stack),WrongNumberOfArgumentsException(ide,0,args.Length)))
                         | Fun (fargs,body,declenv) -> 
+                            // ErrorMsg.Logger.DebugOnly (sprintf "%s is a function" ide)                            
                             let actargs = List.map (fun e -> Form (translateExpression stack model formFactory opFactory env e)) args                        
                             let exenv = 
                                 try bindList declenv fargs actargs
@@ -99,14 +108,21 @@ type Interpreter(model : IModel, checker : ModelChecker) =
             match syn with 
                 | ModelLoad(ide,filename) :: rest ->
                     let filename = System.IO.Path.GetFullPath filename 
+<<<<<<< HEAD
                     ErrorMsg.Logger.DebugOnly <| sprintf "ModelLoad \"%s\"" filename
+=======
+                    // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelLoad \"%s\"" filename
+>>>>>>> experimental
                     let v = model.Load filename
-                    evaluate (env.Add(ide,Form (checker.FormulaFactory.CreateConst (v,TModel)))) parsedImports rest jobs                
+                    let fmla = checker.FormulaFactory.CreateConst (v,TModel)
+                    // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: loaded image %A name %s from file %s fmla uid %d" (v.GetHashCode()) ide filename fmla.Uid)
+                    let env = env.Add(ide,Form fmla)
+                    evaluate env parsedImports rest jobs                
                 | Declaration (ide,fargs,body) :: rest -> 
-                    ErrorMsg.Logger.DebugOnly <| sprintf "Declaration \"%s\"" ide 
+                    // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: Declaration \"%s\"" ide 
                     evaluate (env.Add(ide,Fun (fargs,body,env))) parsedImports rest jobs
                 | ModelSave(pos,filename,expression) :: rest -> // TODO Use interpreterexception also in load and import
-                    ErrorMsg.Logger.DebugOnly <| sprintf "ModelSave \"%s\"" filename
+                    // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelSave \"%s\"" filename
                     let formula = translateExpression [] model checker.FormulaFactory checker.OperatorFactory env expression
                     let typ = formula.Operator.Rettype
                     if model.CanSave typ filename then
@@ -115,11 +131,12 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                             let filename = System.IO.Path.GetFullPath filename
                             let dirname = System.IO.Path.GetDirectoryName filename
                             ignore <| Directory.CreateDirectory(dirname)
+                            // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: About to save image: %A" <| res.GetHashCode())
                             model.Save filename res  }
                         evaluate env parsedImports rest (j::jobs)
                     else raise <| InterpreterException(StackTrace(["save",pos]),CantSaveException(typ,filename))                            
                 | Print(pos,filename,expression) :: rest -> // TODO Use interpreterexception also in load and import
-                    ErrorMsg.Logger.DebugOnly <| sprintf "Print \"%s\"" filename
+                    // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: Print \"%s\"" filename
                     let formula = translateExpression [] model checker.FormulaFactory checker.OperatorFactory env expression
                     let typ = formula.Operator.Rettype
                     match typ with 
@@ -130,8 +147,17 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                             evaluate env parsedImports rest (j::jobs)
                     | _ -> raise <| InterpreterException(StackTrace(["print",pos]),CantPrintException(typ))                            
                 | Import fname :: rest ->
+                    let find filename = 
+                        if File.Exists filename 
+                        then Some filename 
+                        else 
+                            let nfilename = filename + ".imgql" 
+                            if File.Exists nfilename 
+                            then Some nfilename
+                            else None
                     let path =                         
                         let try1 = System.IO.Path.GetFullPath fname // TODO: also permit local import         
+<<<<<<< HEAD
                         if File.Exists try1 
                         then try1
                         else
@@ -141,6 +167,17 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                                 then try2
                                 else raise <| ImportNotFoundException(fname,libdir)
                             else raise <| ImportNotFoundException(fname,libdir)                            
+=======
+                        match find try1 with
+                            | Some try1 -> try1
+                            | None ->
+                                if not (fname.StartsWith "/") then
+                                    let try2 = System.IO.Path.GetFullPath (System.IO.Path.Combine(libdir,fname))
+                                    match find try2 with
+                                        | Some try2 -> try2
+                                        | None -> raise <| ImportNotFoundException(fname,libdir)
+                                else raise <| ImportNotFoundException(fname,libdir)                            
+>>>>>>> experimental
                     ErrorMsg.Logger.DebugOnly <| sprintf "Import \"%s\"" fname
                     if not (parsedImports.Contains(path)) then 
                         ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path                                                               
@@ -156,21 +193,34 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                 do! checker.Check
                 do! Util.Concurrent.conIgnore (Array.ofList jobs)                                  
                 ErrorMsg.Logger.Debug "... done."  }
+<<<<<<< HEAD
     let batchHopac sequential job = 
         let scheduler = Scheduler.create { Scheduler.Create.Def with NumWorkers = if sequential then Some 1 else None  }
+=======
+    let batchHopac job = 
+        let scheduler = Scheduler.create Scheduler.Create.Def
+>>>>>>> experimental
         match Scheduler.run scheduler (Job.catch job) with
             | Choice1Of2 () -> ()
             | Choice2Of2 e -> raise e
     member __.DefaultLibDir = defaultLibDir        
 
+<<<<<<< HEAD
     member __.Batch sequential libdir filename =
+=======
+    member __.Batch libdir filename =
+>>>>>>> experimental
         // TODO: check whether using the following code (pre-allocating 9GB of data) improves performance
         // let size = 1024L * 1024L *1024L * 9L
         // if not (System.GC.TryStartNoGCRegion(size)) 
         // then raise (ImpossibleToDisableGCException(size)) // Exception declaration at the beginning of this file
         // try
         let s = new FileStream(filename,FileMode.Open)
+<<<<<<< HEAD
         batchHopac sequential <| interpreterJob libdir filename model checker s
+=======
+        batchHopac <| interpreterJob libdir filename model checker s
+>>>>>>> experimental
         // with e ->        
         //     System.GC.EndNoGCRegion()
         //     raise e

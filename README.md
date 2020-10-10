@@ -44,7 +44,7 @@ TACAS 2019. Lecture Notes in Computer Science, vol 11427. Springer, Cham
 Quickstart
 ==========
 
-See the directory "example" and the comments in the file "example.imgql" 
+See the directory "examples/tutorial": in particular the comments in the file "examples/tutorial/tutorial.imgql" 
 
 
 Using the tool
