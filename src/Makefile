@@ -62,8 +62,13 @@ release-osx:
 release-win:
 	make publish-internal RID=win-x64
 
-release: release-linux release-osx release-win
+release: release-linux release-osx release-win	
 
+upload-release:
+	rm -rf ../releases
+	make release
+	./upload_helper.sh
+	
 install-linux: release-linux
 	#TODO: this is temporary; should be made portable
 	echo sudo "cd /opt && $(PWD)/$(RELEASE)linux-x64.zip"	
