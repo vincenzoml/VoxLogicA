@@ -15,12 +15,6 @@
 //    cd ../example                 # this directory
 //    ../releases/VoxLogicA-linux-DATE/VoxLogicA example.imgql          # replace linux with your OS and date with the date you compiled the release    
 
-
-// First, let's import the standard library
-
-import "stdlib.imgql"
-
-
 /////// 
 // Let us also define a simple "smoothen" filter; below, x is a number (radius of smothening), whereas
 // distlt(x,y) is the set of points at distance less than x from the points true in (boolean-valued image) y

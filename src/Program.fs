@@ -28,7 +28,6 @@ type LoadFlags = {
 
 type CmdLine = 
     | Ops 
-    | Sequential
     | [<MainCommandAttribute;UniqueAttribute>] Filename of string    
 with
     interface Argu.IArgParserTemplate with
@@ -36,7 +35,6 @@ with
             match s with
             | Ops ->  "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
-            | Sequential ->  "Run on one CPU only"
     
 [<EntryPoint>]
 let main (argv : string array) =
@@ -55,14 +53,13 @@ let main (argv : string array) =
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-        let sequential = parsed.Contains Sequential        
         // if sequential
         // then 
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
         //     proc.ProcessorAffinity <- nativeint 0x1          
         let run filename =
             let interpreter = Interpreter(model,checker)
-            interpreter.Batch sequential interpreter.DefaultLibDir filename    
+            interpreter.Batch interpreter.DefaultLibDir filename    
         match (parsed.TryGetResult Filename,ErrorMsg.isDebug()) with 
             | None,false ->                                      
                 printfn "%s\n" (cmdLineParser.PrintUsage ())
