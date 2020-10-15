@@ -54,12 +54,12 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     abstract member LeqSV : float -> 'Value -> Job<'Value>
     [<OperatorAttribute("between",[|"number";"number";"valuation(number)"|],"valuation(bool)","between(n1,n2,i) is true at voxels of i that are greater than or equal to n1, and less than or equal to n2")>]
     abstract member Between : float -> float -> 'Value -> Job<'Value>
-    [<OperatorAttribute("max","valuation(number)","number","Finds the maximum value among the voxels in its argument")>]
-    abstract member Max : 'Value -> Job<float>
+    //[<OperatorAttribute("max","valuation(number)","number","Finds the maximum value among the voxels in its argument")>]
+    //abstract member Max : 'Value -> Job<float>
     [<OperatorAttribute("abs","valuation(number)","valuation(number)","Computes an image where each voxel contains the absolute value of the corresponding voxel in the input image")>]
     abstract member Abs : 'Value -> Job<'Value>
-    [<OperatorAttribute("min","valuation(number)","number","Finds the minimum value among the voxels in its argument")>]
-    abstract member Min : 'Value -> Job<float>
+    //[<OperatorAttribute("min","valuation(number)","number","Finds the minimum value among the voxels in its argument")>]
+    //abstract member Min : 'Value -> Job<float>
     [<OperatorAttribute("+",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise addition")>]    
     abstract member AddVV : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("*",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise multiplication")>]    
@@ -68,8 +68,8 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     abstract member SubtractVV : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("mask",[|"valuation(number)";"valuation(bool)"|],"valuation(number)","mask(img,bimg) has value 0 at voxels that are false in bimg, and the same value of img at voxels that are true in bimg")>]    
     abstract member Mask : 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("avg",[|"valuation(number)";"valuation(bool)"|],"number","avg(img,bimg) is the average of the values of img at voxels that are true in bimg")>]
-    abstract member Avg : 'Value -> 'Value -> Job<float>
+    //[<OperatorAttribute("avg",[|"valuation(number)";"valuation(bool)"|],"number","avg(img,bimg) is the average of the values of img at voxels that are true in bimg")>]
+    //abstract member Avg : 'Value -> 'Value -> Job<float>
     [<OperatorAttribute("./",[|"number";"valuation(number)"|],"valuation(number)","divides each voxel by a constant")>]    
     abstract member DivSV : float -> 'Value  -> Job<'Value>    
     [<OperatorAttribute(".-",[|"number";"valuation(number)"|],"valuation(number)","subtracts a constant from each voxel")>]    
@@ -106,24 +106,24 @@ type IImageModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("intensity","model","valuation(number)","The intensity  of an image. For RGB images this is computed with the well known colorimetric formula.")>]
     abstract member Intensity : 'Value -> Job<'Value>
-    [<OperatorAttribute("red","model","valuation(number)","The red component of an image. For grayscale images this is equal to the intensity")>]
-    abstract member Red : 'Value -> Job<'Value>
-    [<OperatorAttribute("green","model","valuation(number)","The green component of an image. For grayscale images this is equal to the intensity")>]
-    abstract member Green : 'Value -> Job<'Value>
-    [<OperatorAttribute("blue","model","valuation(number)","The blue component of an image. For grayscale images this is equal to the intensity")>]
-    abstract member Blue : 'Value -> Job<'Value>
+    //[<OperatorAttribute("red","model","valuation(number)","The red component of an image. For grayscale images this is equal to the intensity")>]
+    //abstract member Red : 'Value -> Job<'Value>
+    //[<OperatorAttribute("green","model","valuation(number)","The green component of an image. For grayscale images this is equal to the intensity")>]
+    //abstract member Green : 'Value -> Job<'Value>
+    //[<OperatorAttribute("blue","model","valuation(number)","The blue component of an image. For grayscale images this is equal to the intensity")>]
+    //abstract member Blue : 'Value -> Job<'Value>
     [<OperatorAttribute("alpha","model","valuation(number)","The alpha channel of an image. If there is no alpha channel, a constant image with all voxels equal to 255 is returned")>]
     abstract member Alpha : 'Value -> Job<'Value>
-    [<OperatorAttribute("volume","valuation(bool)","number","The number of voxels that are true in the given image")>]
-    abstract member Volume : 'Value -> Job<float>
-    [<OperatorAttribute("maxvol","valuation(bool)","valuation(bool)","The connected component of the given image with maximum volume (if more components have the same maximum volume, their union is returned)")>]
-    abstract member MaxVol : 'Value -> Job<'Value>
-    [<OperatorAttribute("percentiles",[|"valuation(number)";"valuation(bool)";"number"|],"valuation(number)","Each voxel in percentiles(img,bimg,k) is the percentile rank, between 0 and 1, of its value in img, considering only voxels that are true in bimg (voxels that are false in bimg are assigned value 0); the rank is not rounded, and it is corrected with k * n where n is the number of voxels equal to the considered one.")>]
-    abstract member Percentiles : 'Value -> 'Value -> float -> Job<'Value>
-    [<OperatorAttribute("rgb",[|"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGB image given the red, green, and blue components")>]
-    abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]
-    abstract member RGBA : 'Value -> 'Value -> 'Value -> 'Value -> Job<'Value>
+    //[<OperatorAttribute("volume","valuation(bool)","number","The number of voxels that are true in the given image")>]
+    //abstract member Volume : 'Value -> Job<float>
+    //[<OperatorAttribute("maxvol","valuation(bool)","valuation(bool)","The connected component of the given image with maximum volume (if more components have the same maximum volume, their union is returned)")>]
+    //abstract member MaxVol : 'Value -> Job<'Value>
+    //[<OperatorAttribute("percentiles",[|"valuation(number)";"valuation(bool)";"number"|],"valuation(number)","Each voxel in percentiles(img,bimg,k) is the percentile rank, between 0 and 1, of its value in img, considering only voxels that are true in bimg (voxels that are false in bimg are assigned value 0); the rank is not rounded, and it is corrected with k * n where n is the number of voxels equal to the considered one.")>]
+    //abstract member Percentiles : 'Value -> 'Value -> float -> Job<'Value>
+    //[<OperatorAttribute("rgb",[|"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGB image given the red, green, and blue components")>]
+    //abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
+    //[<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]
+    //abstract member RGBA : 'Value -> 'Value -> 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("lcc","valuation(bool)","valuation(number)","Labels connected components of a boolean model. The result is a quantitative model with connected components labelled consecutively starting from 1, and with the background labelled with 0")>]
     abstract member LCC : 'Value -> Job<'Value>
     

@@ -142,39 +142,39 @@ type GPUModel() =
             else
                 return handler.UOp (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "intensity") kernels))
         }
-        member __.Red (img : GPUImage) = job {
-            //printfn "getting red"
-            return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels),  0)
-        }
-        member __.Green (img : GPUImage) = job {
-            //printfn "getting green"
-            return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 1)
-        }
-        member __.Blue (img : GPUImage) = job {
-            //printfn "getting blue"
-            return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 2)
-        }
+        //member __.Red (img : GPUImage) = job {
+        //    //printfn "getting red"
+        //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels),  0)
+        //}
+        //member __.Green (img : GPUImage) = job {
+        //    //printfn "getting green"
+        //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 1)
+        //}
+        //member __.Blue (img : GPUImage) = job {
+        //    //printfn "getting blue"
+        //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 2)
+        //}
         member __.Alpha (img : GPUImage) = job {
             return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 3)
         }
-        member __.RGB (img : GPUImage) (img1 : GPUImage) (img2 : GPUImage) = job {
-            return handler.RGB (img, img1, img2, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "rgbComps") kernels))
-        }
-        member __.RGBA (img : GPUImage) (img1 : GPUImage) (img2 : GPUImage) (img3 : GPUImage) = job {
-            return handler.RGBA (img, img1, img2, img3, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "rgbaComps") kernels))
-        }
-        member __.Volume (img : GPUImage) = job {
-            //printfn "Volume"
-            return handler.Volume (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "volume") kernels))
-        }
-        // ############# TODO #############
-        member __.MaxVol (img : GPUImage) = job {
-            return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "redComponent") kernels), 0)
-        }
-        member __.Percentiles  (img : GPUImage) (img1 : GPUImage) (v : float) = job {
-            return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "redComponent") kernels), 0)
-        }
-        // ################################
+        //member __.RGB (img : GPUImage) (img1 : GPUImage) (img2 : GPUImage) = job {
+        //    return handler.RGB (img, img1, img2, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "rgbComps") kernels))
+        //}
+        //member __.RGBA (img : GPUImage) (img1 : GPUImage) (img2 : GPUImage) (img3 : GPUImage) = job {
+        //    return handler.RGBA (img, img1, img2, img3, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "rgbaComps") kernels))
+        //}
+        //member __.Volume (img : GPUImage) = job {
+        //    //printfn "Volume"
+        //    return handler.Volume (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "volume") kernels))
+        //}
+        //// ############# TODO #############
+        //member __.MaxVol (img : GPUImage) = job {
+        //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "redComponent") kernels), 0)
+        //}
+        //member __.Percentiles  (img : GPUImage) (img1 : GPUImage) (v : float) = job {
+        //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "redComponent") kernels), 0)
+        //}
+        //// ################################
         member __.LCC (img : GPUImage) = job {
             let ker1 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "initCCL") kernels)
             let ker2 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "iterateCCL") kernels)
@@ -236,12 +236,12 @@ type GPUModel() =
         member __.Abs img = job { 
                 return handler.UOp (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "absImg") kernels))
             }
-        member __.Max img = job { 
-                return handler.MaxMin (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName  = "max") kernels)) 
-            }
-        member __.Min img = job { 
-                return handler.MaxMin (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName  = "min") kernels)) 
-            }
+        //member __.Max img = job { 
+        //        return handler.MaxMin (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName  = "max") kernels)) 
+        //    }
+        //member __.Min img = job { 
+        //        return handler.MaxMin (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName  = "min") kernels)) 
+        //    }
         member __.SubtractVV img1 img2 = job { 
                 return handler.BOp(img1, img2, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "sub") kernels)) 
             }
@@ -254,9 +254,9 @@ type GPUModel() =
         member __.Mask (img : GPUImage) (maskImg : GPUImage) = job { 
                 return handler.BOp(img, maskImg, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "mask") kernels)) 
             }
-        member __.Avg (img : GPUImage) (maskImg : GPUImage)  = job { 
-                return handler.Avg (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "volume") kernels)) 
-            }
+        //member __.Avg (img : GPUImage) (maskImg : GPUImage)  = job { 
+        //        return handler.Avg (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "volume") kernels)) 
+        //    }
         member __.AddVS (img : GPUImage) k = job { 
                 return handler.BOpSV (k, img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "addVS") kernels))  
             }
