@@ -177,21 +177,21 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                 do! checker.Check
                 do! Util.Concurrent.conIgnore (Array.ofList jobs)                                  
                 ErrorMsg.Logger.Debug "... done."  }
-    let batchHopac job = 
-        let scheduler = Scheduler.create Scheduler.Create.Def
+    let batchHopac sequential job = 
+        let scheduler = Scheduler.create { Scheduler.Create.Def with NumWorkers = if sequential then Some 1 else None  }
         match Scheduler.run scheduler (Job.catch job) with
             | Choice1Of2 () -> ()
             | Choice2Of2 e -> raise e
     member __.DefaultLibDir = defaultLibDir        
 
-    member __.Batch libdir filename =
+    member __.Batch sequential libdir filename =
         // TODO: check whether using the following code (pre-allocating 9GB of data) improves performance
         // let size = 1024L * 1024L *1024L * 9L
         // if not (System.GC.TryStartNoGCRegion(size)) 
         // then raise (ImpossibleToDisableGCException(size)) // Exception declaration at the beginning of this file
         // try
         let s = new FileStream(filename,FileMode.Open)
-        batchHopac <| interpreterJob libdir filename model checker s
+        batchHopac sequential <| interpreterJob libdir filename model checker s
         // with e ->        
         //     System.GC.EndNoGCRegion()
         //     raise e

@@ -50,7 +50,7 @@ type ModelChecker(model : IModel) =
         // this method should not be invoked concurrently from different threads or concurrently with get
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
-                    // ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
+                    //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
                     do! startChecker i                    
                 alreadyChecked <- formulaFactory.Count                  }
     member __.Get (f : Formula) = cache.[f.Uid]   

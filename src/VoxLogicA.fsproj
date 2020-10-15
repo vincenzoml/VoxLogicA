@@ -18,12 +18,13 @@
     <Compile Include="Parser.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="NativeArray.fs" />
-    <Compile Include="SITKUtil.fs" />
-    <Compile Include="SITKModel.fs" />
+    <Compile Include="GPUUtil.fs" />
+    <Compile Include="GPUModel.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Argu" Version="6.0.0" />
+    <PackageReference Include="Cloo.clSharp" Version="1.0.1" />
     <PackageReference Include="FParsec" Version="1.0.3" />
     <PackageReference Include="hopac" Version="0.3.23" />
     <Reference Include="SimpleITKCSharpManaged">
@@ -43,6 +44,7 @@
   <Message Text="Copying files after build with RID=$(RuntimeIdentifier)" Importance="high"></Message>
   <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
   <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
+  <Copy SourceFiles="kernel.cl" DestinationFolder="$(OutDir)" />
   <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
   <Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(OutDir)" />
   <Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(OutDir)" />
@@ -52,6 +54,7 @@
   <Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high"></Message>
   <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
   <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
+  <Copy SourceFiles="kernel.cl" DestinationFolder="$(PublishDir)" />
   <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
   <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
   <Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(PublishDir)" />

@@ -26,7 +26,7 @@ let flt(x,a) = distleq(x,distgeq(x,!a))
 /////
 // Load the image
 
-load image = "three_coloured_items.png"
+load image = "three_coloured_items-bw.png"
 
 
 /////

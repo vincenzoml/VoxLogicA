@@ -1,0 +1,18 @@
+load img = "./BRATS/Brats17_2013_17_1/Brats17_2013_17_1_pflair-uint16-alike_slice-max-GTV-uint16-scaled.png"
+load img2 = "./BRATS/Brats17_2013_23_1/Brats17_2013_23_1_pflair-uint16-alike_slice-max-GTV-uint16-scaled.png"
+load img3 = "./BRATS/Brats17_2013_26_1/Brats17_2013_26_1_pflair-uint16-alike_slice-max-GTV-uint16-scaled.png"
+
+let int = intensity(img)
+
+//let f(x) = (red(x) +. 32) - (blue(x) *. 12)
+let f(x) = (intensity(x) +. 32) - (intensity(x) *. 12)
+let g(x) = ((((f(x) -. 42) + mask(f(x), f(x) <=. 18000)) >=. 2100) | (f(x) >=. 12000)) & near(interior(mask(f(x), f(x) >=. 62000) >=. 21000))
+let h(x) = near(interior(((f(x) -. 14) + (f(x) + f(x))) =. 10))
+let i(x) = g(x) | h(x) | near(interior(mask(intensity(x), intensity(x) >=. 2133) >=. 12999))
+let k(x) = i(x) & !g(x) & !h(x) & (f(x) >=. 12300) | (f(x) <=. 1000) | near(interior(border) & near(intensity(x) <=. 2999))
+let l(x) = k(x) & !i(x) & (k(x) | !h(x)) & (abs(intensity(x)) >=. 12222) & ((abs(intensity(x)) * abs(intensity(x))) >=. 18000)
+let q(x) = (abs(intensity(x)) >=. 19000) | (abs(intensity(x)) <=. 22000)
+let p(x) = !l(x) & k(x) & ((intensity(x) /. 12) >=. 29990) & (mask(f(x), (abs(alpha(x)) <=. 19000) & l(x)) >=. 1) & q(x)
+let a(x) = !p(x) | near((intensity(x) * intensity(x)) =. 0)
+
+save "x.png" (a(img) & a(img2) & a(img3))

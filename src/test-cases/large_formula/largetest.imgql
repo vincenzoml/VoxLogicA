@@ -1,0 +1,21 @@
+load imgPFLAIR = "./BRATS/Brats17_2013_17_1/Brats17_2013_17_1_pflair-uint16-alike_slice-max-GTV-uint16-scaled.png"
+let grow(a,b) = (a|touch(b,a))
+let pflair = intensity(imgPFLAIR)
+let hI = pflair >=. 62258 // (0.95 * 65535) 
+let vI = pflair >=. 56360 // (0.86 * 65535) 
+let gtv = grow(hI,vI)
+
+let f(x) = (red(x) +. 32) - (blue(x) *. 12)
+let g(x) = ((((f(x) -. 42) + mask(f(x), f(x) <=. 18000)) >=. 2100) | (f(x) >=. 12000)) & near(interior(mask(f(x), f(x) >=. 62000) >=. 21000))
+let h(x) = near(interior(((f(x) -. 14) + (f(x) + f(x))) =. 10))
+
+//save "x.png" h(pflair)
+
+let i(x) = g(x) | h(x) | near(interior(mask(red(x), red(x) >=. 2133) >=. 12999))
+let k(x) = i(x) & !g(x) & !h(x) & (f(x) >=. 12300) | (f(x) <=. 1000) | near(interior(border) & near(blue(x) <=. 2999))
+let l(x) = k(x) & !i(x) & (k(x) | !h(x)) & (abs(red(x)) >=. 12222) & ((abs(blue(x)) * abs(green(x))) >=. 18000)
+let q(x) = (abs(intensity(x)) >=. 19000) | (abs(intensity(x)) <=. 22000)
+let p(x) = !l(x) & k(x) & ((red(x) /. 12) >=. 29990) & (mask(f(x), (abs(alpha(x)) <=. 19000) & l(x)) >=. 1) & q(x)
+
+save "x.png" p(imgPFLAIR)
+//save "output/GBM-HGG-TACAS19-modified-for-uint16/./BRATS/Brats17_2013_17_1/gtv.png" gtv

@@ -1,0 +1,12 @@
+load img = "test.png"
+
+let a = intensity(img) >. 200
+let b = (intensity(img) >. 100) & (intensity(img) <. 200)
+
+save "a.png" a
+save "b.png" b
+save "near_a.png" near(a)
+save "near_b.png" near(b)
+save "through_a_Nb.png" through(a,near(b))
+save "through_b_Na.png" through(b,near(a))
+
