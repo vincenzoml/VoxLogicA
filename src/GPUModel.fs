@@ -11,11 +11,23 @@ open itk.simple
 
 type GPUModel() =
     inherit IModel()    
-    let platform = ComputePlatform.Platforms.[0]
+    // Find a GPU
+    let mutable context = null
+    let _ = 
+        for platform : ComputePlatform in ComputePlatform.Platforms do    
+        try
+            context <- new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                  
+        with _ -> ()
+        if isNull context then
+            for platform : ComputePlatform in ComputePlatform.Platforms do    
+            try
+                context <- new ComputeContext(ComputeDeviceTypes.Cpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                  
+            with _ -> ()
+        if isNull context then 
+            failwith "No GPU found, exiting."    
     let streamReader = new StreamReader(System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location) + "/kernel.cl")
     let source = streamReader.ReadToEnd()
     let _ = streamReader.Close()    
-    let context = new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                  
     let mutable baseImg : option<GPUImage> = None
     let mutable events : List<ComputeEventBase> = new List<ComputeEventBase>()
     let mutable queue : ComputeCommandQueue = new ComputeCommandQueue(context, context.Devices.[0], ComputeCommandQueueFlags.None)
