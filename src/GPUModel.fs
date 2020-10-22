@@ -11,20 +11,30 @@ open itk.simple
 
 type GPUModel() =
     inherit IModel()    
-    // Find a GPU
-    let mutable context = null
+    // Find a context
+    let mutable context = null    
     let _ = 
-        for platform : ComputePlatform in ComputePlatform.Platforms do    
-        try
-            context <- new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                  
-        with _ -> ()
-        if isNull context then
-            for platform : ComputePlatform in ComputePlatform.Platforms do    
+        printfn "%A" ComputePlatform.Platforms
+        let mutable i = 0
+        while isNull context && i < ComputePlatform.Platforms.Count do        
+            let platform = ComputePlatform.Platforms.[i]    
+            i <- i + 1
+            printfn "1"
             try
-                context <- new ComputeContext(ComputeDeviceTypes.Cpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                  
-            with _ -> ()
+                context <- new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                 
+            with _ -> ()            
+        if isNull context then
+            i <- 0
+            printfn "2"
+            while isNull context && i < ComputePlatform.Platforms.Count do        
+            let platform = ComputePlatform.Platforms.[i]    
+            i <- i + 1
+            try
+                context <- new ComputeContext(ComputeDeviceTypes.Cpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                
+            with _ -> ()                        
         if isNull context then 
-            failwith "No GPU found, exiting."    
+            failwith "No GPU found, exiting."   
+    let _ = printfn "%A" context; exit 0 
     let streamReader = new StreamReader(System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location) + "/kernel.cl")
     let source = streamReader.ReadToEnd()
     let _ = streamReader.Close()    
