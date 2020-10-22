@@ -89,7 +89,7 @@ type ISpatialModel<'Value when 'Value : equality> =
     abstract member Near : 'Value -> Job<'Value>
     [<OperatorAttribute("interior","valuation(bool)","valuation(bool)","Spatial-logical interior (that is, erosion)")>]
     abstract member Interior : 'Value -> Job<'Value>
-    [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2")>]
+    [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a connected component of img2 that contains both x and at least one point of img1. In 'stdlib.imgql' (the standard library), this operator is used to derive 'mayReach', which is the basic SLCS reachability primitive.")>]
     abstract member Through : 'Value -> 'Value -> Job<'Value>
     
 type IStatisticalModel<'Value when 'Value : equality> =
@@ -124,8 +124,8 @@ type IImageModel<'Value when 'Value : equality> =
     //abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
     //[<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]
     //abstract member RGBA : 'Value -> 'Value -> 'Value -> 'Value -> Job<'Value>
-    [<OperatorAttribute("lcc","valuation(bool)","valuation(number)","Labels connected components of a boolean model. The result is a quantitative model with connected components labelled consecutively starting from 1, and with the background labelled with 0")>]
-    abstract member LCC : 'Value -> Job<'Value>
+    // [<OperatorAttribute("lcc","valuation(bool)","valuation(number)","Labels connected components of a boolean model. The result is a quantitative model with connected components labelled consecutively starting from 1, and with the background labelled with 0")>]
+    // abstract member LCC : 'Value -> Job<'Value>
     
     
     

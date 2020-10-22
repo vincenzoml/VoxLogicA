@@ -201,15 +201,15 @@ type GPUModel() =
         //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "redComponent") kernels), 0)
         //}
         //// ################################
-        member __.LCC (img : GPUImage) = job {
-            let ker1 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "initCCL") kernels)
-            let ker2 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "iterateCCL") kernels)
-            let ker3 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "termination") kernels)
-            let ker4 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "reconnectCCL") kernels)
-            let ker5 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "preTermination") kernels)
-            let kers = [ker1.[0]; ker2.[0]; ker3.[0]; ker4.[0]; ker5.[0]]
-            return handler.LabelComponents (img, events, queue, kers)
-        }
+        // member __.LCC (img : GPUImage) = job {
+        //     let ker1 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "initCCL") kernels)
+        //     let ker2 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "iterateCCL") kernels)
+        //     let ker3 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "termination") kernels)
+        //     let ker4 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "reconnectCCL") kernels)
+        //     let ker5 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "preTermination") kernels)
+        //     let kers = [ker1.[0]; ker2.[0]; ker3.[0]; ker4.[0]; ker5.[0]]
+        //     return handler.LabelComponents (img, events, queue, kers)
+        // }
 
     interface IBooleanModel<GPUImage> with
         member __.TT = job { 
