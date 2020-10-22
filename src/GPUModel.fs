@@ -12,29 +12,33 @@ open itk.simple
 type GPUModel() =
     inherit IModel()    
     // Find a context
-    let mutable context = null    
+    let mutable context = null
+    let mutable typ = "GPU"    
     let _ = 
-        printfn "%A" ComputePlatform.Platforms
-        let mutable i = 0
-        while isNull context && i < ComputePlatform.Platforms.Count do        
-            let platform = ComputePlatform.Platforms.[i]    
-            i <- i + 1
-            printfn "1"
-            try
-                context <- new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                 
-            with _ -> ()            
-        if isNull context then
-            i <- 0
-            printfn "2"
+        try
+            let mutable i = 0
             while isNull context && i < ComputePlatform.Platforms.Count do        
-            let platform = ComputePlatform.Platforms.[i]    
-            i <- i + 1
-            try
-                context <- new ComputeContext(ComputeDeviceTypes.Cpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                
-            with _ -> ()                        
-        if isNull context then 
-            failwith "No GPU found, exiting."   
-    let _ = printfn "%A" context; exit 0 
+                let platform = ComputePlatform.Platforms.[i]    
+                i <- i + 1
+                try
+                    context <- new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                 
+                with _ -> ()            
+            if isNull context then
+                i <- 0
+                while isNull context && i < ComputePlatform.Platforms.Count do        
+                    let platform = ComputePlatform.Platforms.[i]    
+                    i <- i + 1
+                    try
+                        context <- new ComputeContext(ComputeDeviceTypes.Cpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)               
+                        typ  <- "CPU" 
+                    with _ -> ()                        
+            if isNull context then 
+                ErrorMsg.Logger.Debug "No working OpenCL device, exiting."
+                exit 0
+        with :? System.TypeInitializationException -> 
+                ErrorMsg.Logger.Debug "No working OpenCL device, exiting."
+                exit 0
+    let _ = ErrorMsg.Logger.Debug <| sprintf "Selected context of type %s" typ   
     let streamReader = new StreamReader(System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location) + "/kernel.cl")
     let source = streamReader.ReadToEnd()
     let _ = streamReader.Close()    
