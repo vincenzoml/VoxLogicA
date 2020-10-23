@@ -327,7 +327,7 @@ type GPUHandler (ctx : ComputeContext) =
             kernel.[2].SetMemoryArgument(1, obufs.[1])
             kernel.[2].SetMemoryArgument(2, res) 
             kernel.[2].SetLocalArgument(3, int64 (tiledim*tiledim))
-            queue.Execute(kernel.[2], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
+            queue.Execute(kernel.[2], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], [| (int64) tiledim; (int64) tiledim|], events)
             let results = Array.create ((img.BaseImg.Width*img.BaseImg.Height)/(tiledim*tiledim)) 0
             queue.ReadFromBuffer(res, ref results, true, events)
             let mutable vol = 1
