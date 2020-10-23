@@ -42,6 +42,7 @@ type GPUModel() =
     let streamReader = new StreamReader(System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location) + "/kernel.cl")
     let source = streamReader.ReadToEnd()
     let _ = streamReader.Close()    
+    let tiledim = 4
     let mutable baseImg : option<GPUImage> = None
     let mutable events : List<ComputeEventBase> = new List<ComputeEventBase>()
     let mutable queue : ComputeCommandQueue = new ComputeCommandQueue(context, context.Devices.[0], ComputeCommandQueueFlags.None)
@@ -116,6 +117,9 @@ type GPUModel() =
         let informat = ComputeImageFormat(channels, format)
         let dims = img.GetSize()
         let width,height = int dims.[0], int dims.[1]
+        if ((width*height)%(tiledim*tiledim)) <> 0 then
+            ErrorMsg.Logger.Warning "image dimension must be a multiple of 16\n"
+            exit 0
         let gpuImg = new ComputeImage2D(context,ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.UseHostPointer, informat, width, height, 0L, bytes)
         let inImg = GPUImage(gpuImg, channels, format)
         //printfn "create CI"
