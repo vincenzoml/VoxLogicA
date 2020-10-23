@@ -35,7 +35,7 @@ type GPUModel() =
             if isNull context then 
                 ErrorMsg.Logger.Debug "No working OpenCL device, exiting."
                 exit 0
-        with :? System.TypeInitializationException -> 
+        with :? TypeInitializationException -> 
                 ErrorMsg.Logger.Debug "No working OpenCL device, exiting."
                 exit 0
     let _ = ErrorMsg.Logger.Debug <| sprintf "Selected context of type %s" typ   

@@ -320,7 +320,7 @@ __kernel void through(__read_only image2d_t inputImage1,
   const sampler_t sampler =
       CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
-  uint4 pix1 = read_imageui(inputImage1, sampler, gid);
+  // uint4 pix1 = read_imageui(inputImage1, sampler, gid);
   uint4 pix2 = read_imageui(inputImage2, sampler, gid);
 
   write_imageui(outImage, gid, colors[pix2.x]);

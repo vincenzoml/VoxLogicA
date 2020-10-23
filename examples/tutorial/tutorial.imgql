@@ -20,7 +20,9 @@
 // distlt(x,y) is the set of points at distance less than x from the points true in (boolean-valued image) y
 // (see also the paper https://arxiv.org/abs/1811.05677, Section 4, and Section 2 for theory)
 
-let flt(x,a) = distleq(x,distgeq(x,!a))
+let flt1(x) = near(interior(x))
+
+let flt5(x) = flt1(flt1(flt1(flt1(flt1(x)))))
 
 
 /////
@@ -30,21 +32,9 @@ load image = "three_coloured_items-bw.png"
 
 
 /////
-// Give names to the components of the image, to ease typing
-
-let r = red(image)
-let g = green(image)
-let b = blue(image)
-
-
-/////
 // The background is not very coloured; it's grayish. Let us capture it as follows.
-// Coloured items may also have high values for some components, but not for all three!
-// NOTE: we could also have used percentiles(r) (also for g and b components) to avoid 
-// referencing an absolute value ("120"). Later you can return here and experiment
-// with that
 
-let tendentToGray = (r >. 120) & (g >. 120) & (b >. 120)
+let tendentToGray = intensity(image) >. 120
 
 
 /////
@@ -61,8 +51,8 @@ save "output/01_tendentToGray.png" tendentToGray
 // Note that the "output" directory will be created if it does not exist
 // Also note that should you save an image valued between 0 and 1 (instead of 0 and 255)
 // in a png or jpg file, you are responsible for rescaling! png uses integer values.
-// To rescale if needed, use the smul operator (VoxLogicA --ops will list all the operators,
-// including smul and its type).
+// To rescale if needed, use the *. operator (VoxLogicA --ops will list all the operators,
+// including *. and its type).
 
 
 /////
@@ -85,7 +75,7 @@ save "output/02_background.png" background
 // (Indeed, prefix operator "!" is boolean complement).
 
 
-let thingsMask = flt(5,(!background) \ touch(!background,border))
+let thingsMask = flt5((!background) \ touch(!background,border))
 save "output/03_thingsMask.png" thingsMask
 
 
@@ -97,7 +87,7 @@ save "output/03_thingsMask.png" thingsMask
 /////
 // Finally, let us save in rgb the masked image, using the "mask" and "rgb" primitives
 
-let maskedImage = rgb(mask(r,thingsMask),mask(g,thingsMask),mask(b,thingsMask))
+let maskedImage = mask(intensity(image),thingsMask)
 save "output/04_maskedImage.png" maskedImage
 
 
