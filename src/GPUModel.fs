@@ -117,8 +117,8 @@ type GPUModel() =
         let informat = ComputeImageFormat(channels, format)
         let dims = img.GetSize()
         let width,height = int dims.[0], int dims.[1]
-        if ((width*height)%(tiledim*tiledim)) <> 0 then
-            ErrorMsg.Logger.Warning "image dimension must be a multiple of 16\n"
+        if ((width%tiledim) <> 0 || (height%tiledim) <> 0) then
+            ErrorMsg.Logger.Warning <| sprintf "Image dimensions (width and height) must be multiples of %d (this will be fixed soon).\n" tiledim
             exit 0
         let gpuImg = new ComputeImage2D(context,ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.UseHostPointer, informat, width, height, 0L, bytes)
         let inImg = GPUImage(gpuImg, channels, format)
