@@ -112,8 +112,8 @@ type IImageModel<'Value when 'Value : equality> =
     //abstract member Green : 'Value -> Job<'Value>
     //[<OperatorAttribute("blue","model","valuation(number)","The blue component of an image. For grayscale images this is equal to the intensity")>]
     //abstract member Blue : 'Value -> Job<'Value>
-    [<OperatorAttribute("alpha","model","valuation(number)","The alpha channel of an image. If there is no alpha channel, a constant image with all voxels equal to 255 is returned")>]
-    abstract member Alpha : 'Value -> Job<'Value>
+    // [<OperatorAttribute("alpha","model","valuation(number)","The alpha channel of an image. If there is no alpha channel, a constant image with all voxels equal to 255 is returned")>]
+    // abstract member Alpha : 'Value -> Job<'Value>
     //[<OperatorAttribute("volume","valuation(bool)","number","The number of voxels that are true in the given image")>]
     //abstract member Volume : 'Value -> Job<float>
     //[<OperatorAttribute("maxvol","valuation(bool)","valuation(bool)","The connected component of the given image with maximum volume (if more components have the same maximum volume, their union is returned)")>]

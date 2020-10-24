@@ -184,9 +184,9 @@ type GPUModel() =
         //    //printfn "getting blue"
         //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 2)
         //}
-        member __.Alpha (img : GPUImage) = job {
-            return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 3)
-        }
+        // member __.Alpha (img : GPUImage) = job {
+        //     return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "getComponent") kernels), 3)
+        // }
         //member __.RGB (img : GPUImage) (img1 : GPUImage) (img2 : GPUImage) = job {
         //    return handler.RGB (img, img1, img2, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "rgbComps") kernels))
         //}
