@@ -26,6 +26,7 @@
     <PackageReference Include="Argu" Version="6.0.0" />
     <PackageReference Include="FParsec" Version="1.0.3" />
     <PackageReference Include="hopac" Version="0.3.23" />
+    <PackageReference Include="OpenCL_Net" Version="2.2.0.1" />
     <Reference Include="SimpleITKCSharpManaged">
       <HintPath>../lib/SimpleITKCSharpManaged.dll</HintPath>
     </Reference>
