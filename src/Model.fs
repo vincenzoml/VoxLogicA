@@ -16,9 +16,6 @@
 
 namespace VoxLogicA
 
-open System.IO
-open Hopac
-
 [<AbstractClass>]
 type IModel() =
     inherit Coreops()
