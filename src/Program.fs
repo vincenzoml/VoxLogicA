@@ -74,33 +74,17 @@ with
 //             ErrorMsg.Logger.Failure "exiting."
 //             1
 
-open CASS.OpenCL
 
 [<EntryPoint>]
 let main (argv : string array) =
     if argv.Length = 0 then
-        Array.iteri 
-            (fun idx platform ->                             
-                let version = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Version)
-                let vendor = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Vendor)
-                let profile = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Profile)
-                let name = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Name)
-                printfn "Available platforms:"
-                printfn "platform: %d name: %A profile: %A vendor: %A version: %A" idx name profile vendor version)
-            (OpenCL.GetPlatforms())
+        Array.iter
+            (printfn "%s")
+            (GPU.listGPUDrivers())
         exit 1
-    let platformId = int argv.[0]
-    let platform = OpenCL.GetPlatforms().[platformId] 
-    let version = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Version)
-    let vendor = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Vendor)
-    let profile = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Profile)
-    let name = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Name)
-    printfn "Selected OpenCL platform: %d name: %A profile: %A vendor: %A version: %A" platformId name profile vendor version
-    let err = ref CLError.Success
-    let context = OpenCLDriver.clCreateContext([|nativeint CLContextProperties.Platform;nativeint platform.Value|],1ul,OpenCL.GetDevices(platform),null,nativeint 0,err)
-    printfn "Status: %A" !err
-    //([nativeint CLContextProperties.Platform],1,[0],null,null,ref null)
-
+    let platformId = int argv.[0]    
+    let context = GPU.initGPU platformId
+    
     exit 0
 
 
