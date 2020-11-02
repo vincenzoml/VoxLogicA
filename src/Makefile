@@ -40,6 +40,9 @@ endif
 build: *.fs $(PROJ).fsproj
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release -r $(CURRENTRID) 
 
+build-dbg: *.fs $(PROJ).fsproj
+	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c Debug -r $(CURRENTRID) 
+
 restore:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet restore
 
