@@ -85,6 +85,11 @@ let main (argv : string array) =
     let profile = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Profile)
     let name = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Name)
     printfn "Selected OpenCL platform: %d name: %A profile: %A vendor: %A version: %A" platformId name profile vendor version
+    let err = ref CLError.Success
+    let context = OpenCLDriver.clCreateContext([|nativeint CLContextProperties.Platform;nativeint platform.Value|],1ul,OpenCL.GetDevices(platform),null,nativeint 0,err)
+    printfn "Status: %A" !err
+    //([nativeint CLContextProperties.Platform],1,[0],null,null,ref null)
+
     exit 0
 
 
