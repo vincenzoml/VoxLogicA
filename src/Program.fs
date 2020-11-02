@@ -79,14 +79,16 @@ open CASS.OpenCL
 [<EntryPoint>]
 let main (argv : string array) =
     if argv.Length = 0 then
-         for platform in OpenCL.GetPlatforms() do
-            let version = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Version)
-            let vendor = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Vendor)
-            let profile = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Profile)
-            let name = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Name)
-            printfn "Available platforms:"
-            printfn "platform: %d name: %A profile: %A vendor: %A version: %A" platform.Value name profile vendor version
-            exit 1
+        Array.iteri 
+            (fun idx platform ->                             
+                let version = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Version)
+                let vendor = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Vendor)
+                let profile = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Profile)
+                let name = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Name)
+                printfn "Available platforms:"
+                printfn "platform: %d name: %A profile: %A vendor: %A version: %A" platform.Value name profile vendor version)
+            (OpenCL.GetPlatforms())
+        exit 1
     let platformId = int argv.[0]
     let platform = OpenCL.GetPlatforms().[platformId] 
     let version = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Version)
