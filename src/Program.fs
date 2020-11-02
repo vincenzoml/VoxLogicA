@@ -86,7 +86,7 @@ let main (argv : string array) =
                 let profile = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Profile)
                 let name = OpenCL.GetPlatformInfo(platform,CLPlatformInfo.Name)
                 printfn "Available platforms:"
-                printfn "platform: %d name: %A profile: %A vendor: %A version: %A" platform.Value name profile vendor version)
+                printfn "platform: %d name: %A profile: %A vendor: %A version: %A" idx name profile vendor version)
             (OpenCL.GetPlatforms())
         exit 1
     let platformId = int argv.[0]
