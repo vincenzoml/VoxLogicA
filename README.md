@@ -3,6 +3,11 @@ VoxLogicA: Voxel-based Logical Analyser
 
 VoxLogicA is a tool for analysing images using ImgQL specifications.
 
+This file documents the main variant of VoxLogicA, which is tested and actively maintained. Other variants exist:
+
+	- if you are looking for the -GPU variant, check out the branch "experimental-gpu" 
+	- if you are looking for the variant that operates on graphs, not just images, check out the branch "graphs" 
+
 ImgQL is a language to analyse images, based on spatial logics. VoxLogicA
 interprets ImgQL specifications using a model-checking approach, which entails,
 in particular, heavy use of memoisation techniques to permit complex analyses in
