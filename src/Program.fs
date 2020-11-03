@@ -82,8 +82,8 @@ let main (argv : string array) =
             (printfn "%s")
             (GPU.listGPUDrivers())
         exit 1
-    let platformId = int argv.[0]    
-    let context = GPU.initGPU platformId
+    let platformId = int argv.[0]
+    let context = GPU.GPU(platformId)        
     
     exit 0
 
