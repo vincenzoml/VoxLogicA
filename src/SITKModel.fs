@@ -81,7 +81,6 @@ type SITKModel() =
     
     interface IImageModel<VoxImage> with
         member __.Intensity (img : VoxImage) = lift VoxImage.Intensity img
-        
         member __.Red (img : VoxImage) = lift VoxImage.Red img
         member __.Green (img : VoxImage) = lift VoxImage.Green img
         member __.Blue (img : VoxImage) = lift VoxImage.Blue img
