@@ -294,11 +294,11 @@ type GPUHandler (ctx : ComputeContext) =
             obufs.[0] <- obufs.[1]
             obufs.[1] <- tmp        
 
-        // let out = new Image(new VectorUInt32 [|uint32 img.BaseImg.Width;uint32 img.BaseImg.Height|],PixelIDValueEnum.sitkUInt32)
-        // let save it =            
-        //     let obytes = out.GetBufferAsUInt32()
-        //     queue.ReadFromImage(obufs.[0],obytes,true,events)  
-        //     SimpleITK.WriteImage(out,sprintf "lcc_%03d-seg.nii.gz" it)                          
+        let out = new Image(new VectorUInt32 [|uint32 img.BaseImg.Width;uint32 img.BaseImg.Height|],PixelIDValueEnum.sitkUInt32)
+        let save it =            
+            let obytes = out.GetBufferAsUInt32()
+            queue.ReadFromImage(obufs.[0],obytes,true,events)  
+            SimpleITK.WriteImage(out,sprintf "lcc_%03d-seg.nii.gz" it)                          
 
         let mutable finish = false
         let mutable cnt = 0 
@@ -312,7 +312,7 @@ type GPUHandler (ctx : ComputeContext) =
                 queue.Execute(kernel.[1], null, [|int64 img.BaseImg.Width; int64 img.BaseImg.Height|], null, events)
                 swap()
                 cnt <- cnt + 1                
-                // save cnt // TODO: removeme debug only!!!
+                save cnt // TODO: removeme debug only!!!
 
             // queue.Finish() // TODO: removeme debug only!!!
             // Logger.Debug "checking termination"
@@ -344,9 +344,9 @@ type GPUHandler (ctx : ComputeContext) =
                 queue.Execute(kernel.[3], null, [|int64 img.BaseImg.Width; int64 img.BaseImg.Height|], null, events)
                 swap()    
                 cnt <- cnt + 1                 
-                // save cnt // TODO: removeme debug only!!!        
-        // cnt <- cnt + 1                 
-        // save cnt // TODO: removeme debug only!!!
+                save cnt // TODO: removeme debug only!!!        
+        cnt <- cnt + 1                 
+        save cnt // TODO: removeme debug only!!!
         
         Logger.Debug <| sprintf "Connected components labelling terminated in %d iterations" cnt
 
