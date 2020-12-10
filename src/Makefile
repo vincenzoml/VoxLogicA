@@ -37,6 +37,9 @@ endif
 
 .PHONY: build clean restore release-linux release-osx release-win publish-internal release
 
+build: *.fs $(PROJ).fsproj
+	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release -r $(CURRENTRID) 
+
 temporary:
 	@echo Check your makefile, this is a temporary target!
 	@echo To get dotnet warp run: dotnet tool install --global dotnet-warp
@@ -46,9 +49,6 @@ temporary:
 	mv GraphLogicA GraphLogicA-$(VERSION)-osx
 	# dotnet warp -r win-x64
 	# mv GraphLogicA.exe GraphLogicA-$(VERSION)-win.exe
-
-build: *.fs $(PROJ).fsproj
-	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release -r $(CURRENTRID) 
 
 restore:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet restore
