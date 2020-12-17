@@ -1,0 +1,22 @@
+{
+  "layers": [
+    {
+      "name": "gtv",
+      "typ": "boolean",
+      "info": {
+        "min": "2e40",
+        "max": "2e40"
+      },
+      "path": "gtv.nii.gz"
+    }
+  ],
+  "print": [
+    {
+      "name": "layer1",
+      "typ": "string",
+      "value": "something"
+    }
+  ],
+  "log": "",
+  "error": ""
+}
