@@ -19,10 +19,6 @@ module VoxLogicA.Main
 open System.Reflection
 open Argu
 
-exception CommandLineException with
-    override __.Message =
-        "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
-
 type LoadFlags = { fname: string; numCores: int }
 
 type CmdLine =
@@ -37,8 +33,6 @@ type CmdLine =
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
             | Filename _ -> "VoxLogicA session file"
 
-type JSonOut = FSharp.Data.JsonProvider<"example.json">
-
 [<EntryPoint>]
 let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
@@ -46,10 +40,28 @@ let main (argv: string array) =
 
     let informationalVersion =
         ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
+    let cmdLineParser =
+        ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
 
+    let parsed = cmdLineParser.Parse argv
     ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
     let model = SITKModel() :> IModel
     let checker = ModelChecker model
+    let finish = 
+        if Option.isSome (parsed.TryGetResult JSon) then 
+            let readLog = ErrorMsg.Logger.LogToMemory()
+            fun oExn ->
+                let (print,save) = ErrorMsg.Report.Get()
+                let log = readLog()
+                let json = JSonOutput.Root(                                
+                            print = List.toArray (List.map (fun (name,typ,res) -> JSonOutput.Print(name = name, typ = typ, value = res)) print),
+                            layers = List.toArray (List.map (fun (name,typ,info,path) -> JSonOutput.Layer(name = name, typ = typ, info = info, path = path)) save), // 
+                            error = FSharp.Data.JsonValue.String (match oExn with None -> "" | Some exn -> exn.ToString()),  
+                            log = FSharp.Data.JsonValue.String log)
+                printf "%s" <| json.ToString()                 
+        else 
+            ErrorMsg.Logger.LogToStdout ()
+            ignore
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning
             (sprintf
@@ -59,27 +71,17 @@ let main (argv: string array) =
                  version.Minor
                  version.Build)
     try
-        let cmdLineParser =
-            ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
-
-        let parsed = cmdLineParser.Parse argv
         if parsed.Contains Ops then
             Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
         // if sequential
         // then
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
-        //     proc.ProcessorAffinity <- nativeint 0x1        
-        let mutable jsonLog =
-            match parsed.TryGetResult json with
-            | None -> None
-            | Some _ ->
-                let log = ErrorMsg.Logger.LogToMemory()
-                { new Object() with 
-                    getLog () =  log }
+        //     proc.ProcessorAffinity <- nativeint 0x1                
+
 
         let run filename =
-            let interpreter = Interpreter(model, checker, )
+            let interpreter = Interpreter(model, checker)
             interpreter.Batch interpreter.DefaultLibDir filename
 
         match (parsed.TryGetResult Filename, ErrorMsg.isDebug ()) with
@@ -88,6 +90,7 @@ let main (argv: string array) =
             0
         | Some filename, _ ->
             run filename
+            finish None
             0
         | None, true ->
             run "test.imgql"
@@ -95,4 +98,5 @@ let main (argv: string array) =
     with e ->
         ErrorMsg.Logger.DebugExn e
         ErrorMsg.Logger.Failure "exiting."
+        finish (Some e)
         1

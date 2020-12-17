@@ -15,13 +15,16 @@
 // limitations under the License.
 
 namespace VoxLogicA
+
+type JSonOutput = FSharp.Data.JsonProvider<"example.json">
+
 open FParsec
 
 type UnsupportedTypeException(t : System.Type) =
     inherit BugException(sprintf "System type '%s' cannot be converted to VoxLogicA type (you should improve Types.fs to change this)" t.Name)
 
 type Type = 
-    TModel | TNumber |TBool | TString |TValuation of Type
+    TModel | TNumber |TBool | TString | TValuation of Type
     static member OfSystemType t =
         if t = typeof<float32> then TNumber
         else if t = typeof<bool> then TBool

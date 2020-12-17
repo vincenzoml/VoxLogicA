@@ -25,6 +25,14 @@ do debugFlag <- true
 #endif
 let isDebug () = debugFlag
 
+type Report private () = 
+    static let mutable print = []
+    static let mutable save = []
+
+    static member Print (name : string,typ : string, res : string) = lock print (fun () -> print <- (name,typ,res)::print)
+    static member Save (name : string,typ : string, info : JSonOutput.Info, path :string) = lock save (fun () -> save <- (name,typ,info,path)::save)
+    static member Get () = (List.rev print,List.rev save)
+
 type Logger private () =
     static let stopWatch = System.Diagnostics.Stopwatch.StartNew()
     static let mutable destinations = [] // this is a placeholder for permitting more simultaneous destinations.
