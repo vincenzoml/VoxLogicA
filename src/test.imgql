@@ -4,10 +4,10 @@ load graph = "testGraph.json"
 
 let rho(a,b) = bnear((b ~> bnear(a)) | a) 
 
-let blue = ap("blue")
 let red = ap("red")
+let blue = ap("blue")
 
-save "red.json" red
-save "blue.json" blue
-save "bnear_blue.json" red ~> bnear(blue) 
-save "rho_blue_red.json" rho(blue,red)
+// save "red.json" red
+// save "near_red.json" near(red)
+save "nred_reach_red.json" through(not(red),red)
+save "blue_reach_red.json" through(blue,red)

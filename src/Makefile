@@ -18,7 +18,7 @@
 ### the program will be compiled in
 ### ./bin/release/netcoreapp2.x/win-x64/publish/voxlogica
 
-PROJ=GraphLogicA
+PROJ=TriaGraphLogicA
 UNAME := $(shell uname)
 VERSION=$(shell cat VERSION.txt)
 RELEASENAME=$(PROJ)_$(VERSION)_$(RID)
@@ -44,11 +44,11 @@ temporary:
 	@echo Check your makefile, this is a temporary target!
 	@echo To get dotnet warp run: dotnet tool install --global dotnet-warp
 	# dotnet warp -r linux-x64
-	# mv GraphLogicA GraphLogicA-$(VERSION)-linux
+	# mv TriaGraphLogicA TriaGraphLogicA-$(VERSION)-linux
 	dotnet warp -r osx-x64
-	mv GraphLogicA GraphLogicA-$(VERSION)-osx
+	mv TriaGraphLogicA TriaGraphLogicA-$(VERSION)-osx
 	# dotnet warp -r win-x64
-	# mv GraphLogicA.exe GraphLogicA-$(VERSION)-win.exe
+	# mv TriaGraphLogicA.exe TriaGraphLogicA-$(VERSION)-win.exe
 
 restore:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet restore

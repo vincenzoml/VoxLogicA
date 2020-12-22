@@ -1,37 +1,95 @@
 {
-    "nodes": [  
+    "numberOfPoints": 7,
+    "simplexes": [
         {
-            "id": "0",
-            "atoms": ["white","red"]            
+            "id": "p0",
+            "points": [0],
+            "atoms": []
         },
         {
-            "id": "1",
-            "atoms": ["white"]            
+            "id": "p1",
+            "points": [1],
+            "atoms": []
         },
         {
-            "id": "2",
-            "atoms": ["red"]            
+            "id": "p2",
+            "points": [2],
+            "atoms": []
         },
         {
-            "id": "3",
-            "atoms": ["red"]     
+            "id": "p3",
+            "points": [3],
+            "atoms": []
         },
         {
-            "id": "4",
-            "atoms": ["blue"]     
+            "id": "p4",
+            "points": [4],
+            "atoms": []
         },
         {
-            "id": "5",
-            "atoms": ["green"]     
-        }      
-    ],
-    "arcs": [
-        { "source": "0", "target" : "1" },
-        { "source": "1", "target" : "2" },
-        { "source": "2", "target" : "3" },
-        { "source": "3", "target" : "4" },
-        { "source": "0", "target" : "5" },
-        { "source": "5", "target" : "2" },
-        { "source": "4", "target" : "5" }
+            "id": "p5",
+            "points": [5],
+            "atoms": []
+        },
+        {
+            "id": "p6",
+            "points": [6],
+            "atoms": []
+        },
+        {
+            "id": "l1",
+            "points": [0,1],
+            "atoms": []
+        },
+        {
+            "id": "l2",
+            "points": [1,2],
+            "atoms": []
+        },
+        {
+            "id": "l3",
+            "points": [2,0],
+            "atoms": ["blue"]
+        },
+        {
+            "id": "l4",
+            "points": [2,3],
+            "atoms": []
+        },
+        {
+            "id": "l5",
+            "points": [3,0],
+            "atoms": []
+        },
+        {
+            "id": "l6",
+            "points": [4,5],
+            "atoms": []
+        },
+        {
+            "id": "l7",
+            "points": [5,6],
+            "atoms": []
+        },
+        {
+            "id": "l8",
+            "points": [4,6],
+            "atoms": []
+        },
+        {
+            "id": "T1",
+            "points": [0,1,2],
+            "atoms": ["red"]
+        },
+        {
+            "id": "T2",
+            "points": [0,2,3],
+            "atoms": ["blue"]
+        },
+        {
+            "id": "T3",
+            "points": [4,5,6],
+            "atoms": []
+        }
     ]
-}
+  }

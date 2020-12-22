@@ -19,8 +19,8 @@
     <Compile Include="Interpreter.fs" />
     <Compile Include="NativeArray.fs" />
     <Compile Include="Truth.fs" />
-    <Compile Include="Graph.fs" />
-    <Compile Include="GraphModel.fs" />
+    <Compile Include="TriaGraph.fs" />
+    <Compile Include="TriaGraphModel.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

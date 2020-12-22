@@ -31,14 +31,14 @@ module Lifts =
 
 open Lifts
 
-open Graph
+open TriaGraph
 
 open Truth
 
 type SITKModel() =    
     inherit IModel()
-    let mutable baseGraph : option<Graph> = None
-    let getBaseGraph() = match baseGraph with None -> raise NoModelLoadedException | Some graph -> graph
+    let mutable baseTriaGraph : option<TriaGraph> = None
+    let getBaseTriaGraph() = match baseTriaGraph with None -> raise NoModelLoadedException | Some triaGraph -> triaGraph
         
     let supportedExtensions = [".json"] // TODO: make this list exhaustive
     
@@ -50,25 +50,25 @@ type SITKModel() =
     override __.Save filename v =
         let t = v :?> Truth
         printfn "save to '%A': %A" filename t
-        saveGraph (getBaseGraph ()) filename "result" t
+        saveTriaGraph (getBaseTriaGraph ()) filename "result" t
             
     override __.Load s =
-        let graph = loadGraph s
+        let triaGraph = loadTriaGraph s
         let res = 
-            match baseGraph with
+            match baseTriaGraph with
             | None -> 
-                baseGraph <- Some graph
-                graph
+                baseTriaGraph <- Some triaGraph
+                triaGraph
             | Some _ ->                
                 raise MoreThanOneModelUnsupportedException
         res :> obj
 
     interface IAtomicModel<Truth> with
         member __.Ap s = job { 
-                let graph = getBaseGraph()
-                let ap = getAp graph s
-                let res = Array.create graph.NumNodes false 
-                Array.iter (fun idx -> res.[idx] <- true) ap        
+                let triaGraph = getBaseTriaGraph()
+                let ap = getTriaGraphAp triaGraph s
+                let res = Array.create triaGraph.NumSimplexes false 
+                Set.iter (fun idx -> res.[idx] <- true) ap
                 return res
             }
 
@@ -90,22 +90,22 @@ type SITKModel() =
     //     member __.LCC img = job { return VoxImage.Lcc img }
 
     interface IBooleanModel<Truth> with
-        member __.TT = job { return TT(getBaseGraph().NumNodes) }
-        member __.FF = job { return FF(getBaseGraph().NumNodes) }
-        member __.BConst v = lift (BConst (getBaseGraph().NumNodes)) v  
+        member __.TT = job { return TT(getBaseTriaGraph().NumSimplexes) }
+        member __.FF = job { return FF(getBaseTriaGraph().NumSimplexes) }
+        member __.BConst v = lift (BConst (getBaseTriaGraph().NumSimplexes)) v  
         member __.And v1 v2 = lift2 And v1 v2
         member __.Or v1 v2 = lift2 Or v1 v2
         member __.Not v = lift Not v
  
     interface ISpatialModel<Truth> with
-        member __.Near v = job { return (fdilate (getBaseGraph()) v) }
-        member __.Interior v = job { return (ferode (getBaseGraph()) v) }
-        member __.Through v1 v2 = job {return (ftrough (getBaseGraph()) v1 v2)}           
+        member __.Near v = job { return (upClosure (getBaseTriaGraph()) v) }
+        member __.Interior v = job { return (interior (getBaseTriaGraph()) v) }
+        member __.Through v1 v2 = job {return (reach (getBaseTriaGraph()) v1 v2)}           
    
-    interface IDirectedSpatialModel<Truth> with
-        member __.BNear v = job { return (bdilate (getBaseGraph()) v) }
-        member __.BInterior v = job { return (berode (getBaseGraph()) v) }
-        member __.BThrough v1 v2 = job {return (btrough (getBaseGraph()) v1 v2)}           
+    // interface IDirectedSpatialModel<Truth> with
+    //     member __.BNear v = job { return (bdilate (getBaseGraph()) v) }
+    //     member __.BInterior v = job { return (berode (getBaseGraph()) v) }
+    //     member __.BThrough v1 v2 = job {return (btrough (getBaseGraph()) v1 v2)}           
 
     // interface IDistanceModel<VoxImage> with
     //     member __.DT img = lift VoxImage.Dt img
