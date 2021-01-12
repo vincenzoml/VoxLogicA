@@ -6,10 +6,10 @@ open FSharp.Json
 
 // Loading data format
 type IntSimplex = { id : string; points : int list; atoms : string list }
-type IntFileTriaGraph = { numberOfPoints : int; coordinatesOfPoints : int list list; simplexes : IntSimplex list }
+type IntFileTriaGraph = { numberOfPoints : int; coordinatesOfPoints : int list list; atomNames : string list; simplexes : IntSimplex list }
 
 let private loadFileTriaGraph filename = 
-    Json.deserialize<IntFileTriaGraph>(System.IO.File.ReadAllText(filename))    
+    Json.deserialize<IntFileTriaGraph>(System.IO.File.ReadAllText(filename))
 
 
 type TriaGraph =
@@ -35,6 +35,7 @@ let mkIntFileTriaGraph triaGraph atomName (truth : Truth) =
     {
         numberOfPoints = triaGraph.NumPoints
         coordinatesOfPoints = [for point in [0..triaGraph.NumPoints-1] -> coordPoint point]
+        atomNames = Array.toList( triaGraph.NameOfAtom )
         simplexes = [
             for simplex in 0 .. triaGraph.NumSimplexes - 1 -> {
                 id = triaGraph.SimplexId.[simplex]
@@ -84,19 +85,21 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
     // let pointDict = Dictionary<string,int>(numPoints)
     let simplexDict = Dictionary<string,int>(numSimplexes)
     // TODO: the following is an enormous upper bound
-    let apDict = Dictionary<string,int>(List.sumBy (fun simplex -> List.length simplex.atoms) fg.simplexes) 
+    // let apDict = Dictionary<string,int>(List.sumBy (fun simplex -> List.length simplex.atoms) fg.simplexes)
+    let nameOfAtom = Array.ofList fg.atomNames
+    let atomOfName = fun s -> Array.findIndex (fun x -> x = s) nameOfAtom
     let mutable atomsSet = Set.empty
 
 
     // let nameOfAtom = Array.create numAtoms List.empty
     // let atomOfName = string -> int
     
-    let newAtomId = 
-        let mutable curid = 0
-        fun () -> 
-            let res = curid 
-            curid <- curid + 1
-            res
+    // let newAtomId = 
+    //     let mutable curid = 0
+    //     fun () -> 
+    //         let res = curid 
+    //         curid <- curid + 1
+    //         res
 
     // This builds the simplexId, simplexDict, atomsOfSimplex, simplexesOfAtom and atomsSet
     List.iteri
@@ -106,12 +109,12 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
             // Subiteration to build atomsOfSimplex, simplexesOfAtom and atomsSet
             List.iter
                 (fun atom ->
-                    let atomId = 
-                        try apDict.[atom]
-                        with :? KeyNotFoundException ->
-                            let res = newAtomId()
-                            apDict.[atom] <- res
-                            res
+                    let atomId = atomOfName atom
+                    //     try apDict.[atom]
+                    //     with :? KeyNotFoundException ->
+                    //         let res = newAtomId()
+                    //         apDict.[atom] <- res
+                    //         res
                     atomsOfSimplex.[idx] <- Set.add atomId atomsOfSimplex.[idx]
                     simplexesOfAtom.[atomId] <- Set.add idx simplexesOfAtom.[atomId]
                     atomsSet <- atomsSet.Add(atomId)
@@ -126,9 +129,7 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
             points.[idx] <- simplex.points.[0]
             List.iteri
                 (fun i c ->
-                    printfn "idx, i, c: %d %d %d" idx i c
                     coordinatesOfPoint.[idx, i] <- c
-                    printfn "saved coordinate: %d" coordinatesOfPoint.[idx,i]
                     )
                 fg.coordinatesOfPoints.[idx]
         )
@@ -172,11 +173,11 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
             ()
         )    
         fg.simplexes
-    let nameOfAtom =
-        apDict 
-            |> Seq.sortBy (fun pair -> pair.Value)
-            |> Seq.map (fun pair -> pair.Key)
-            |> Seq.toArray 
+    // let nameOfAtom =
+    //     apDict 
+    //         |> Seq.sortBy (fun pair -> pair.Value)
+    //         |> Seq.map (fun pair -> pair.Key)
+    //         |> Seq.toArray 
     {   NumPoints = numPoints
         NumSimplexes = numSimplexes
         NumAtoms = Set.count atomsSet
@@ -190,7 +191,7 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
         AtomsOfSimplex = atomsOfSimplex
         SimplexesOfAtom = simplexesOfAtom
         NameOfAtom = nameOfAtom
-        AtomOfName = fun s -> apDict.[s]
+        AtomOfName = atomOfName
         SimplexId = simplexId  }    
 
 let loadTriaGraph filename = mkTriaGraph(loadFileTriaGraph(filename))

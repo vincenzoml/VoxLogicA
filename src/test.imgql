@@ -7,7 +7,7 @@ let rho(a,b) = bnear((b ~> bnear(a)) | a)
 let red = ap("red")
 let blue = ap("blue")
 
-// save "red.json" red
-// save "near_red.json" near(red)
-// save "nred_reach_red.json" through(not(red),red)
+save "red.json" red
+save "near_red.json" near(red)
+save "nred_reach_red.json" through(not(red),red)
 save "blue_reach_red.json" through(blue,red)

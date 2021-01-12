@@ -9,6 +9,10 @@
         [2,0,0],
         [3,0,0]
     ],
+    "atomNames": [
+        "red",
+        "blue"
+    ],
     "simplexes": [
         {
             "id": "p0",
