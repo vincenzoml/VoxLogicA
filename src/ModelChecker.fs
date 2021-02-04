@@ -17,12 +17,13 @@
 namespace VoxLogicA
 
 open Hopac  
-
+open System
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
     let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0
+    let referenceCount = Array.init formulaFactory.Count (fun i -> ref 0)
     let startChecker i = 
         job {   let iv = new IVar<_>()
                 let f = formulaFactory.[i]
@@ -39,6 +40,15 @@ type ModelChecker(model : IModel) =
                                     /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
                                     /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
                                     let! x = op.Eval (Array.ofSeq arguments)  
+                                    for arg in formulaFactory.[i].Arguments do
+                                        let refc = 
+                                            lock 
+                                                referenceCount.[arg.Uid] 
+                                                (fun () -> 
+                                                    referenceCount.[arg.Uid] := !referenceCount.[arg.Uid] - 1
+                                                    !referenceCount.[arg.Uid])
+                                        if refc = 0 then (x :?> IDisposable).Dispose()
+
                                     /// after this, lock, reference counts of arguments - 1, GC eventually, unlock
                                                                                     
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
@@ -55,7 +65,10 @@ type ModelChecker(model : IModel) =
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
-        job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
+        for i = 0 to formulaFactory.Count - 1 do                       
+            for x in formulaFactory.[i].Arguments do
+                referenceCount.[x.Uid] := !referenceCount.[x.Uid] + 1
+        job {   for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
                     do! startChecker i                    
                 alreadyChecked <- formulaFactory.Count                  }
