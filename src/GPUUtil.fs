@@ -22,7 +22,7 @@ open FSharp.NativeInterop
 open FSharp.Core.Operators
 
 #nowarn "9"
-
+open ErrorMsg
 type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : ComputeImageChannelType) =
     let mutable baseImg = img
     let mutable baseComps = comps
@@ -36,6 +36,10 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : C
     member this.BaseType
         with get() = baseType
         and set(t) = baseType <- t
+    interface IDisposable with
+        member this.Dispose () =
+            Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
+            baseImg.Dispose()
 
 type GPUHandler (ctx : ComputeContext) =
     //GPU computation and buffers handling

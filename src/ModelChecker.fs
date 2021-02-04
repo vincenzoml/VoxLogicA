@@ -34,7 +34,13 @@ type ModelChecker(model : IModel) =
                                     let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Arguments: %A" (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
-                                    let! x = op.Eval (Array.ofSeq arguments)                                                 
+                                    
+
+                                    /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
+                                    /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
+                                    let! x = op.Eval (Array.ofSeq arguments)  
+                                    /// after this, lock, reference counts of arguments - 1, GC eventually, unlock
+                                                                                    
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
                                     do! IVar.fill iv x } )
