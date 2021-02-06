@@ -1,9 +1,0 @@
-example/output
-bin
-obj
-releases/
-.ionide
-High-grade-Glioblastoma_BRATS/output
-
-.fake
-.vscode/settings.json
