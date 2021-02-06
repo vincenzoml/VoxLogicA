@@ -1,7 +1,7 @@
 # VoxLogicA
 
 
-VoxLogicA is designed for domain experts, not for programmers. No libraries to download, no project files to create, no compilers to run, just describe your tasks using short text files, and run them in seconds!
+VoxLogicA is a novel image analysis tool designed for domain experts, not for programmers. No libraries to download, no project files to create, no compilers to run, just describe your tasks using short text files, and run them in seconds!
 
 See also: http://www.voxlogica.com
 
