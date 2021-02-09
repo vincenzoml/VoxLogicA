@@ -121,7 +121,7 @@ type GPUModel() =
             ErrorMsg.Logger.Warning <| sprintf "Image dimensions (width and height) must be multiples of %d (this will be fixed soon).\n" tiledim
             exit 0
         let gpuImg = new ComputeImage2D(context,ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.UseHostPointer, informat, width, height, 0L, bytes)
-        let inImg = GPUImage(gpuImg, channels, format)
+        let inImg = GPUImage(gpuImg, channels, format, events, queue)
         //printfn "create CI"
         let res =
             match baseImg with
@@ -142,7 +142,7 @@ type GPUModel() =
                             let newImg = new Image(vect)
                             let newBytes = newImg.GetBufferAsFloat()
                             let buf = new ComputeImage2D(context,ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.UseHostPointer, informat, width, height, 0L, newBytes) :> ComputeImage               
-                            GPUImage(buf, channels, format)
+                            GPUImage(buf, channels, format, events, queue)
                         else 
                             ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
                             raise (DifferentPhysicalAndLogicalSpaceException s) 

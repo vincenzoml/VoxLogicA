@@ -25,10 +25,11 @@ open FSharp.Core.Operators
 
 #nowarn "9"
 open ErrorMsg
-type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : ComputeImageChannelType) =
+type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : ComputeImageChannelType, events : List<ComputeEventBase>, queue : ComputeCommandQueue) =
     let mutable baseImg = img
     let mutable baseComps = comps
     let mutable baseType = imgtype
+    let mutable innerEvents : List<ComputeEventBase> = new List<ComputeEventBase>(events)
     member this.BaseImg 
         with get() = baseImg
         and set(i) = baseImg <- i
@@ -43,6 +44,7 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : C
             job {
                 Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
                 try
+                    queue.AddMarkerWithWaitList(events)
                     // baseImg.Dispose()
                     ()
                 with e ->                 
@@ -119,7 +121,7 @@ type GPUHandler (ctx : ComputeContext) =
         let arg = new ComputeBuffer<int>(context,ComputeMemoryFlags.ReadOnly ||| ComputeMemoryFlags.UseHostPointer, 1L, compPtr)
         kernel.[0].SetMemoryArgument(2, arg)
         queue.Execute(kernel.[0], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)        
-        GPUImage(obuf, ComputeImageChannelOrder.R, img.BaseType)
+        GPUImage(obuf, ComputeImageChannelOrder.R, img.BaseType, events, queue)
 
     //member this.RGB (img1 : GPUImage, img2 : GPUImage, img3 : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
     //    let outformat = ComputeImageFormat(ComputeImageChannelOrder.Rgbx, img1.BaseType)
@@ -129,7 +131,7 @@ type GPUHandler (ctx : ComputeContext) =
     //    kernel.[0].SetMemoryArgument(2, img3.BaseImg)
     //    kernel.[0].SetMemoryArgument(3, obuf)
     //    queue.Execute(kernel.[0], null, [|int64 img1.BaseImg.Width; int64 img1.BaseImg.Height|], null, events)
-    //    GPUImage(obuf, ComputeImageChannelOrder.Rgbx, img1.BaseType)
+    //    GPUImage(obuf, ComputeImageChannelOrder.Rgbx, img1.BaseType, events, queue)
 
     //member this.RGBA (img1 : GPUImage, img2 : GPUImage, img3 : GPUImage, img4 : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
     //    let outformat = ComputeImageFormat(ComputeImageChannelOrder.Rgba, img1.BaseType)
@@ -140,7 +142,7 @@ type GPUHandler (ctx : ComputeContext) =
     //    kernel.[0].SetMemoryArgument(3, img4.BaseImg)
     //    kernel.[0].SetMemoryArgument(4, obuf)
     //    queue.Execute(kernel.[0], null, [|int64 img1.BaseImg.Width; int64 img1.BaseImg.Height|], null, events)
-    //    GPUImage(obuf, ComputeImageChannelOrder.Rgba, img1.BaseType)
+    //    GPUImage(obuf, ComputeImageChannelOrder.Rgba, img1.BaseType, events, queue)
 
     member this.Const (buf : GPUImage, value : float, events: List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(ComputeImageChannelOrder.R, buf.BaseType)
@@ -151,7 +153,7 @@ type GPUHandler (ctx : ComputeContext) =
         let arg = new ComputeBuffer<int>(context,ComputeMemoryFlags.ReadOnly ||| ComputeMemoryFlags.UseHostPointer, 1L, vPtr)
         kernel.[0].SetMemoryArgument(1, arg)
         queue.Execute(kernel.[0], null, [|int64 buf.BaseImg.Width;int64 buf.BaseImg.Height|], null, events)
-        GPUImage(obuf, ComputeImageChannelOrder.R, buf.BaseType)
+        GPUImage(obuf, ComputeImageChannelOrder.R, buf.BaseType, events, queue)
 
     member this.BoolBOpSV (value : float, img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(img.BaseComps, ComputeImageChannelType.UnsignedInt8)
@@ -163,7 +165,7 @@ type GPUHandler (ctx : ComputeContext) =
         let arg = new ComputeBuffer<int>(context,ComputeMemoryFlags.ReadOnly ||| ComputeMemoryFlags.UseHostPointer, 1L, vPtr)
         kernel.[0].SetMemoryArgument(2, arg)
         queue.Execute(kernel.[0], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
-        GPUImage(obuf, img.BaseComps, ComputeImageChannelType.UnsignedInt8)
+        GPUImage(obuf, img.BaseComps, ComputeImageChannelType.UnsignedInt8, events, queue)
 
     member this.BOpSV (value : float, img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(img.BaseComps, img.BaseType)
@@ -177,7 +179,7 @@ type GPUHandler (ctx : ComputeContext) =
         let arg = new ComputeBuffer<int>(context,ComputeMemoryFlags.ReadOnly ||| ComputeMemoryFlags.UseHostPointer, 1L, vPtr)
         kernel.[0].SetMemoryArgument(2, arg)
         queue.Execute(kernel.[0], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
-        GPUImage(obuf, img.BaseComps, img.BaseType)
+        GPUImage(obuf, img.BaseComps, img.BaseType, events, queue)
 
     member this.Between (value1 : float, value2 : float, img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(ComputeImageChannelOrder.R, img.BaseType)
@@ -192,7 +194,7 @@ type GPUHandler (ctx : ComputeContext) =
         kernel.[0].SetMemoryArgument(2, arg1)
         kernel.[0].SetMemoryArgument(3, arg2)
         queue.Execute(kernel.[0], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
-        GPUImage(obuf, ComputeImageChannelOrder.R, img.BaseType)
+        GPUImage(obuf, ComputeImageChannelOrder.R, img.BaseType, events, queue)
         
     member this.BoolBOp (img1 : GPUImage, img2 : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(img1.BaseComps, ComputeImageChannelType.UnsignedInt8)
@@ -201,7 +203,7 @@ type GPUHandler (ctx : ComputeContext) =
         kernel.[0].SetMemoryArgument(1, img2.BaseImg)
         kernel.[0].SetMemoryArgument(2, obuf)
         queue.Execute(kernel.[0], null, [|int64 img1.BaseImg.Width;int64 img1.BaseImg.Height|], null, events)
-        GPUImage(obuf, img1.BaseComps, ComputeImageChannelType.UnsignedInt8)
+        GPUImage(obuf, img1.BaseComps, ComputeImageChannelType.UnsignedInt8, events, queue)
 
     member this.UOp (img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(img.BaseComps, img.BaseType)
@@ -209,7 +211,7 @@ type GPUHandler (ctx : ComputeContext) =
         kernel.[0].SetMemoryArgument(0, img.BaseImg)
         kernel.[0].SetMemoryArgument(1, obuf)
         queue.Execute(kernel.[0], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
-        GPUImage(obuf, img.BaseComps, img.BaseType)
+        GPUImage(obuf, img.BaseComps, img.BaseType, events, queue)
 
     //member this.Volume (img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
     //    let obuf = new ComputeBuffer<float>(context,ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.AllocateHostPointer, int64 (img.BaseImg.Width*img.BaseImg.Height))
@@ -240,7 +242,7 @@ type GPUHandler (ctx : ComputeContext) =
         let obuf = new ComputeImage2D(context, ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.AllocateHostPointer, outformat, buf.BaseImg.Width, buf.BaseImg.Height, 0L, IntPtr.Zero)
         kernel.[0].SetMemoryArgument(0, obuf)
         queue.Execute(kernel.[0], null, [|int64 buf.BaseImg.Width;int64 buf.BaseImg.Height|], null, events)
-        GPUImage(obuf, ComputeImageChannelOrder.R, buf.BaseType)
+        GPUImage(obuf, ComputeImageChannelOrder.R, buf.BaseType, events, queue)
 
     member this.BOp (img1 : GPUImage, img2 : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(img1.BaseComps, img1.BaseType)
@@ -253,7 +255,7 @@ type GPUHandler (ctx : ComputeContext) =
         //let obytes = out.GetBufferAsUInt16()
         //queue.ReadFromImage(obuf,obytes,true,events)
         //SimpleITK.WriteImage(SimpleITK.Multiply(out, 65535.0),"or.png")
-        GPUImage(obuf, img1.BaseComps, img1.BaseType)
+        GPUImage(obuf, img1.BaseComps, img1.BaseType, events, queue)
 
     //member this.MaxMin (img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
     //    let obuf = new ComputeBuffer<float>(context,ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.AllocateHostPointer, int64 (img.BaseImg.Width*img.BaseImg.Height))
@@ -275,7 +277,7 @@ type GPUHandler (ctx : ComputeContext) =
         kernel.[0].SetMemoryArgument(0, img.BaseImg)
         kernel.[0].SetMemoryArgument(1, obuf)
         queue.Execute(kernel.[0], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
-        GPUImage(obuf, ComputeImageChannelOrder.R, ComputeImageChannelType.UnsignedInt8)
+        GPUImage(obuf, ComputeImageChannelOrder.R, ComputeImageChannelType.UnsignedInt8, events, queue)
 
     member this.LabelComponents (img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(ComputeImageChannelOrder.R, ComputeImageChannelType.UnsignedInt32)
@@ -364,7 +366,7 @@ type GPUHandler (ctx : ComputeContext) =
         
         Logger.Debug <| sprintf "Connected components labelling terminated in %d iterations" cnt
 
-        GPUImage(obufs.[0], ComputeImageChannelOrder.R, ComputeImageChannelType.UnsignedInt32)
+        GPUImage(obufs.[0], ComputeImageChannelOrder.R, ComputeImageChannelType.UnsignedInt32, events, queue)
 
     member this.Through (img1 : GPUImage, img2 : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         //printfn "executing through"
@@ -402,4 +404,4 @@ type GPUHandler (ctx : ComputeContext) =
         queue.Execute(kernel.[4], null, [|int64 img1.BaseImg.Width; int64 img1.BaseImg.Height|], null, events)
          
         //ErrorMsg.Logger.Debug "Through step 6"        
-        GPUImage(obuf2, ComputeImageChannelOrder.R, ComputeImageChannelType.UnsignedInt16)
+        GPUImage(obuf2, ComputeImageChannelOrder.R, ComputeImageChannelType.UnsignedInt16, events, queue)
