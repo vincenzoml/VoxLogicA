@@ -1,5 +1,7 @@
 namespace VoxLogicA
 
+open Cloo.Bindings
+
 open Hopac
 
 exception NoGPUModelLoadedException 
@@ -25,7 +27,8 @@ open FSharp.Core.Operators
 
 #nowarn "9"
 open ErrorMsg
-type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : ComputeImageChannelType, events : List<ComputeEventBase>, queue : ComputeCommandQueue) =
+
+type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype :    ComputeImageChannelType, events : List<ComputeEventBase>, queue : ComputeCommandQueue) =
     let mutable baseImg = img
     let mutable baseComps = comps
     let mutable baseType = imgtype
@@ -44,9 +47,8 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : C
             job {
                 Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
                 try
-                    queue.AddMarkerWithWaitList(events)
-                    // baseImg.Dispose()
-                    ()
+                    let result = CL10.WaitForEvents(events.Count,events)                    
+                    baseImg.Dispose()
                 with e ->                 
                     printfn "Error in dispose: %A" e
             }
