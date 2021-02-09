@@ -1,0 +1,3 @@
+load img = "test.png"
+
+save "near_a.png" near(200 .<= intensity(img))

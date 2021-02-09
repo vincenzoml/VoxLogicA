@@ -57,7 +57,7 @@ type ModelChecker(model : IModel) =
                                             let dispose = 
                                                 try (x :?> IDisposableJob).Dispose
                                                 with :? InvalidCastException -> job { return () }
-                                            do! dispose
+                                            do! (Job.start dispose)
 
                                     /// after this, lock, reference counts of arguments - 1, GC eventually, unlock
                                                                                     
