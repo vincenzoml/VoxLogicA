@@ -47,7 +47,8 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype :  
             job {
                 Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
                 try
-                    let result = CL10.WaitForEvents(events.Count,events)                    
+                    let handlers = Array.init events.Count (fun i -> events.[i].Handle)                     
+                    let result = CL10.WaitForEvents(events.Count,handlers)                    
                     baseImg.Dispose()
                 with e ->                 
                     printfn "Error in dispose: %A" e
