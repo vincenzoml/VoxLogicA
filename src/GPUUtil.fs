@@ -28,7 +28,7 @@ open FSharp.Core.Operators
 #nowarn "9"
 open ErrorMsg
 
-type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype :    ComputeImageChannelType, events : List<ComputeEventBase>, queue : ComputeCommandQueue) =
+type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : ComputeImageChannelType, events : List<ComputeEventBase>, queue : ComputeCommandQueue) =
     let mutable baseImg = img
     let mutable baseComps = comps
     let mutable baseType = imgtype
@@ -47,8 +47,8 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype :  
             job {
                 Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
                 try
-                    let handlers = Array.init events.Count (fun i -> events.[i].Handle)                     
-                    let result = CL10.WaitForEvents(events.Count,handlers)                    
+                    let handlers = Array.init innerEvents.Count (fun i -> innerEvents.[i].Handle)                     
+                    let result = CL10.WaitForEvents(innerEvents.Count,handlers)                    
                     baseImg.Dispose()
                 with e ->                 
                     printfn "Error in dispose: %A" e
@@ -211,9 +211,15 @@ type GPUHandler (ctx : ComputeContext) =
     member this.UOp (img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(img.BaseComps, img.BaseType)
         let obuf = new ComputeImage2D(context, ComputeMemoryFlags.ReadWrite ||| ComputeMemoryFlags.AllocateHostPointer, outformat, img.BaseImg.Width, img.BaseImg.Height, 0L, IntPtr.Zero)
+        printfn "Obuf: %A %A" obuf img.BaseImg
         kernel.[0].SetMemoryArgument(0, img.BaseImg)
         kernel.[0].SetMemoryArgument(1, obuf)
         queue.Execute(kernel.[0], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
+        let out = new Image(new VectorUInt32 [|uint32 img.BaseImg.Width;uint32 img.BaseImg.Height|],PixelIDValueEnum.sitkUInt8)
+        let obytes = out.GetBufferAsUInt8()
+        queue.ReadFromImage(obuf,obytes,true,events)
+        printfn "Done intensity %A" obuf
+        //SimpleITK.WriteImage(out,"or.png")
         GPUImage(obuf, img.BaseComps, img.BaseType, events, queue)
 
     //member this.Volume (img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =

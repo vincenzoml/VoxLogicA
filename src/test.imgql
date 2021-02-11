@@ -1,3 +1,4 @@
 load img = "test.png"
 
-save "near_a.png" near(200 .<= intensity(img))
+//save "near_a.png" near(200 .<= intensity(img))
+save "prova.png" intensity(img)

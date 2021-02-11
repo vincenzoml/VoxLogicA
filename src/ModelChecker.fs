@@ -23,6 +23,7 @@ type ModelChecker(model : IModel) =
     let formulaFactory = FormulaFactory()       
     let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0
+    let mutable referenceCount = Array.init 0 (fun i -> ref 0)
     let startChecker i (referenceCount : array<ref<int>>) = 
         job {   let iv = new IVar<_>()
                 let f = formulaFactory.[i]
@@ -52,10 +53,11 @@ type ModelChecker(model : IModel) =
                                                     r := n
                                                     (o,n))
                                         printfn "  arg: %d oldrefs: %d newrefs: %d" arg.Uid oldrefc newrefc
-                                        if newrefc = 0 then 
+                                        if newrefc <= 0 then 
                                             printfn "  disposing %d" arg.Uid
+                                            let! y = cache.[arg.Uid]
                                             let dispose = 
-                                                try (x :?> IDisposableJob).Dispose
+                                                try (y :?> IDisposableJob).Dispose
                                                 with :? InvalidCastException -> job { return () }
                                             do! (Job.start dispose)
 
@@ -75,7 +77,7 @@ type ModelChecker(model : IModel) =
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
-        let referenceCount = Array.init formulaFactory.Count (fun i -> ref 0)
+        referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
         for i = 0 to formulaFactory.Count - 1 do            
             for x in formulaFactory.[i].Arguments do
                 referenceCount.[x.Uid] := !referenceCount.[x.Uid] + 1
@@ -86,7 +88,10 @@ type ModelChecker(model : IModel) =
                     //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount                   
                 alreadyChecked <- formulaFactory.Count                  }
-    member __.Get (f : Formula) = cache.[f.Uid]   
+    member __.Get (f : Formula) =  
+        let r = referenceCount.[f.Uid]
+        lock r (fun () -> r := !r + 1)
+        cache.[f.Uid]   
         
 
 

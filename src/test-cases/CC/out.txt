@@ -1,0 +1,173 @@
+(cd ../.. && make) && mkdir -p GPU && cp ../../kernel.cl test.png test.imgql GPU && cd GPU && ../../../bin/release/netcoreapp3.1/linux-x64/VoxLogicA test.imgql
+make[1]: ingresso nella directory "/home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src"
+TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release -r linux-x64	 
+Microsoft (R) Build Engine versione 16.7.0+7fb82e5b2 per .NET
+Copyright (C) Microsoft Corporation. Tutti i diritti sono riservati.
+
+  Individuazione dei progetti da ripristinare...
+  Tutti i progetti sono aggiornati per il ripristino.
+  Current version is - 0.6.0-gpu
+  VoxLogicA -> /home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/bin/release/netcoreapp3.1/linux-x64/VoxLogicA.dll
+  Copying files after build with RID=linux-x64
+
+Compilazione completata.
+    Avvisi: 0
+    Errori: 0
+
+Tempo trascorso 00:00:01.24
+make[1]: uscita dalla directory "/home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src"
+[        28ms] [info] VoxLogicA 0.6.0-gpu
+[       160ms] [info] Selected context of type CPU
+[      1803ms] [info] Parsing input...
+[      1838ms] [info] Preparing computation...
+[      1847ms] [info] Importing file "/home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/bin/release/netcoreapp3.1/linux-x64/stdlib.imgql"
+[      1947ms] [info] loaded image: 36038289
+[      1966ms] [info] Starting computation...
+[      1969ms] [info] Running 19 tasks
+formula: 0 operator: "VoxLogicA.GPUImage" args: [||] refcount: 1
+formula: 1 operator: "intensity" args: [|0|] refcount: 5
+formula: 2 operator: "200" args: [||] refcount: 3
+formula: 3 operator: ".<=" args: [|2; 1|] refcount: 1
+formula: 4 operator: ".=" args: [|2; 1|] refcount: 1
+formula: 5 operator: "not" args: [|4|] refcount: 2
+formula: 6 operator: "and" args: [|3; 5|] refcount: 2
+formula: 7 operator: "100" args: [||] refcount: 2
+formula: 8 operator: ".<=" args: [|7; 1|] refcount: 1
+formula: 9 operator: ".=" args: [|7; 1|] refcount: 1
+formula: 10 operator: "not" args: [|9|] refcount: 1
+formula: 11 operator: "and" args: [|8; 10|] refcount: 1
+formula: 12 operator: ".>=" args: [|2; 1|] refcount: 1
+formula: 13 operator: "and" args: [|5; 12|] refcount: 1
+formula: 14 operator: "and" args: [|11; 13|] refcount: 2
+formula: 15 operator: "near" args: [|6|] refcount: 1
+formula: 16 operator: "near" args: [|14|] refcount: 1
+formula: 17 operator: "through" args: [|6; 16|] refcount: 0
+formula: 18 operator: "through" args: [|14; 15|] refcount: 0
+about to compute 7
+computed 7
+about to compute 2
+computed 2
+about to compute 0
+computed 0
+about to compute 1
+Obuf: ComputeImage2D(140420533204600) ComputeImage2D(60960408)
+Done intensity ComputeImage2D(140420533204600)
+computed 1
+  arg: 0 oldrefs: 1 newrefs: 0
+  disposing 0
+[      2108ms] [info] called dispose of GPUImage with buffer ComputeImage2D(60960408)
+about to compute 12
+created: ComputeImage2D(60960408)
+about to use: ComputeImage2D(60960408)
+computed 12
+  arg: 2 oldrefs: 3 newrefs: 2
+  arg: 1 oldrefs: 5 newrefs: 4
+about to compute 4
+created: ComputeImage2D(140420533310984)
+about to use: ComputeImage2D(140420533310984)
+computed 4
+  arg: 2 oldrefs: 2 newrefs: 1
+  arg: 1 oldrefs: 4 newrefs: 3
+about to compute 5
+Obuf: ComputeImage2D(140420533315816) ComputeImage2D(140420533310984)
+Done intensity ComputeImage2D(140420533315816)
+computed 5
+  arg: 4 oldrefs: 1 newrefs: 0
+  disposing 4
+[      2170ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533310984)
+about to compute 13
+computed 13
+  arg: 5 oldrefs: 2 newrefs: 1
+  arg: 12 oldrefs: 1 newrefs: 0
+  disposing 12
+[      2172ms] [info] called dispose of GPUImage with buffer ComputeImage2D(60960408)
+about to compute 8
+created: ComputeImage2D(140420533328632)
+about to use: ComputeImage2D(140420533328632)
+computed 8
+  arg: 7 oldrefs: 2 newrefs: 1
+  arg: 1 oldrefs: 3 newrefs: 2
+about to compute 9
+created: ComputeImage2D(140420533311880)
+about to use: ComputeImage2D(140420533311880)
+computed 9
+  arg: 7 oldrefs: 1 newrefs: 0
+  disposing 7
+  arg: 1 oldrefs: 2 newrefs: 1
+about to compute 10
+Obuf: ComputeImage2D(140420533341928) ComputeImage2D(140420533311880)
+Done intensity ComputeImage2D(140420533341928)
+computed 10
+  arg: 9 oldrefs: 1 newrefs: 0
+  disposing 9
+[      2259ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533311880)
+about to compute 11
+computed 11
+  arg: 8 oldrefs: 1 newrefs: 0
+  disposing 8
+[      2272ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533328632)
+  arg: 10 oldrefs: 1 newrefs: 0
+  disposing 10
+[      2272ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533341928)
+about to compute 14
+computed 14
+  arg: 11 oldrefs: 1 newrefs: 0
+  disposing 11
+[      2273ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533311880)
+  arg: 13 oldrefs: 1 newrefs: 0
+  disposing 13
+[      2306ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533310984)
+about to compute 16
+Obuf: ComputeImage2D(140420533310984) ComputeImage2D(140420533356376)
+Done intensity ComputeImage2D(140420533310984)
+computed 16
+  arg: 14 oldrefs: 3 newrefs: 2
+[      2420ms] [info] Finalising the event queue
+[      2426ms] [warn] saving boolean image to near_b.png; value 'true' is set to 255, not 1
+[      2439ms] [info] Saving file /home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/test-cases/CC/GPU/near_b.png
+[      2500ms] [info] Finalising the event queue
+[      2504ms] [warn] saving boolean image to b.png; value 'true' is set to 255, not 1
+[      2513ms] [info] Saving file /home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/test-cases/CC/GPU/b.png
+about to compute 3
+created: ComputeImage2D(140420533311880)
+about to use: ComputeImage2D(140420533311880)
+computed 3
+  arg: 2 oldrefs: 1 newrefs: 0
+  disposing 2
+  arg: 1 oldrefs: 1 newrefs: 0
+  disposing 1
+[      2580ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533204600)
+about to compute 6
+computed 6
+  arg: 3 oldrefs: 1 newrefs: 0
+  disposing 3
+[      2581ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533311880)
+  arg: 5 oldrefs: 1 newrefs: 0
+  disposing 5
+[      2612ms] [info] called dispose of GPUImage with buffer ComputeImage2D(140420533315816)
+about to compute 15
+Obuf: ComputeImage2D(140420533315816) ComputeImage2D(140420533379128)
+Done intensity ComputeImage2D(140420533315816)
+computed 15
+  arg: 6 oldrefs: 3 newrefs: 2
+[      2726ms] [info] Finalising the event queue
+[      2737ms] [warn] saving boolean image to near_a.png; value 'true' is set to 255, not 1
+[      2748ms] [info] Saving file /home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/test-cases/CC/GPU/near_a.png
+about to compute 18
+[      4621ms] [info] Connected components labelling terminated in 29 iterations
+computed 18
+  arg: 14 oldrefs: 2 newrefs: 1
+  arg: 15 oldrefs: 2 newrefs: 1
+[      4624ms] [info] Finalising the event queue
+[      4721ms] [info] Saving file /home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/test-cases/CC/GPU/through_b_Na.png
+about to compute 17
+[      5950ms] [info] Connected components labelling terminated in 19 iterations
+computed 17
+  arg: 6 oldrefs: 2 newrefs: 1
+  arg: 16 oldrefs: 2 newrefs: 1
+[      5960ms] [info] Finalising the event queue
+[      6035ms] [info] Saving file /home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/test-cases/CC/GPU/through_a_Nb.png
+[      6196ms] [info] Finalising the event queue
+[      6200ms] [warn] saving boolean image to a.png; value 'true' is set to 255, not 1
+[      6216ms] [info] Saving file /home/laura/Documenti/UNI/CS-SW_Magistrale/Anno2_1_done/SVV/VoxLogicA/src/test-cases/CC/GPU/a.png
+[      6292ms] [info] ... done.
