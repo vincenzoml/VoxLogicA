@@ -14,5 +14,6 @@ download: https://github.com/vincenzoml/VoxLogicA/releases
 
 source code for the "master" branch: https://github.com/vincenzoml/VoxLogicA/tree/master
 
+ESMRM-B 2019 poster: 
 
 ![VoxLogicA poster](https://github.com/vincenzoml/VoxLogicA/raw/master/docs/poster-ciancia.jpg "Poster")
