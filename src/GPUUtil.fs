@@ -39,10 +39,7 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : C
     interface IDisposable with
         member this.Dispose () =
             Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
-            try
-                baseImg.Dispose()
-            with e ->                 
-                printfn "Error in dispose: %A" e
+            baseImg.Dispose()
 
 type GPUHandler (ctx : ComputeContext) =
     //GPU computation and buffers handling
