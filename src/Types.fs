@@ -60,5 +60,3 @@ type Type =
             res <- res + ta.[ta.Length - 1].ToString() + ")"
             res
             
-type IDisposableJob =
-    abstract member Dispose : Hopac.Job<unit>

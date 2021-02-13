@@ -1,7 +1,5 @@
 namespace VoxLogicA
 
-open Hopac
-
 exception NoGPUModelLoadedException 
     with override __.Message = "No model loaded"
 
@@ -38,16 +36,13 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : C
     member this.BaseType
         with get() = baseType
         and set(t) = baseType <- t
-    interface IDisposableJob with
-        member this.Dispose =
-            job {
-                Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
-                try
-                    // baseImg.Dispose()
-                    ()
-                with e ->                 
-                    printfn "Error in dispose: %A" e
-            }
+    interface IDisposable with
+        member this.Dispose () =
+            Logger.Debug (sprintf "called dispose of GPUImage with buffer %A" baseImg)
+            try
+                baseImg.Dispose()
+            with e ->                 
+                printfn "Error in dispose: %A" e
 
 type GPUHandler (ctx : ComputeContext) =
     //GPU computation and buffers handling
@@ -168,9 +163,7 @@ type GPUHandler (ctx : ComputeContext) =
     member this.BOpSV (value : float, img : GPUImage, events : List<ComputeEventBase>, queue : ComputeCommandQueue, kernel : list<ComputeKernel>) =
         let outformat = ComputeImageFormat(img.BaseComps, img.BaseType)
         let obuf = new ComputeImage2D(context, ComputeMemoryFlags.ReadWrite, outformat, img.BaseImg.Width, img.BaseImg.Height, 0L, IntPtr.Zero)        
-        printfn "created: %A" obuf
         kernel.[0].SetMemoryArgument(0, img.BaseImg)
-        printfn "about to use: %A" obuf
         kernel.[0].SetMemoryArgument(1, obuf)
         let mutable v = Array.create 1 (int (ceil value))
         let vPtr : nativeint = NativePtr.toNativeInt<int> &&v.[0]
