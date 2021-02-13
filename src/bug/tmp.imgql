@@ -1,0 +1,4 @@
+load img = "test.png"
+let int = intensity(img)
+
+save "output.png" int
