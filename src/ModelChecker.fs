@@ -39,9 +39,9 @@ type ModelChecker(model : IModel) =
 
                                     /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
                                     /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
-                                    printfn "about to compute %d" i
+                                    // p rintfn "about to compute %d" i
                                     let! x = op.Eval (Array.ofSeq arguments)  
-                                    printfn "computed %d" i
+                                    // p rintfn "computed %d" i
                                     for arg in formulaFactory.[i].Arguments do
                                         let (oldrefc,newrefc) = 
                                             lock 
@@ -52,9 +52,9 @@ type ModelChecker(model : IModel) =
                                                     let n = !r - 1
                                                     r := n
                                                     (o,n))
-                                        printfn "  arg: %d oldrefs: %d newrefs: %d" arg.Uid oldrefc newrefc
+                                        // p rintfn "  arg: %d oldrefs: %d newrefs: %d" arg.Uid oldrefc newrefc
                                         if newrefc <= 0 then 
-                                            printfn "  disposing %d" arg.Uid
+                                            // p rintfn "  disposing %d" arg.Uid
                                             let! y = cache.[arg.Uid]
                                             let dispose = 
                                                 try (y :?> IDisposableJob).Dispose
@@ -81,9 +81,9 @@ type ModelChecker(model : IModel) =
         for i = 0 to formulaFactory.Count - 1 do            
             for x in formulaFactory.[i].Arguments do
                 referenceCount.[x.Uid] := !referenceCount.[x.Uid] + 1
-        for i = 0 to formulaFactory.Count - 1 do
-            let f = formulaFactory.[i]
-            printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
+        // for i = 0 to formulaFactory.Count - 1 do
+        //     let f = formulaFactory.[i]
+            // p rintfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount                   
