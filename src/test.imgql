@@ -1,13 +1,18 @@
 load graph = "testGraph.json"
 
-// L'operatore "b ~> a" è vero sui punti x per cui esiste un path p da x a y, tale che p[0] |= b, p[y] |= a, e tutti i punti intermedi in (0,y) soddisfano b. 
+// near(p): chiusura topologica della regione p
+// through(p,q): esiste un path passante solo per punti p che arriva a punti q
 
-let rho(a,b) = bnear((b ~> bnear(a)) | a) 
+let p = ap("p")
+let q = ap("q")
 
-let red = ap("red")
-let blue = ap("blue")
+save "p" p
+save "q" q
 
-save "red.json" red
-save "near_red.json" near(red)
-save "nred_reach_red.json" through(not(red),red)
-save "blue_reach_red.json" through(blue,red)
+save "near p" near(p)
+save "near q" near(q)
+
+save "q reach p" through(q,p)
+save "p reach q" through(p,q)
+
+save "path from p to q" and(p,through(not(ff),q))

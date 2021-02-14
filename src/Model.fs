@@ -30,3 +30,4 @@ type IModel() =
     abstract member Load : string -> obj
     abstract member Save : string -> obj -> unit 
     abstract member CanSave : Type -> string -> bool
+    abstract member OnExit : unit -> unit

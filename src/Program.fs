@@ -62,13 +62,14 @@ let main (argv : string array) =
         //     proc.ProcessorAffinity <- nativeint 0x1          
         let run filename =
             let interpreter = Interpreter(model,checker)
-            interpreter.Batch sequential interpreter.DefaultLibDir filename    
+            interpreter.Batch sequential interpreter.DefaultLibDir filename
+            model.OnExit()
         match (parsed.TryGetResult Filename,ErrorMsg.isDebug()) with 
             | None,false ->                                      
                 printfn "%s\n" (cmdLineParser.PrintUsage ())
                 0
             | Some filename,_ -> 
-                run filename        
+                run filename 
                 0
             | None,true ->
                 run "test.imgql"

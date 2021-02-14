@@ -15,6 +15,8 @@
 // limitations under the License.
 
 namespace VoxLogicA
+open System.Collections.Generic
+open FSharp.Json
 
 exception NoModelLoadedException 
     with override __.Message = "No model loaded"
@@ -39,18 +41,22 @@ type SITKModel() =
     inherit IModel()
     let mutable baseTriaGraph : option<TriaGraph> = None
     let getBaseTriaGraph() = match baseTriaGraph with None -> raise NoModelLoadedException | Some triaGraph -> triaGraph
+    let atoms = Dictionary<_,_>()
         
     let supportedExtensions = [".json"] // TODO: make this list exhaustive
     
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
-        match t with 
-        | (TValuation(TBool)) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
-        | _ -> false
+        // TODO: changed save policy with OnExit
+        true
+        // match t with 
+        // | (TValuation(TBool)) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
+        // | _ -> false
 
-    override __.Save filename v =
+    override __.Save atomName v =
         let t = v :?> Truth
-        printfn "save to '%A': %A" filename t
-        saveTriaGraph (getBaseTriaGraph ()) filename "result" t
+        // printfn "save to '%A': %A" atomName t
+        // saveTriaGraph (getBaseTriaGraph ()) filename "result" t
+        atoms.Add(atomName,t)
             
     override __.Load s =
         let triaGraph = loadTriaGraph s
@@ -62,6 +68,13 @@ type SITKModel() =
             | Some _ ->                
                 raise MoreThanOneModelUnsupportedException
         res :> obj
+
+    override __.OnExit () =
+        let atomsToPrint =
+            (atoms :> seq<_>)
+            |> Seq.map (|KeyValue|)
+            |> Map.ofSeq
+        System.IO.File.WriteAllText("result.json", Json.serialize atomsToPrint)
 
     interface IAtomicModel<Truth> with
         member __.Ap s = job { 

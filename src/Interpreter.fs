@@ -121,8 +121,9 @@ type Interpreter(model : IModel, checker : ModelChecker) =
                     if model.CanSave typ filename then
                         let j = job {   
                             let! res = checker.Get formula
-                            let filename = System.IO.Path.GetFullPath filename
-                            let dirname = System.IO.Path.GetDirectoryName filename
+                            // TODO: Changed saving policy with OnExit operation
+                            let fullFilename = System.IO.Path.GetFullPath filename
+                            let dirname = System.IO.Path.GetDirectoryName fullFilename
                             ignore <| Directory.CreateDirectory(dirname)
                             // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: About to save image: %A" <| res.GetHashCode())
                             model.Save filename res  }
@@ -179,7 +180,9 @@ type Interpreter(model : IModel, checker : ModelChecker) =
         match Scheduler.run scheduler (Job.catch job) with
             | Choice1Of2 () -> ()
             | Choice2Of2 e -> raise e
-    member __.DefaultLibDir = defaultLibDir        
+        // TODO: this is definitely not the intended usage
+        Scheduler.wait scheduler
+    member __.DefaultLibDir = defaultLibDir
 
     member __.Batch sequential libdir filename =
         // TODO: check whether using the following code (pre-allocating 9GB of data) improves performance
