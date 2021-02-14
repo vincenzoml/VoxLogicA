@@ -1,0 +1,131 @@
+{
+    "numberOfPoints": 5,
+    "coordinatesOfPoints": [
+        [ 0, 0, 0],
+        [10, 0, 0],
+        [10,10, 0],
+        [10, 0,10],
+        [20,10, 0]
+    ],
+    "atomNames": [
+        "p",
+        "q"
+    ],
+    "simplexes": [
+        {
+            "id": "p0",
+            "points": [0],
+            "atoms": []
+        },
+        {
+            "id": "p1",
+            "points": [1],
+            "atoms": []
+        },
+        {
+            "id": "p2",
+            "points": [2],
+            "atoms": []
+        },
+        {
+            "id": "p3",
+            "points": [3],
+            "atoms": []
+        },
+        {
+            "id": "p4",
+            "points": [4],
+            "atoms": []
+        },
+        {
+            "id": "l0",
+            "points": [0,1],
+            "atoms": []
+        },
+        {
+            "id": "l1",
+            "points": [0,2],
+            "atoms": []
+        },
+        {
+            "id": "l2",
+            "points": [0,3],
+            "atoms": []
+        },
+        {
+            "id": "l3",
+            "points": [1,2],
+            "atoms": []
+        },
+        {
+            "id": "l4",
+            "points": [2,3],
+            "atoms": []
+        },
+        {
+            "id": "l5",
+            "points": [3,1],
+            "atoms": []
+        },
+        {
+            "id": "l6",
+            "points": [1,4],
+            "atoms": []
+        },
+        {
+            "id": "l7",
+            "points": [2,4],
+            "atoms": []
+        },
+        {
+            "id": "l8",
+            "points": [3,4],
+            "atoms": []
+        },
+        {
+            "id": "t0",
+            "points": [0,1,2],
+            "atoms": []
+        },
+        {
+            "id": "t1",
+            "points": [0,2,3],
+            "atoms": []
+        },
+        {
+            "id": "t2",
+            "points": [0,3,1],
+            "atoms": []
+        },
+        {
+            "id": "t3",
+            "points": [1,2,3],
+            "atoms": []
+        },
+        {
+            "id": "t4",
+            "points": [1,2,4],
+            "atoms": []
+        },
+        {
+            "id": "t5",
+            "points": [2,3,4],
+            "atoms": []
+        },
+        {
+            "id": "t6",
+            "points": [1,3,4],
+            "atoms": []
+        },
+        {
+            "id": "T0",
+            "points": [0,1,2,3],
+            "atoms": ["p"]
+        },
+        {
+            "id": "T1",
+            "points": [1,2,3,4],
+            "atoms": ["q"]
+        }
+    ]
+  }
