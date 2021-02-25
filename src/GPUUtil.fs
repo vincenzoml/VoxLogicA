@@ -49,7 +49,8 @@ type GPUImage (img : ComputeImage, comps : ComputeImageChannelOrder, imgtype : C
                 try
                     let handlers = Array.init innerEvents.Count (fun i -> innerEvents.[i].Handle)                     
                     let result = CL10.WaitForEvents(innerEvents.Count,handlers)                    
-                    baseImg.Dispose()
+                    //baseImg.Dispose()
+                    Logger.Debug (sprintf "Disposing")
                 with e ->                 
                     // TODO: error message with logger and exception
                     Logger.Debug (sprintf "Error in dispose: %A" e)

@@ -1,0 +1,188 @@
+diff --git a/examples/tutorial/tutorial.imgql b/examples/tutorial/tutorial.imgql
+index 5584f72..fd09963 100644
+--- a/examples/tutorial/tutorial.imgql
++++ b/examples/tutorial/tutorial.imgql
+@@ -20,7 +20,9 @@
+ // distlt(x,y) is the set of points at distance less than x from the points true in (boolean-valued image) y
+ // (see also the paper https://arxiv.org/abs/1811.05677, Section 4, and Section 2 for theory)
+ 
+-let flt(x,a) = distleq(x,distgeq(x,!a))
++let flt1(x) = near(interior(x))
++
++let flt5(x) = flt1(flt1(flt1(flt1(flt1(x)))))
+ 
+ 
+ /////
+@@ -29,22 +31,10 @@ let flt(x,a) = distleq(x,distgeq(x,!a))
+ load image = "three_coloured_items-bw.png"
+ 
+ 
+-/////
+-// Give names to the components of the image, to ease typing
+-
+-let r = red(image)
+-let g = green(image)
+-let b = blue(image)
+-
+-
+ /////
+ // The background is not very coloured; it's grayish. Let us capture it as follows.
+-// Coloured items may also have high values for some components, but not for all three!
+-// NOTE: we could also have used percentiles(r) (also for g and b components) to avoid 
+-// referencing an absolute value ("120"). Later you can return here and experiment
+-// with that
+ 
+-let tendentToGray = (r >. 120) & (g >. 120) & (b >. 120)
++let tendentToGray = intensity(image) >. 120
+ 
+ 
+ /////
+@@ -61,8 +51,8 @@ save "output/01_tendentToGray.png" tendentToGray
+ // Note that the "output" directory will be created if it does not exist
+ // Also note that should you save an image valued between 0 and 1 (instead of 0 and 255)
+ // in a png or jpg file, you are responsible for rescaling! png uses integer values.
+-// To rescale if needed, use the smul operator (VoxLogicA --ops will list all the operators,
+-// including smul and its type).
++// To rescale if needed, use the *. operator (VoxLogicA --ops will list all the operators,
++// including *. and its type).
+ 
+ 
+ /////
+@@ -85,7 +75,7 @@ save "output/02_background.png" background
+ // (Indeed, prefix operator "!" is boolean complement).
+ 
+ 
+-let thingsMask = flt(5,(!background) \ touch(!background,border))
++let thingsMask = flt5((!background) \ touch(!background,border))
+ save "output/03_thingsMask.png" thingsMask
+ 
+ 
+@@ -97,7 +87,7 @@ save "output/03_thingsMask.png" thingsMask
+ /////
+ // Finally, let us save in rgb the masked image, using the "mask" and "rgb" primitives
+ 
+-let maskedImage = rgb(mask(r,thingsMask),mask(g,thingsMask),mask(b,thingsMask))
++let maskedImage = mask(intensity(image),thingsMask)
+ save "output/04_maskedImage.png" maskedImage
+ 
+ 
+diff --git a/src/GPUModel.fs b/src/GPUModel.fs
+index 4a7a4cf..1ec51b8 100644
+--- a/src/GPUModel.fs
++++ b/src/GPUModel.fs
+@@ -11,11 +11,37 @@ open itk.simple
+ 
+ type GPUModel() =
+     inherit IModel()    
+-    let platform = ComputePlatform.Platforms.[0]
++    // Find a context
++    let mutable context = null
++    let mutable typ = "GPU"    
++    let _ = 
++        try
++            let mutable i = 0
++            while isNull context && i < ComputePlatform.Platforms.Count do        
++                let platform = ComputePlatform.Platforms.[i]    
++                i <- i + 1
++                try
++                    context <- new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                 
++                with _ -> ()            
++            if isNull context then
++                i <- 0
++                while isNull context && i < ComputePlatform.Platforms.Count do        
++                    let platform = ComputePlatform.Platforms.[i]    
++                    i <- i + 1
++                    try
++                        context <- new ComputeContext(ComputeDeviceTypes.Cpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)               
++                        typ  <- "CPU" 
++                    with _ -> ()                        
++            if isNull context then 
++                ErrorMsg.Logger.Debug "No working OpenCL device, exiting."
++                exit 0
++        with :? TypeInitializationException -> 
++                ErrorMsg.Logger.Debug "No working OpenCL device, exiting."
++                exit 0
++    let _ = ErrorMsg.Logger.Debug <| sprintf "Selected context of type %s" typ   
+     let streamReader = new StreamReader(System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location) + "/kernel.cl")
+     let source = streamReader.ReadToEnd()
+     let _ = streamReader.Close()    
+-    let context = new ComputeContext(ComputeDeviceTypes.Gpu,ComputeContextPropertyList(platform), null, IntPtr.Zero)                  
+     let mutable baseImg : option<GPUImage> = None
+     let mutable events : List<ComputeEventBase> = new List<ComputeEventBase>()
+     let mutable queue : ComputeCommandQueue = new ComputeCommandQueue(context, context.Devices.[0], ComputeCommandQueueFlags.None)
+@@ -175,15 +201,15 @@ type GPUModel() =
+         //    return handler.GetComponent (img, events, queue, (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "redComponent") kernels), 0)
+         //}
+         //// ################################
+-        member __.LCC (img : GPUImage) = job {
+-            let ker1 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "initCCL") kernels)
+-            let ker2 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "iterateCCL") kernels)
+-            let ker3 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "termination") kernels)
+-            let ker4 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "reconnectCCL") kernels)
+-            let ker5 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "preTermination") kernels)
+-            let kers = [ker1.[0]; ker2.[0]; ker3.[0]; ker4.[0]; ker5.[0]]
+-            return handler.LabelComponents (img, events, queue, kers)
+-        }
++        // member __.LCC (img : GPUImage) = job {
++        //     let ker1 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "initCCL") kernels)
++        //     let ker2 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "iterateCCL") kernels)
++        //     let ker3 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "termination") kernels)
++        //     let ker4 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "reconnectCCL") kernels)
++        //     let ker5 = (List.filter (fun (x : ComputeKernel) -> x.FunctionName = "preTermination") kernels)
++        //     let kers = [ker1.[0]; ker2.[0]; ker3.[0]; ker4.[0]; ker5.[0]]
++        //     return handler.LabelComponents (img, events, queue, kers)
++        // }
+ 
+     interface IBooleanModel<GPUImage> with
+         member __.TT = job { 
+diff --git a/src/GPUUtil.fs b/src/GPUUtil.fs
+index e8ec7b8..bc2e6f3 100644
+--- a/src/GPUUtil.fs
++++ b/src/GPUUtil.fs
+@@ -327,7 +327,7 @@ type GPUHandler (ctx : ComputeContext) =
+             kernel.[2].SetMemoryArgument(1, obufs.[1])
+             kernel.[2].SetMemoryArgument(2, res) 
+             kernel.[2].SetLocalArgument(3, int64 (tiledim*tiledim))
+-            queue.Execute(kernel.[2], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], [| (int64) tiledim; (int64) tiledim|], events)
++            queue.Execute(kernel.[2], null, [|int64 img.BaseImg.Width;int64 img.BaseImg.Height|], null, events)
+             let results = Array.create ((img.BaseImg.Width*img.BaseImg.Height)/(tiledim*tiledim)) 0
+             queue.ReadFromBuffer(res, ref results, true, events)
+             let mutable vol = 1
+diff --git a/src/LogicFragments.fs b/src/LogicFragments.fs
+index c5ac9c8..ac1c558 100644
+--- a/src/LogicFragments.fs
++++ b/src/LogicFragments.fs
+@@ -89,7 +89,7 @@ type ISpatialModel<'Value when 'Value : equality> =
+     abstract member Near : 'Value -> Job<'Value>
+     [<OperatorAttribute("interior","valuation(bool)","valuation(bool)","Spatial-logical interior (that is, erosion)")>]
+     abstract member Interior : 'Value -> Job<'Value>
+-    [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2")>]
++    [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a connected component of img2 that contains both x and at least one point of img1. In 'stdlib.imgql' (the standard library), this operator is used to derive 'mayReach', which is the basic SLCS reachability primitive.")>]
+     abstract member Through : 'Value -> 'Value -> Job<'Value>
+     
+ type IStatisticalModel<'Value when 'Value : equality> =
+@@ -124,8 +124,8 @@ type IImageModel<'Value when 'Value : equality> =
+     //abstract member RGB : 'Value -> 'Value -> 'Value -> Job<'Value>
+     //[<OperatorAttribute("rgba",[|"valuation(number)";"valuation(number)";"valuation(number)";"valuation(number)"|],"model","Creates a RGBA image given the red, green, blue, and alpha components")>]
+     //abstract member RGBA : 'Value -> 'Value -> 'Value -> 'Value -> Job<'Value>
+-    [<OperatorAttribute("lcc","valuation(bool)","valuation(number)","Labels connected components of a boolean model. The result is a quantitative model with connected components labelled consecutively starting from 1, and with the background labelled with 0")>]
+-    abstract member LCC : 'Value -> Job<'Value>
++    // [<OperatorAttribute("lcc","valuation(bool)","valuation(number)","Labels connected components of a boolean model. The result is a quantitative model with connected components labelled consecutively starting from 1, and with the background labelled with 0")>]
++    // abstract member LCC : 'Value -> Job<'Value>
+     
+     
+     
+\ No newline at end of file
+diff --git a/src/kernel.cl b/src/kernel.cl
+index 1339409..df81370 100644
+--- a/src/kernel.cl
++++ b/src/kernel.cl
+@@ -320,7 +320,7 @@ __kernel void through(__read_only image2d_t inputImage1,
+   const sampler_t sampler =
+       CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
+ 
+-  uint4 pix1 = read_imageui(inputImage1, sampler, gid);
++  // uint4 pix1 = read_imageui(inputImage1, sampler, gid);
+   uint4 pix2 = read_imageui(inputImage2, sampler, gid);
+ 
+   write_imageui(outImage, gid, colors[pix2.x]);
