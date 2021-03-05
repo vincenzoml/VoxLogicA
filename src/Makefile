@@ -67,9 +67,8 @@ release-win:
 
 release: release-linux release-osx release-win	
 
-upload-release:
-	#rm -rf ../releases
-	#make release
+upload-release: release
+	./upload-helper
 
 	
 install-linux: release-linux
