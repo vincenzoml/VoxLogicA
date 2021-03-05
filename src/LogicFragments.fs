@@ -64,6 +64,8 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     abstract member AddVV : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("*",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise multiplication")>]    
     abstract member MultiplyVV : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("/",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise division")>]    
+    abstract member DivideVV : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("-",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise subtraction")>]    
     abstract member SubtractVV : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("mask",[|"valuation(number)";"valuation(bool)"|],"valuation(number)","mask(img,bimg) has value 0 at voxels that are false in bimg, and the same value of img at voxels that are true in bimg")>]    

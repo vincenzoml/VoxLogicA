@@ -70,8 +70,7 @@ release: release-linux release-osx release-win
 upload-release:
 	#rm -rf ../releases
 	#make release
-	echo please modify upload_helper.sh and replace "hub" with "gh release create v0.6.1-experimental VoxLogicA_0.6.1-experimental_*.zip -p --target experimental -t "experimental release with json output (--json command line option)" -n "please use the most recent stable release 0.6.0 instead"
-stat VoxLogicA_0.6.1-experimental_*.zip"
+
 	
 install-linux: release-linux
 	#TODO: this is temporary; should be made portable

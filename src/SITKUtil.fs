@@ -468,6 +468,7 @@ type VoxImage private (img : Image,uniqueName : string) =
     static member Add (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Add(img1.Image,img2.Image))
     static member Add (img1 : VoxImage,k : float) = new VoxImage(SimpleITK.Add(img1.Image,k))
     static member Mult (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Multiply(img1.Image,img2.Image))
+    static member Div (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Divide(img1.Image,img2.Image))
     static member Mult (img1 : VoxImage,k : float) = new VoxImage(SimpleITK.Multiply(img1.Image,k))
     static member Div (k : float, img2 : VoxImage) = new VoxImage(SimpleITK.Divide(k,img2.Image))
 

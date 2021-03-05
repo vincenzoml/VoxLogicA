@@ -122,6 +122,7 @@ type SITKModel() =
         member __.SubtractVV img1 img2 = job { return VoxImage.Subtract(img1,img2) }
         member __.AddVV img1 img2 = job {return VoxImage.Add(img1,img2) }
         member __.MultiplyVV img1 img2 = job { return VoxImage.Mult(img1,img2) }
+        member __.DivideVV img1 img2 = job { return VoxImage.Div(img1,img2) }
         member __.Mask (img : VoxImage) (maskImg : VoxImage) = job { return VoxImage.Mask img maskImg 0.0 }
         member __.Avg (img : VoxImage) (maskImg : VoxImage)  = lift2 VoxImage.Avg img maskImg
         member __.AddVS (img : VoxImage) k = job { return VoxImage.Add(img,k) }
