@@ -115,7 +115,7 @@ let private hyperrectangle (size : array<int>) (hyperRadius : array<int>) =
                 x
     (indices,faces)        
 
-/// <summary>Computes cross-correlation between two histograms; the first argument can be curried for a speedup</summary
+/// <summary>Computes cross-correlation between two histograms; the first argument can be curried for a speedup</summary>
 /// <remarks>The histograms must have the same length</remarks>
 let private r : array<int> -> array<int> -> float = 
     fun h2 ->
@@ -536,7 +536,16 @@ type VoxImage private (img : Image,uniqueName : string) =
             fun b ->
                 for i = 0 to b.Length - 1 do
                     res <- res + (if b.UGet i > 0uy then 1 else 0))
-        float res                
+        float res  
+
+    static member Otsu (img : VoxImage, mask: VoxImage, nbins : float) =
+        use flt = new OtsuThresholdImageFilter()        
+        flt.SetInsideValue(1uy)
+        flt.SetOutsideValue(0uy)
+        flt.SetNumberOfHistogramBins(uint32 nbins)
+        flt.SetMaskOutput(false)
+        flt.SetMaskValue(1uy)        
+        new VoxImage(flt.Execute(img.Image,mask.Image))        
 
     static member MaxVol (img : VoxImage) =
         let (ccs,k) = VoxImage.LabelConnectedComponents img

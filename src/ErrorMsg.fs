@@ -38,7 +38,7 @@ type Logger private () =
     static let mutable destinations = [] // this is a placeholder for permitting more simultaneous destinations.
 
     static let print prefix (string: string) =
-        let printer destination =
+        let printer (destination : TextWriter) =
             lock destination (fun () ->
                 fprintfn
                     destination
