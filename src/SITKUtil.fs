@@ -540,8 +540,8 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member Otsu (img : VoxImage, mask: VoxImage, nbins : float) =
         use flt = new OtsuThresholdImageFilter()        
-        flt.SetInsideValue(1uy)
-        flt.SetOutsideValue(0uy)
+        flt.SetInsideValue(0uy)
+        flt.SetOutsideValue(1uy)
         flt.SetNumberOfHistogramBins(uint32 nbins)
         flt.SetMaskOutput(true)
         flt.SetMaskValue(1uy)        
