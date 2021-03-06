@@ -543,7 +543,7 @@ type VoxImage private (img : Image,uniqueName : string) =
         flt.SetInsideValue(1uy)
         flt.SetOutsideValue(0uy)
         flt.SetNumberOfHistogramBins(uint32 nbins)
-        flt.SetMaskOutput(false)
+        flt.SetMaskOutput(true)
         flt.SetMaskValue(1uy)        
         new VoxImage(flt.Execute(img.Image,mask.Image))        
 
