@@ -68,7 +68,7 @@ release-win:
 release: release-linux release-osx release-win	
 
 upload-release: release
-	./upload-helper.sh
+	./upload_helper.sh
 
 	
 install-linux: release-linux
