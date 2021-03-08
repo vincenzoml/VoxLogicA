@@ -96,3 +96,10 @@ let overlayB(boolean,maskfalse,masktrue) =
 
 let overlayColor(boolean,img,r,g,b) =
     rgb(overlayB(boolean,red(img),constant(r)),overlayB(boolean,green(img),constant(g)),overlayB(boolean,blue(img),constant(b)))
+
+// divZ(i1,i2,i3) 
+// for each voxel[v], this is equal to i1[v] / i2[v] if i2[v] is different than 0, and it is equal to i3[v] otherwise
+
+
+let divZ(i1,i2,i3) = 
+    mask((i1 / mask(constant(1),!(i2 =. 0))),!(i2 =. 0)) + (mask(i3,i2 =. 0))

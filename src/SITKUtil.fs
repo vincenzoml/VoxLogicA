@@ -327,8 +327,8 @@ type VoxImage private (img : Image,uniqueName : string) =
                     else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
                 else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
         Logger.Debug <| sprintf "Saving file %s" filename        
-        SimpleITK.WriteImage(tmp,filename)  
-
+        SimpleITK.WriteImage(tmp,filename)
+        
     member __.Dimension = int (img.GetDimension())
 
     member __.NPixels = int (img.GetNumberOfPixels())
