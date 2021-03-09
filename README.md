@@ -8,3 +8,5 @@ For more information, see:
 https://arxiv.org/abs/2010.07284
 
 
+The benchmarks included in that paper are in the directory "examples"
+
