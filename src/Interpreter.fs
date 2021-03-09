@@ -254,8 +254,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
         // then raise (ImpossibleToDisableGCException(size)) // Exception declaration at the beginning of this file
         // try
         let s = new FileStream(filename, FileMode.Open)
-        batchHopac
-        <| interpreterJob libdir filename model checker s
+        batchHopac <| interpreterJob libdir filename model checker s
 // with e ->
 //     System.GC.EndNoGCRegion()
 //     raise e
