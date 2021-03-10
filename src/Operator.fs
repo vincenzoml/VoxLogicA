@@ -66,7 +66,7 @@ and OperatorFactory() =
 
     member __.Operators = dict.Values
     
-    member __.Create name argtype rettype fn commutative docstring =        
+    member private __.Create name argtype rettype fn commutative docstring =        
         if dict.ContainsKey name
         then raise (BugException (sprintf "operator not unique %s" name))
         else dict.[name] <- new Operator(name,argtype,rettype,fn,commutative,false,docstring)

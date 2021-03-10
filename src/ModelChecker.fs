@@ -19,7 +19,7 @@ namespace VoxLogicA
 open Hopac  
 
 type ModelChecker(model : IModel) =
-    let operatorFactory = OperatorFactory(model)
+    let operatorFactory = model.OperatorFactory
     let formulaFactory = FormulaFactory()       
     let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0

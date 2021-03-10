@@ -18,7 +18,19 @@ namespace VoxLogicA
 
 [<AbstractClass>]
 type IModel() =
-    inherit Coreops()
+    inherit Coreops()    
+    let operatorFactoryOption = ref None 
+    
+    member this.OperatorFactory = 
+        lock operatorFactoryOption 
+            (fun () ->
+                match !operatorFactoryOption with
+                | None ->  
+                    let operatorFactory = OperatorFactory(this)
+                    operatorFactoryOption := Some operatorFactory
+                    operatorFactory
+                | Some o -> o)
+    
     abstract member Load : string -> obj
     abstract member Save : string -> obj -> JSonOutput.Info
     abstract member CanSave : Type -> string -> bool

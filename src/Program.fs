@@ -46,6 +46,7 @@ let main (argv: string array) =
     let parsed = cmdLineParser.Parse argv
     ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
     let model = SITKModel() :> IModel
+    // let model = CompositeModel([GPUModel () :> IModel,SITKModel() :> IModel])
     let checker = ModelChecker model
     let finish = 
         if Option.isSome (parsed.TryGetResult JSon) then 
