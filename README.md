@@ -16,7 +16,7 @@ source code for the "master" branch: https://github.com/vincenzoml/VoxLogicA/tre
 
 source code for the gpu implementation: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu
 
-source code for the gpu implementation with garbage collection: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu-gc
+source code for the gpu implementation with garbage collection: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu-GC
 
 ESMRM-B 2019 poster: 
 
