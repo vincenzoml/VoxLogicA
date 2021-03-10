@@ -14,6 +14,10 @@ download: https://github.com/vincenzoml/VoxLogicA/releases
 
 source code for the "master" branch: https://github.com/vincenzoml/VoxLogicA/tree/master
 
+source code for the gpu implementation: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu
+
+source code for the gpu implementation with garbage collection: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu-gc
+
 ESMRM-B 2019 poster: 
 
 ![VoxLogicA poster](https://github.com/vincenzoml/VoxLogicA/raw/master/docs/poster-ciancia.jpg "Poster")
