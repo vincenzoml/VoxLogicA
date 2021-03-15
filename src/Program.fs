@@ -33,6 +33,7 @@ type CmdLine =
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
             | Filename _ -> "VoxLogicA session file"
 
+#if FALSE
 [<EntryPoint>]
 let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
@@ -100,3 +101,10 @@ let main (argv: string array) =
         ErrorMsg.Logger.Failure "exiting."
         finish (Some e)
         1
+#else
+[<EntryPoint>]
+let main (argv: string array) =
+    let gpu = GPU.GPU()
+    printfn "%A" gpu.Test
+    0
+#endif

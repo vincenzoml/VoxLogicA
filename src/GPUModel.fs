@@ -19,18 +19,15 @@ namespace VoxLogicA
 exception NoModelLoadedException 
     with override __.Message = "No model loaded"
 
-open SITKUtil
 open Hopac
+open VoxLogicA.GPU
 
-module Lifts =
-    let lift = Job.lift
-    let lift2 = fun fn x y  -> job { return fn x y }
-
-open Lifts
+type GPUImage = GPUValue<VoxImage>
+    
 
 type SITKModel() =    
     inherit IModel()
-    let mutable baseImg : option<VoxImage> = None
+    let mutable baseImg : option<GPUImage> = None
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
         
     let supportedExtensions = [".nii";".nii.gz";".png";".jpg";"bmp"] // TODO: make this list exhaustive
@@ -47,7 +44,7 @@ type SITKModel() =
         | _ -> false        
 
     override __.Save filename v =
-        let img = v :?> VoxImage
+        let img = v :?> GPUImage
         ErrorMsg.Logger.DebugOnly (sprintf "saving image: %A" <| img.GetHashCode())
         img.Save(filename)
         JSonOutput.Info(min = VoxImage.Min (VoxImage.Intensity img), max = VoxImage.Max (VoxImage.Intensity img))

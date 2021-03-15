@@ -246,8 +246,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     override __.Finalize () = dispose()
 
-    // TODO: make private!
-    member __.Image = img
+    member private __.Image = img
 
     override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
