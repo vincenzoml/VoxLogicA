@@ -1,10 +1,6 @@
 
 // #define TILE_DIM 32
 
-__kernel void nothing() {
-  aa
-}
-
 __kernel void getComponent(__read_only image2d_t inputImage,
                            __write_only image2d_t outputImage,
                            __global unsigned int *c) {
