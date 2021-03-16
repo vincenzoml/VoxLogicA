@@ -65,7 +65,7 @@ type GPU() =
         // TODO: the returned "device" is needed to create the command queue, but I don't understand why an array of devices can be passed to CreateContext and only one device to CreateCommandQueue        
         use devicesPtr = fixed devices
         let numDevs = uint32 devices.Length
-        checkErrPtr (fun errPtr -> (devices.[0],API.CreateContext(nullPtr,numDevs,devicesPtr,noNotify,vNullPtr,errPtr)))            
+        checkErrPtr (fun errPtr -> (devices.[0],API.CreateContext(nullPtr,1ul,devicesPtr,noNotify,vNullPtr,errPtr)))   // TODO: always selects first device          
 
     let queue = 
         checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))        
@@ -77,13 +77,11 @@ type GPU() =
         res
 
     let program =         
-        // let lens = [|unativeint source.Length|]
-        // let len = fixed lens
         checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))        
         
     let binary =
         use devicesPtr = fixed devices        
-        let res = API.CompileProgram(program,uint32 devices.Length,devicesPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr)
+        let res = API.CompileProgram(program,1ul,devicesPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) // TODO: always uses first device
         if res = int CLEnum.CompileProgramFailure then        
             let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
@@ -94,7 +92,7 @@ type GPU() =
             ignore (API.GetProgramBuildInfo(program,device,param_name,len.[0],param_value,ptr2)) // TODO: why ignore
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
-        checkErr res        
+        checkErr res                
 
     let kernels =
         // checkErr (fun p -> API.CreateKernel(program,"intdensity",p))
