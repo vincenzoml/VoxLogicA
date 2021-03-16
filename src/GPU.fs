@@ -87,17 +87,16 @@ type GPU() =
         if res = int CLEnum.CompileProgramFailure then        
             let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
-            use ptr2 = fixed len            
-            let param_value_size_ret: nativeptr<unativeint> = ptr2            
-            ignore (API.GetProgramBuildInfo(program,device,param_name,0un,vNullPtr,param_value_size_ret)) // TODO: why ignore
+            use ptr2 = fixed len                        
+            ignore (API.GetProgramBuildInfo(program,device,param_name,0un,vNullPtr,ptr2)) // TODO: why ignore
             let output = SilkMarshal.Allocate (int len.[0] + 1)
-            let param_value = NativeInterop.NativePtr.toVoidPtr ((NativeInterop.NativePtr.ofNativeInt (output : nativeint) : nativeptr<int>)) : voidptr
-            ignore (API.GetProgramBuildInfo(program,device,param_name,len.[0],param_value,param_value_size_ret)) // TODO: why ignore
+            let param_value = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
+            ignore (API.GetProgramBuildInfo(program,device,param_name,len.[0],param_value,ptr2)) // TODO: why ignore
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
         checkErr res        
 
-    let kernel =
+    let kernels =
         // checkErr (fun p -> API.CreateKernel(program,"intdensity",p))
         let h = [|0ul|]
         use num = fixed h
@@ -110,4 +109,4 @@ type GPU() =
     member __.Test =         
         // let img = new VoxImage("../examples/tutorial/three_coloured_items.png")
         // img.GetBufferAsUInt32(fun x -> x.Pointer)
-        kernel
+        kernels
