@@ -104,7 +104,9 @@ let main (argv: string array) =
 #else
 [<EntryPoint>]
 let main (argv: string array) =
+    ErrorMsg.Logger.LogToStdout()
+    ErrorMsg.Logger.Debug "Starting"
     let gpu = GPU.GPU()
-    printfn "%A" gpu.Test
+    ErrorMsg.Logger.Debug <| gpu.Test.ToString() 
     0
 #endif

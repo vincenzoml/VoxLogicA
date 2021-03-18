@@ -1,9 +1,10 @@
 module VoxLogicA.GPU
 #nowarn "9"
 
-open Silk.NET.OpenCL
 open Silk.NET.Core.Native
 open VoxLogicA.SITKUtil
+open Silk.NET.OpenCL
+open System.Collections.Generic
 
 exception NoAvailableGPUException of c : int
     with override this.Message = sprintf "Could not initialize GPU; error code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
@@ -11,8 +12,33 @@ exception NoAvailableGPUException of c : int
 exception GPUCompileException of s : string
     with override this.Message = sprintf "Could not compile GPU kernels:\n%s" this.s
 
+type Kernel = 
+    {   Name : string
+        Pointer : nativeint     }
+    
+
 type GPU() =
+    let _ = ErrorMsg.Logger.Debug "Initializing GPU"
     let API = CL.GetApi()
+
+    let nullPtr : nativeptr<nativeint> = NativeInterop.NativePtr.ofNativeInt 0n
+    let uNullPtr : nativeptr<unativeint> = NativeInterop.NativePtr.ofNativeInt 0n
+    let bNullPtr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt 0n
+    let nbNullPtr : nativeptr<nativeptr<byte>> = NativeInterop.NativePtr.ofNativeInt 0n
+    let vNullPtr : voidptr = NativeInterop.NativePtr.toVoidPtr nullPtr
+    let noNotify = NotifyCallback(fun _ _ _ _ -> ())
+
+    let checkErr code =
+        if code = int CLEnum.Success then ()
+        else raise <| NoAvailableGPUException code
+    
+    let checkErrPtr f =
+        let err = [|0|]
+        use errPtr = fixed err
+        let res = f errPtr
+        let code = err.[0]
+        checkErr code
+        res
 
     let platformIDs =
         let mutable num = 0ul
@@ -40,35 +66,12 @@ type GPU() =
         | [] -> raise <| NoAvailableGPUException 0 // TODO: error code for unknown error?
         | _ -> res    
 
-    let nullPtr : nativeptr<nativeint> = NativeInterop.NativePtr.ofNativeInt 0n
-    let uNullPtr : nativeptr<unativeint> = NativeInterop.NativePtr.ofNativeInt 0n
-    let bNullPtr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt 0n
-    let nbNullPtr : nativeptr<nativeptr<byte>> = NativeInterop.NativePtr.ofNativeInt 0n
-    let vNullPtr : voidptr = NativeInterop.NativePtr.toVoidPtr nullPtr
-    let noNotify = new Silk.NET.OpenCL.NotifyCallback(fun _ _ _ _ -> ())
-
-    let checkErr code =
-        if code = int CLEnum.Success then ()
-        else raise <| NoAvailableGPUException code
-    
-    let checkErrPtr f =
-        let err = [|0|]
-        use errPtr = fixed err
-        let res = f errPtr
-        let code = err.[0]
-        checkErr code
-        res
-
     let (_,devices) = List.head deviceGroups // TODO: this blindly selects the first platform         
 
     let (device,context) = 
         // TODO: the returned "device" is needed to create the command queue, but I don't understand why an array of devices can be passed to CreateContext and only one device to CreateCommandQueue        
         use devicesPtr = fixed devices
-        let numDevs = uint32 devices.Length
-        checkErrPtr (fun errPtr -> (devices.[0],API.CreateContext(nullPtr,1ul,devicesPtr,noNotify,vNullPtr,errPtr)))   // TODO: always selects first device          
-
-    let queue = 
-        checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))        
+        checkErrPtr (fun errPtr -> (devices.[0],API.CreateContext(nullPtr,1ul,devicesPtr,noNotify,vNullPtr,errPtr)))   // TODO: always selects first device              
 
     let source = 
         use streamReader = new System.IO.StreamReader(System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location) + "/kernel.cl")
@@ -77,34 +80,91 @@ type GPU() =
         res
 
     let program =         
-        checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))        
-        
-    let binary =
-        use devicesPtr = fixed devices        
-        let res = API.CompileProgram(program,1ul,devicesPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) // TODO: always uses first device
+        ErrorMsg.Logger.Debug "Compiling kernels"
+        let prg = checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))                
+        let res = API.CompileProgram(prg,0ul,nullPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) 
         if res = int CLEnum.CompileProgramFailure then        
             let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
-            use ptr2 = fixed len                        
-            ignore (API.GetProgramBuildInfo(program,device,param_name,0un,vNullPtr,ptr2)) // TODO: why ignore
+            use lenPtr = fixed len                        
+            ignore (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) // TODO: why ignore
             let output = SilkMarshal.Allocate (int len.[0] + 1)
-            let param_value = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            ignore (API.GetProgramBuildInfo(program,device,param_name,len.[0],param_value,ptr2)) // TODO: why ignore
+            let outputPtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
+            ignore (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) // TODO: why ignore
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
-        checkErr res                
+        let res = API.BuildProgram(prg,0ul,nullPtr,bNullPtr,noNotify,vNullPtr)     
+        if res = int CLEnum.BuildProgramFailure then        
+            let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
+            let mutable len = [|0un|]
+            use lenPtr = fixed len                        
+            ignore (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) // TODO: why ignore
+            let output = SilkMarshal.Allocate (int len.[0] + 1)
+            let outputPtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
+            ignore (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) // TODO: why ignore
+            let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
+            raise <| GPUCompileException error
+        checkErr res 
+        ErrorMsg.Logger.Debug "Kernels compiled"
+        prg               
 
-    let kernels =
+    let kernels = // TODO: it is possible in opencl to retrieve information on each parameter (type etc.) with a suitable option to the compiler. Use this to generate typed methods (with a typeprovider?)
         // checkErr (fun p -> API.CreateKernel(program,"intdensity",p))
-        let h = [|0ul|]
-        use num = fixed h
-        checkErr (API.CreateKernelsInProgram(program,0ul,nullPtr,num))        
-        let k = Array.create (int h.[0]) 0n        
-        use kernels = fixed k
-        checkErr (API.CreateKernelsInProgram(program,h.[0],kernels,num))
-        k.[0..(int h.[0]-1)]
+        let num = [|0ul|]
+        use numPtr = fixed num
+        checkErr (API.CreateKernelsInProgram(program,0ul,nullPtr,numPtr))        
+        let kv = Array.create (int num.[0]) 0n        
+        use kvPtr = fixed kv
+        checkErr (API.CreateKernelsInProgram(program,num.[0],kvPtr,numPtr))
+        let kernels = kv.[0..(int num.[0]-1)]
+        //Map.ofSeq <|
+        let dict = Dictionary<_,_>()
+        for (k,v) in
+            Array.map 
+                (fun k -> 
+                    let len = [|0un|]
+                    use lenPtr = fixed len
+                    let s x = failwith "" 
+                    //API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,nullPtr,sizePtr))
+                    ignore <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,vNullPtr,lenPtr) // TODO: ignore?
+                    let name = SilkMarshal.Allocate (int len.[0] + 1)
+                    let namePtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
+                    ignore <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,len.[0],namePtr,uNullPtr) // TODO: ignore?
+                    let name = SilkMarshal.PtrToString(name,NativeStringEncoding.Auto)
+                    (name,{ Name = name; Pointer = k}) )                          
+                kernels
+            do 
+                dict.Add(k,v)
+        dict
+    
+    let queue = 
+        checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
+
+    let _ = ErrorMsg.Logger.Debug "GPU Initialized"
         
     member __.Test =         
-        // let img = new VoxImage("../examples/tutorial/three_coloured_items.png")
-        // img.GetBufferAsUInt32(fun x -> x.Pointer)
-        kernels
+        let img = new VoxImage("../examples/tutorial/three_coloured_items.png")
+        let mem = 
+            img.GetBufferAsUInt32
+                (fun x -> 
+                    let imgPtr = NativeInterop.NativePtr.toVoidPtr x.Pointer
+                    let s() = failwith "stub"
+                    let imgFormat = ImageFormat(uint32 CLEnum.Rgb,uint32 CLEnum.UnsignedInt8)   
+                    use imgFormatPtr' = fixed [|imgFormat|]
+                    let imgFormatPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatPtr')
+                    let imageDesc = new ImageDesc()
+                    THIS --> imageDesc.ImageType  uint32 CLEnum.MemObjectImage2D
+                    let imgDesc = s() : nativeptr<ImageDesc>
+                    checkErrPtr (fun p -> 
+                        API.CreateImage(
+                                context,
+                                CLEnum.MemCopyHostPtr|||CLEnum.MemHostNoAccess,
+                                imgFormatPtr,
+                                imgDesc,
+                                imgPtr,
+                                p)))
+        ErrorMsg.Logger.Debug <| kernels.["and"].ToString()
+        ErrorMsg.Logger.Debug <| kernels.["intensity"].ToString()
+        ErrorMsg.Logger.Debug <| kernels.["intensity"].ToString()
+        ErrorMsg.Logger.Debug <| kernels.["add"].ToString()
+        
