@@ -5,7 +5,7 @@ open Silk.NET.Core.Native
 open VoxLogicA.SITKUtil
 open Silk.NET.OpenCL
 open System.Collections.Generic
-
+open Silk.NET.OpenCL
 exception NoAvailableGPUException of c : int
     with override this.Message = sprintf "Could not initialize GPU; error code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
 
@@ -14,8 +14,7 @@ exception GPUCompileException of s : string
 
 type Kernel = 
     {   Name : string
-        Pointer : nativeint     }
-    
+        Pointer : nativeint     }    
 
 type GPU() =
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
@@ -144,27 +143,35 @@ type GPU() =
         
     member __.Test =         
         let img = new VoxImage("../examples/tutorial/three_coloured_items.png")
-        let mem = 
+        
+        let s() = failwith "stub"
+        let imgFormatIN = ImageFormat(uint32 CLEnum.Rgba,uint32 CLEnum.UnsignedInt8)   
+        let imgFormatOUT = ImageFormat(uint32 CLEnum.R,uint32 CLEnum.UnsignedInt8)   
+        use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
+        let imgFormatOUTPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatOUTPtr') 
+        use imgFormatINPtr' = fixed [|imgFormatIN|]
+        let imgFormatINPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatINPtr')
+        let (width,height) = img.Width,img.Height
+        let imgDesc = new ImageDesc(uint32 CLEnum.MemObjectImage2D,unativeint width,unativeint height,0un,0un,0un,0un,0ul,0ul)
+        use imgDescPtr' = fixed [|imgDesc|]
+        let imgDescPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgDescPtr')
+        let input = 
             img.GetBufferAsUInt32
-                (fun x -> 
-                    let imgPtr = NativeInterop.NativePtr.toVoidPtr x.Pointer
-                    let s() = failwith "stub"
-                    let imgFormat = ImageFormat(uint32 CLEnum.Rgb,uint32 CLEnum.UnsignedInt8)   
-                    use imgFormatPtr' = fixed [|imgFormat|]
-                    let imgFormatPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatPtr')
-                    let imageDesc = new ImageDesc()
-                    THIS --> imageDesc.ImageType  uint32 CLEnum.MemObjectImage2D
-                    let imgDesc = s() : nativeptr<ImageDesc>
+                (fun buf -> 
+                    let imgPtr = NativeInterop.NativePtr.toVoidPtr buf.Pointer            
                     checkErrPtr (fun p -> 
                         API.CreateImage(
                                 context,
-                                CLEnum.MemCopyHostPtr|||CLEnum.MemHostNoAccess,
-                                imgFormatPtr,
-                                imgDesc,
+                                CLEnum.MemCopyHostPtr, // TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed
+                                // SEE https://discord.com/channels/521092042781229087/607634593201520651/822107881591144488
+                                imgFormatINPtr,
+                                imgDescPtr,
                                 imgPtr,
                                 p)))
-        ErrorMsg.Logger.Debug <| kernels.["and"].ToString()
+        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.Success,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+        ErrorMsg.Logger.Debug <| sprintf "%A" input
+        ErrorMsg.Logger.Debug <| sprintf "%A" output
         ErrorMsg.Logger.Debug <| kernels.["intensity"].ToString()
-        ErrorMsg.Logger.Debug <| kernels.["intensity"].ToString()
-        ErrorMsg.Logger.Debug <| kernels.["add"].ToString()
+        
+        "All done"
         
