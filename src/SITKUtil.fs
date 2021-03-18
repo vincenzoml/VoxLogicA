@@ -332,6 +332,8 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     member __.Size = Array.ofSeq <| Seq.map int (img.GetSize())
 
+    member __.Depth = int <| img.GetDepth()
+
     member __.NPixels = int (img.GetNumberOfPixels())
 
     member __.NComponents = int (img.GetNumberOfComponentsPerPixel())
