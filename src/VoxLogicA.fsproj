@@ -23,10 +23,10 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Argu" Version="6.0.0" />
-    <PackageReference Include="FParsec" Version="1.0.3" />
-    <PackageReference Include="FSharp.Data" Version="3.3.3" />
-    <PackageReference Include="hopac" Version="0.3.23" />
+    <PackageReference Include="Argu" Version="6.1.1" />
+    <PackageReference Include="FParsec" Version="1.1.1" />
+    <PackageReference Include="FSharp.Data" Version="4.0.1" />
+    <PackageReference Include="hopac" Version="0.5.0" />
     <Reference Include="SimpleITKCSharpManaged">
       <HintPath>../lib/SimpleITKCSharpManaged.dll</HintPath>
     </Reference>
