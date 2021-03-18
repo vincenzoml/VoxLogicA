@@ -142,7 +142,7 @@ type GPU() =
     let _ = ErrorMsg.Logger.Debug "GPU Initialized"
         
     member __.Test =         
-        let img = new VoxImage("../examples/tutorial/three_coloured_items.png")
+        let img = new VoxImage("three_coloured_items_RGBA.png")
         
         let s() = failwith "stub"
         let imgFormatIN = ImageFormat(uint32 CLEnum.Rgba,uint32 CLEnum.UnsignedInt8)   
@@ -162,13 +162,13 @@ type GPU() =
                     checkErrPtr (fun p -> 
                         API.CreateImage(
                                 context,
-                                CLEnum.MemCopyHostPtr, // TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed
+                                enum<CLEnum>(32|||4), // TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed
                                 // SEE https://discord.com/channels/521092042781229087/607634593201520651/822107881591144488
                                 imgFormatINPtr,
                                 imgDescPtr,
                                 imgPtr,
                                 p)))
-        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.Success,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
         ErrorMsg.Logger.Debug <| sprintf "%A" input
         ErrorMsg.Logger.Debug <| sprintf "%A" output
         ErrorMsg.Logger.Debug <| kernels.["intensity"].ToString()
