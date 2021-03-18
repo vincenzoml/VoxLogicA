@@ -331,6 +331,8 @@ type VoxImage private (img : Image,uniqueName : string) =
         
     member __.Dimension = int (img.GetDimension())
 
+    member __.Size = Seq.map int (img.GetSize())
+
     member __.NPixels = int (img.GetNumberOfPixels())
 
     member __.NComponents = int (img.GetNumberOfComponentsPerPixel())
