@@ -5,9 +5,9 @@ open Silk.NET.Core.Native
 open VoxLogicA.SITKUtil
 open Silk.NET.OpenCL
 open System.Collections.Generic
-open Silk.NET.OpenCL
-exception NoAvailableGPUException of c : int
-    with override this.Message = sprintf "Could not initialize GPU; error code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
+
+exception GPUException of c : int
+    with override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
 
 exception GPUCompileException of s : string
     with override this.Message = sprintf "Could not compile GPU kernels:\n%s" this.s
@@ -29,7 +29,7 @@ type GPU() =
 
     let checkErr code =
         if code = int CLEnum.Success then ()
-        else raise <| NoAvailableGPUException code
+        else raise <| GPUException code
     
     let checkErrPtr f =
         let err = [|0|]
@@ -43,11 +43,11 @@ type GPU() =
         let mutable num = 0ul
         do
             use ptr = fixed [||]        
-            ignore <| API.GetPlatformIDs (uint32 0,ptr,&num)            
+            checkErr <| API.GetPlatformIDs (uint32 0,ptr,&num)            
         let platformIDs = Array.create (int num) 0n
         do
             use ptr = fixed platformIDs
-            ignore <| API.GetPlatformIDs (uint32 num,ptr,&num)  // TODO don't ignore
+            checkErr <| API.GetPlatformIDs (uint32 num,ptr,&num)  
         platformIDs
 
     let deviceGroups =        
@@ -62,7 +62,7 @@ type GPU() =
                     if 0 = API.GetDeviceIDs(platformID,CLEnum.DeviceTypeGpu,uint32 num,ptr,&num) then                    
                         res <- (platformID,tmp)::res
         match res with 
-        | [] -> raise <| NoAvailableGPUException 0 // TODO: error code for unknown error?
+        | [] -> raise <| GPUException 0 // TODO: error code for unknown error?
         | _ -> res    
 
     let (_,devices) = List.head deviceGroups // TODO: this blindly selects the first platform         
@@ -86,10 +86,10 @@ type GPU() =
             let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
             use lenPtr = fixed len                        
-            ignore (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) // TODO: why ignore
+            checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
             let outputPtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            ignore (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) // TODO: why ignore
+            checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
         let res = API.BuildProgram(prg,0ul,nullPtr,bNullPtr,noNotify,vNullPtr)     
@@ -97,10 +97,10 @@ type GPU() =
             let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
             use lenPtr = fixed len                        
-            ignore (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) // TODO: why ignore
+            checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
             let outputPtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            ignore (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) // TODO: why ignore
+            checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
         checkErr res 
@@ -125,10 +125,10 @@ type GPU() =
                     use lenPtr = fixed len
                     let s x = failwith "" 
                     //API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,nullPtr,sizePtr))
-                    ignore <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,vNullPtr,lenPtr) // TODO: ignore?
+                    checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,vNullPtr,lenPtr) 
                     let name = SilkMarshal.Allocate (int len.[0] + 1)
                     let namePtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
-                    ignore <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,len.[0],namePtr,uNullPtr) // TODO: ignore?
+                    checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,len.[0],namePtr,uNullPtr) 
                     let name = SilkMarshal.PtrToString(name,NativeStringEncoding.Auto)
                     (name,{ Name = name; Pointer = k}) )                          
                 kernels
@@ -155,23 +155,41 @@ type GPU() =
         let imgDesc = new ImageDesc(uint32 CLEnum.MemObjectImage2D,unativeint width,unativeint height,0un,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgDescPtr')
-        let input = 
+        let input : nativeptr<unativeint> =             
+            NativeInterop.NativePtr.ofNativeInt <|            
             img.GetBufferAsUInt32
                 (fun buf -> 
                     let imgPtr = NativeInterop.NativePtr.toVoidPtr buf.Pointer            
                     checkErrPtr (fun p -> 
                         API.CreateImage(
                                 context,
-                                enum<CLEnum>(32|||4), // TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed
+                                enum<CLEnum>(32|||4), // UseHostPointer|||MemReadOnly TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed
                                 // SEE https://discord.com/channels/521092042781229087/607634593201520651/822107881591144488
                                 imgFormatINPtr,
                                 imgDescPtr,
                                 imgPtr,
                                 p)))
-        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
-        ErrorMsg.Logger.Debug <| sprintf "%A" input
-        ErrorMsg.Logger.Debug <| sprintf "%A" output
-        ErrorMsg.Logger.Debug <| kernels.["intensity"].ToString()
+        let output : nativeptr<unativeint> = NativeInterop.NativePtr.ofNativeInt <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+        let kernel = kernels.["intensity"].Pointer
+        let i = NativeInterop.NativePtr.toVoidPtr input
+        let o = NativeInterop.NativePtr.toVoidPtr output
+        checkErr <| API.SetKernelArg(kernel,0ul,unativeint sizeof<voidptr>,i)
+        printfn "0"
+        checkErr <| API.SetKernelArg(kernel,1ul,unativeint sizeof<voidptr>,o)
+        printfn "1"
+        checkErr <| API.EnqueueTask(queue,kernel,0ul,nullPtr,nullPtr)
+        printfn "2"
+        checkErr <| API.Finish(queue)
+        printfn "3"
+        let img2 = new VoxImage(img)
+        img2.GetBufferAsUInt32
+            (fun buf -> 
+                let ptr = NativeInterop.NativePtr.toVoidPtr buf.Pointer
+                let size = unativeint <| img2.NPixels * img2.NComponents // TODO: implement NBytes
+                let clbuf = checkErrPtr <| fun p -> API.CreateBuffer(context,CLEnum.MemUseHostPtr,size,ptr,p)
+                checkErr <| API.EnqueueReadBuffer(queue,clbuf,true,0un,size,ptr,0ul,nullPtr,nullPtr))
+        img2.Save("output.png")
+        
         
         "All done"
         
