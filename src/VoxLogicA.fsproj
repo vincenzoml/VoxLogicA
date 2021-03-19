@@ -21,7 +21,7 @@
     <Compile Include="SITKUtil.fs" />
     <Compile Include="GPU.fs" />
     <!--Compile Include="GPUModel.fs" /-->
-    <Compile Include="Program.fs" />
+    <Compile Include="Program.fs" />    
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Silk.Net.OpenCL" Version="2.2.0" />
@@ -43,7 +43,8 @@
     </PropertyGroup>
   </Target>
   <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-    <Message Text="Copying files after build with RID=$(RuntimeIdentifier)" Importance="high"></Message>
+    <Message Text="Copying files after build with RID=$(RuntimeIdentifier)" Importance="high">
+    </Message>
     <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
     <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
     <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
@@ -53,7 +54,8 @@
     <Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(OutDir)" />
   </Target>
   <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
-    <Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high"></Message>
+    <Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high">
+    </Message>
     <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
     <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
     <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />

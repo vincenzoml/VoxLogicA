@@ -143,21 +143,21 @@ type GPU() =
         
     member __.Test =         
         let img = new VoxImage("three_coloured_items_RGBA.png")
+        let size = unativeint <| img.NPixels * img.NComponents // TODO: implement NBytes
         
-        let s() = failwith "stub"
-        let imgFormatIN = ImageFormat(uint32 CLEnum.Rgba,uint32 CLEnum.UnsignedInt8)   
-        let imgFormatOUT = ImageFormat(uint32 CLEnum.R,uint32 CLEnum.UnsignedInt8)   
-        use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
-        let imgFormatOUTPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatOUTPtr') 
+        let imgFormatIN = ImageFormat(uint32 CLEnum.Rgba,uint32 CLEnum.Float)   
         use imgFormatINPtr' = fixed [|imgFormatIN|]
         let imgFormatINPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatINPtr')
+        
         let (width,height) = img.Width,img.Height
         let imgDesc = new ImageDesc(uint32 CLEnum.MemObjectImage2D,unativeint width,unativeint height,0un,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgDescPtr')
-        let input : nativeptr<unativeint> =             
-            NativeInterop.NativePtr.ofNativeInt <|            
-            img.GetBufferAsUInt32
+        
+        let kernel = kernels.["intensity"].Pointer 
+        
+        let input  =             
+            img.GetBufferAsFloat
                 (fun buf -> 
                     let imgPtr = NativeInterop.NativePtr.toVoidPtr buf.Pointer            
                     checkErrPtr (fun p -> 
@@ -169,27 +169,32 @@ type GPU() =
                                 imgDescPtr,
                                 imgPtr,
                                 p)))
-        let output : nativeptr<unativeint> = NativeInterop.NativePtr.ofNativeInt <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
-        let kernel = kernels.["intensity"].Pointer
-        let i = NativeInterop.NativePtr.toVoidPtr input
-        let o = NativeInterop.NativePtr.toVoidPtr output
-        checkErr <| API.SetKernelArg(kernel,0ul,unativeint sizeof<voidptr>,i)
-        printfn "0"
-        checkErr <| API.SetKernelArg(kernel,1ul,unativeint sizeof<voidptr>,o)
-        printfn "1"
+        use i' = fixed [|input|]
+        let i = NativeInterop.NativePtr.toVoidPtr i'
+        
+        checkErr <| API.SetKernelArg(kernel,0ul,unativeint sizeof<nativeint>,i)
+        
+        let imgFormatOUT = ImageFormat(uint32 CLEnum.R,uint32 CLEnum.Float)
+        use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
+        let imgFormatOUTPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatOUTPtr') 
+        
+        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))               
+        
+        let o' = fixed [|output|]
+        let o = NativeInterop.NativePtr.toVoidPtr o'        
+        
+        checkErr <| API.SetKernelArg(kernel,1ul,unativeint sizeof<nativeint>,o)
+        
         checkErr <| API.EnqueueTask(queue,kernel,0ul,nullPtr,nullPtr)
-        printfn "2"
         checkErr <| API.Finish(queue)
-        printfn "3"
-        let img2 = new VoxImage(img)
-        img2.GetBufferAsUInt32
+        
+        let img2 = VoxImage.CreateFloat(img,0f)
+        
+        img2.GetBufferAsFloat
             (fun buf -> 
-                let ptr = NativeInterop.NativePtr.toVoidPtr buf.Pointer
-                let size = unativeint <| img2.NPixels * img2.NComponents // TODO: implement NBytes
-                let clbuf = checkErrPtr <| fun p -> API.CreateBuffer(context,CLEnum.MemUseHostPtr,size,ptr,p)
-                checkErr <| API.EnqueueReadBuffer(queue,clbuf,true,0un,size,ptr,0ul,nullPtr,nullPtr))
-        img2.Save("output.png")
+                let ptr = NativeInterop.NativePtr.toVoidPtr buf.Pointer                
+                checkErr <| API.EnqueueReadImage(queue,output,true,uNullPtr,uNullPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
         
-        
+        img2.Save("output.png")                
         "All done"
         
