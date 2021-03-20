@@ -107,6 +107,6 @@ let main (argv: string array) =
     ErrorMsg.Logger.LogToStdout()
     ErrorMsg.Logger.Debug "Starting"
     let gpu = GPU.GPU()
-    ErrorMsg.Logger.Debug <| gpu.Test.ToString() 
+    gpu.Test 
     0
 #endif

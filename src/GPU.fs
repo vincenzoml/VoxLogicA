@@ -5,6 +5,7 @@ open Silk.NET.Core.Native
 open VoxLogicA.SITKUtil
 open Silk.NET.OpenCL
 open System.Collections.Generic
+open FSharp.NativeInterop
 
 exception GPUException of c : int
     with override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
@@ -20,11 +21,11 @@ type GPU() =
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
     let API = CL.GetApi()
 
-    let nullPtr : nativeptr<nativeint> = NativeInterop.NativePtr.ofNativeInt 0n
-    let uNullPtr : nativeptr<unativeint> = NativeInterop.NativePtr.ofNativeInt 0n
-    let bNullPtr : nativeptr<byte> = NativeInterop.NativePtr.ofNativeInt 0n
-    let nbNullPtr : nativeptr<nativeptr<byte>> = NativeInterop.NativePtr.ofNativeInt 0n
-    let vNullPtr : voidptr = NativeInterop.NativePtr.toVoidPtr nullPtr
+    let nullPtr : nativeptr<nativeint> = NativePtr.ofNativeInt 0n
+    let uNullPtr : nativeptr<unativeint> = NativePtr.ofNativeInt 0n
+    let bNullPtr : nativeptr<byte> = NativePtr.ofNativeInt 0n
+    let nbNullPtr : nativeptr<nativeptr<byte>> = NativePtr.ofNativeInt 0n
+    let vNullPtr : voidptr = NativePtr.toVoidPtr nullPtr
     let noNotify = NotifyCallback(fun _ _ _ _ -> ())
 
     let checkErr code =
@@ -88,7 +89,7 @@ type GPU() =
             use lenPtr = fixed len                        
             checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
-            let outputPtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
+            let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
             checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
@@ -99,7 +100,7 @@ type GPU() =
             use lenPtr = fixed len                        
             checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
-            let outputPtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
+            let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
             checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
@@ -127,7 +128,7 @@ type GPU() =
                     //API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,nullPtr,sizePtr))
                     checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,vNullPtr,lenPtr) 
                     let name = SilkMarshal.Allocate (int len.[0] + 1)
-                    let namePtr = NativeInterop.NativePtr.toVoidPtr((NativeInterop.NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
+                    let namePtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
                     checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,len.[0],namePtr,uNullPtr) 
                     let name = SilkMarshal.PtrToString(name,NativeStringEncoding.Auto)
                     (name,{ Name = name; Pointer = k}) )                          
@@ -142,59 +143,74 @@ type GPU() =
     let _ = ErrorMsg.Logger.Debug "GPU Initialized"
         
     member __.Test =         
+        // LOAD AN IMAGE (ALWAYS CONVERTS THE BYTE VALUES TO FLOAT32)
         let img = new VoxImage("three_coloured_items_RGBA.png")
-        let size = unativeint <| img.NPixels * img.NComponents // TODO: implement NBytes
+        let (width,height) = img.Width,img.Height
+        let comps = img.NComponents
+        let nbytes = comps * width * height * sizeof<float32>
+
+        // SAVE IT JUST TO DEMONSTRATE THAT CONVERSION uint8->float32->uint8 is not broken
+        img.Save("input.png")
         
+        // ALLOCATE INPUT GLOBAL MEMORY
+        let niPtrI : nativeptr<int> = GlobalMemory.Allocate(nbytes).AsPtr() // 4 because RGBA
+        let vPtrI : voidptr = NativePtr.toVoidPtr (niPtrI : nativeptr<int>)
+        let fPtrI : nativeptr<float32> = NativePtr.ofVoidPtr vPtrI
+
+        // COPY IMAGE DATA TO INPUT GLOBAL MEMORY 
+        img.GetBufferAsFloat(
+            fun buf ->
+                for i = 0 to buf.Length - 1 do
+                    NativePtr.set fPtrI i (buf.UGet i)
+        )
+
+        // PREPARE IMAGE FORMAT AND IMAGE DESCRIPTOR
         let imgFormatIN = ImageFormat(uint32 CLEnum.Rgba,uint32 CLEnum.Float)   
         use imgFormatINPtr' = fixed [|imgFormatIN|]
-        let imgFormatINPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatINPtr')
+        let imgFormatINPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatINPtr')
         
-        let (width,height) = img.Width,img.Height
         let imgDesc = new ImageDesc(uint32 CLEnum.MemObjectImage2D,unativeint width,unativeint height,0un,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
-        let imgDescPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgDescPtr')
-        
-        let kernel = kernels.["intensity"].Pointer 
-        
-        let input  =             
-            img.GetBufferAsFloat
-                (fun buf -> 
-                    let imgPtr = NativeInterop.NativePtr.toVoidPtr buf.Pointer            
-                    checkErrPtr (fun p -> 
-                        API.CreateImage(
-                                context,
-                                enum<CLEnum>(32|||4), // UseHostPointer|||MemReadOnly TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed
-                                // SEE https://discord.com/channels/521092042781229087/607634593201520651/822107881591144488
-                                imgFormatINPtr,
-                                imgDescPtr,
-                                imgPtr,
-                                p)))
-        use i' = fixed [|input|]
-        let i = NativeInterop.NativePtr.toVoidPtr i'
-        
-        checkErr <| API.SetKernelArg(kernel,0ul,unativeint sizeof<nativeint>,i)
-        
-        let imgFormatOUT = ImageFormat(uint32 CLEnum.R,uint32 CLEnum.Float)
-        use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
-        let imgFormatOUTPtr = NativeInterop.NativePtr.ofNativeInt (NativeInterop.NativePtr.toNativeInt imgFormatOUTPtr') 
-        
-        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))               
-        
-        let o' = fixed [|output|]
-        let o = NativeInterop.NativePtr.toVoidPtr o'        
-        
-        checkErr <| API.SetKernelArg(kernel,1ul,unativeint sizeof<nativeint>,o)
-        
-        checkErr <| API.EnqueueTask(queue,kernel,0ul,nullPtr,nullPtr)
+        let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
+                 
+        // CREATE AN IMAGE ON THE GPU COPYING DATA FROM THE INPUT GLOBAL MEMORY (flag: 32); READONLY (flag : 4)
+        let input = 
+            checkErrPtr (fun p -> 
+                API.CreateImage(context,enum<CLEnum>(32|||4),imgFormatINPtr,imgDescPtr,vPtrI,p))
+
+        // PREPARE REGION INFORMATION FOR COPY
+        use startPtr = fixed [|0un;0un;0un|]
+        use endPtr = fixed [|unativeint height;unativeint width; 1un|]
+
+        // ALLOCATE OUTPUT GLOBAL MEMORY
+        let niPtrO : nativeptr<int> = GlobalMemory.Allocate(nbytes).AsPtr() // 4 because RGBA
+        let vPtrO : voidptr = NativePtr.toVoidPtr (niPtrO : nativeptr<int>)
+        let fPtrO : nativeptr<float32> = NativePtr.ofVoidPtr vPtrO
+
+        // READ IMAGE INTO OUTPUT GLOBAL MEMORY
+        checkErr <| API.EnqueueReadImage(queue,input,true,startPtr,endPtr,0un,0un,vPtrO,0ul,nullPtr,nullPtr)
         checkErr <| API.Finish(queue)
-        
-        let img2 = VoxImage.CreateFloat(img,0f)
-        
+
+        // CHECK THAT THE RESULTS ARE THE SAME
+        let mutable found = false
+        let mutable i = 0
+        while (not found) && (i < nbytes - 1) do
+            let fI = NativePtr.get fPtrI i
+            let fO = NativePtr.get fPtrO i
+            if fI <> fO then
+                printfn "different values: %d %f %f" i fI fO                
+                found <- true
+            i <- i + 1
+
+        // PREPARE A SUITABLE IMAGE OBJECT TO SAVE THE RAW DATA
+        let img2 = VoxImage.RGBA (VoxImage.CreateFloat(img,0f)) (VoxImage.CreateFloat(img,0f)) (VoxImage.CreateFloat(img,255f)) (VoxImage.CreateFloat(img,255f))
+
+        // COPY RAW DATA TO IMAGE OBJECT
         img2.GetBufferAsFloat
             (fun buf -> 
-                let ptr = NativeInterop.NativePtr.toVoidPtr buf.Pointer                
-                checkErr <| API.EnqueueReadImage(queue,output,true,uNullPtr,uNullPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
+                for i = 0 to buf.Length - 1 do 
+                    buf.USet i (NativePtr.get fPtrO i))
         
-        img2.Save("output.png")                
-        "All done"
+        // SAVE
+        img2.Save("output.png")  
         
