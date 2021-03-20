@@ -17,5 +17,5 @@ __kernel void swapRG(__read_only image2d_t inputImage, __write_only image2d_t ou
   float4 f4 = (float4)read_imagef(inputImage, sampler, gid);
   float4 newf4 = (float4)(f4.y, f4.x, f4.z, f4.w);
 
-  write_imagef(outImage, gid, newf4);
+  write_imagef(outImage, gid, newf4); 
 }
