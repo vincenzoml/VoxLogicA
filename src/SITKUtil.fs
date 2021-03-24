@@ -19,6 +19,8 @@ open itk.simple
 open System.IO
 open ErrorMsg
 
+type PixelType = UInt8 | Float32 
+
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
 
@@ -345,10 +347,10 @@ type VoxImage private (img : Image,uniqueName : string) =
     member __.BufferType = 
         let pid = img.GetPixelID() 
         if pid = PixelIDValueEnum.sitkUInt8 || pid = PixelIDValueEnum.sitkVectorUInt8
-        then typeof<uint8>
+        then UInt8
         else
             if  pid = PixelIDValueEnum.sitkFloat32 || pid = PixelIDValueEnum.sitkVectorFloat32 
-            then typeof<float32>
+            then Float32
             else raise <| UnsupportedImageTypeException(pid.ToString())
 
     member this.GetBufferAsUInt8 fn = 

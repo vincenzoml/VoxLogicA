@@ -13,6 +13,9 @@ exception GPUException of c : int
 exception GPUCompileException of s : string
     with override this.Message = sprintf "Could not compile GPU kernels:\n%s" this.s
 
+exception UnsupportedImageDimensionException of i : int
+    with override this.Message = sprintf "Unsupported image dimension: %d (only 2D and 3D images are supported by the GPU implementation)" this.i
+
 type Kernel = 
     {   Name : string
         Pointer : nativeint     }    
@@ -38,10 +41,25 @@ let checkErrPtr f =
 
 let API = CL.GetApi()
 
-type GPUValue<'a> =
-    abstract member Get : unit -> 'a    
+type KernelArgument = 
+    private { 
+        pointer : nativeint 
+        dimension : int
+        components : int
+        pixeltype : PixelType
+        width : int
+        height : int
+        depth : int        
+    }
 
-and GPU(kernelsFilename : string) =
+    override this.ToString() = sprintf "<KernelArgument %d>" this.pointer
+        
+
+type GPUValue<'a> =
+    abstract member ToHost : unit -> 'a  
+    abstract member ToDevice : unit -> KernelArgument      
+
+type GPU(kernelsFilename : string) =
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
 
     let platformIDs =
@@ -149,31 +167,31 @@ and GPU(kernelsFilename : string) =
         this.TransferImage(new VoxImage(filename))
 
     member __.TransferImage (img: VoxImage) =        
-        let img =
-            if img.Dimension = 4
-            then img
-            else raise <| UnsupportedImageTypeException("please implement cast from 3 to 4 components")
+        let dimension =
+            let d = img.Dimension
+            match d with 
+            | 2 -> CLEnum.MemObjectImage2D
+            | 3 -> CLEnum.MemObjectImage3D
+            | _ -> raise <| UnsupportedImageDimensionException(img.Dimension)
         
         let channelOrder =
-            match img.Dimension with
+            let c = img.NComponents 
+            match c with
             | 1 -> CLEnum.R
             | 4 -> CLEnum.Rgba 
-            | _ -> raise <| UnsupportedNumberOfComponentsPerPixelException img.Dimension
+            | _ -> raise <| UnsupportedNumberOfComponentsPerPixelException c
 
         let channelDataType =
-            if img.BufferType = typeof<uint8> 
-            then CLEnum.UnsignedInt8
-            else 
-                if img.BufferType = typeof<float32> 
-                then CLEnum.Float
-                else raise <| UnsupportedPixelFormatException (img.BufferType.ToString())
+            match img.BufferType with
+            | UInt8 -> CLEnum.UnsignedInt8
+            | Float32 -> CLEnum.Float                
         
         let imgFormatIN = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
         use imgFormatINPtr' = fixed [|imgFormatIN|]
         let imgFormatINPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatINPtr')
         
-        let (width,height) = img.Width,img.Height
-        let imgDesc = new ImageDesc(uint32 CLEnum.MemObjectImage2D,unativeint width,unativeint height,0un,0un,0un,0un,0ul,0ul)
+        let (width,height,depth) = img.Width,img.Height,img.Depth
+        let imgDesc = new ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
@@ -193,50 +211,99 @@ and GPU(kernelsFilename : string) =
                                 p)))
 
         { new GPUValue<VoxImage> with
-            member __.Get () = img }
+            member __.ToDevice () = { 
+                        pointer = input
+                        components = img.NComponents
+                        dimension = img.Dimension
+                        pixeltype = img.BufferType
+                        width = img.Width
+                        height = img.Height
+                        depth = img.Depth
+                    }
+            member __.ToHost () = img }
 
-    member __.Test =         
-        let img = new VoxImage("three_coloured_items_RGBA.png")
+    member __.AllocateImage (img: VoxImage) =
+        let dimension =            
+            match img.Dimension with 
+            | 2 -> CLEnum.MemObjectImage2D
+            | 3 -> CLEnum.MemObjectImage3D
+            | d -> raise <| UnsupportedImageDimensionException d
         
-        let imgFormatIN = ImageFormat(uint32 CLEnum.Rgba,uint32 CLEnum.Float)   
-        use imgFormatINPtr' = fixed [|imgFormatIN|]
-        let imgFormatINPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatINPtr')
+        let channelOrder =            
+            match img.NComponents  with
+            | 1 -> CLEnum.R
+            | 4 -> CLEnum.Rgba 
+            | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
+
+        let channelDataType =
+            match img.BufferType with
+            | UInt8 -> CLEnum.UnsignedInt8
+            | Float32 -> CLEnum.Float                    
+            
+        let imgFormatOUT = ImageFormat(uint32 channelOrder,uint32 channelDataType)
         
-        let (width,height) = img.Width,img.Height
-        let imgDesc = new ImageDesc(uint32 CLEnum.MemObjectImage2D,unativeint width,unativeint height,0un,0un,0un,0un,0ul,0ul)
+        use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
+        let imgFormatOUTPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatOUTPtr') 
+
+        let width = img.Width
+        let height = img.Height
+        let depth = img.Depth
+
+        let imgDesc = new ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
-        let input  =             
-            img.GetBufferAsFloat
-                (fun buf -> 
-                    let imgPtr = NativePtr.toVoidPtr buf.Pointer            
-                    checkErrPtr (fun p -> 
-                        API.CreateImage(
-                                context,
-                                enum<CLEnum>(32|||4), 
-                                // UseHostPointer|||MemReadOnly 
-                                // TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed                                
-                                imgFormatINPtr,
-                                imgDescPtr,
-                                imgPtr,
-                                p)))
+        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
+        { new GPUValue<VoxImage> with
+            member __.ToDevice () = { 
+                pointer = output
+                components = img.NComponents
+                dimension = img.Dimension
+                pixeltype = img.BufferType
+                width = img.Width
+                height = img.Height
+                depth = img.Depth
+            }
+   
+            member __.ToHost () =
+                use startPtr = fixed [|0un;0un;0un|]
+                use endPtr = fixed [|unativeint width;unativeint height; unativeint depth|]
 
-        use i' = fixed [|input|]
+                let create (img : VoxImage) = 
+                    match img.BufferType with
+                    | UInt8 -> VoxImage.CreateUInt8(img,0uy)
+                    | Float32 -> VoxImage.CreateFloat(img,0f)
+
+                let img2 = 
+                    match img.NComponents with
+                    | 1 -> create img
+                    | 4 -> VoxImage.RGBA (create img) (create img) (create img) (create img)
+                    | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
+
+                img2.GetBufferAsFloat
+                    (fun buf -> 
+                        let ptr = NativePtr.toVoidPtr buf.Pointer
+                        checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
+                
+                img2
+        }
+            
+
+    member this.Test =         
+        let img = new VoxImage "./three_coloured_items_RGBA.png"        
+        let input = this.TransferImage img
+
+        use i' = fixed [|input.ToDevice().pointer|]
         let i = NativePtr.toVoidPtr i'
-               
-        let imgFormatOUT = ImageFormat(uint32 CLEnum.Rgba,uint32 CLEnum.Float)
-        use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
-        let imgFormatOUTPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatOUTPtr') 
         
-        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))               
-        
-        let o' = fixed [|output|]
+        let output = this.AllocateImage(img)
+        let d = output.ToDevice()
+        let o' = fixed [|d.pointer|]
         let o = NativePtr.toVoidPtr o'        
 
         let kernel = kernels.["swapRG"].Pointer 
-        let globalWorkSize = fixed [|unativeint width;unativeint height|]
+        let globalWorkSize = fixed [|unativeint d.width;unativeint d. height|]
         
         checkErr <| API.SetKernelArg(kernel,0ul,unativeint sizeof<nativeint>,i)
         checkErr <| API.SetKernelArg(kernel,1ul,unativeint sizeof<nativeint>,o)        
@@ -244,16 +311,8 @@ and GPU(kernelsFilename : string) =
         checkErr <| API.EnqueueNdrangeKernel(queue,kernel,2ul,uNullPtr,globalWorkSize,uNullPtr,0ul,nullPtr,nullPtr)
 
         checkErr <| API.Finish(queue)
-        
-        use startPtr = fixed [|0un;0un;0un|]
-        use endPtr = fixed [|unativeint height;unativeint width; 1un|]
 
-        let img2 = VoxImage.RGBA (VoxImage.CreateFloat(img,255f)) (VoxImage.CreateFloat(img,0f)) (VoxImage.CreateFloat(img,0f)) (VoxImage.CreateFloat(img,0f))
-
-        img2.GetBufferAsFloat
-            (fun buf -> 
-                let ptr = NativePtr.toVoidPtr buf.Pointer
-                checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
+        let img2 = output.ToHost()
         img2.Save("output.png")  
            
    

@@ -106,8 +106,8 @@ let main (argv: string array) =
 let main (argv: string array) =
     ErrorMsg.Logger.LogToStdout()
     ErrorMsg.Logger.Debug "Starting"
-    let kernelFile = System.IO.Path.Combine [|System.IO.Path.GetDirectoryName (Assembly.GetExecutingAssembly().Location); "kernels.cl"|]
-    let gpu = GPU.GPU(kernelFile)
-    gpu.Test 
+    let kernelFile = System.IO.Path.Combine [|System.IO.Path.GetDirectoryName (Assembly.GetExecutingAssembly().Location); "kernel.cl"|]
+    let gpu = GPU.GPU(kernelFile)    
+    printfn "%A" gpu.Test    
     0
 #endif
