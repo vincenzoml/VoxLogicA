@@ -309,6 +309,7 @@ type GPU(kernelsFilename : string) =
         
         let output = this.AllocateImage(img)
         let d = output.ToDevice()
+        
         let o' = fixed [|d.pointer|]
         let o = NativePtr.toVoidPtr o'        
 
