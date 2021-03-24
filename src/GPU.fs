@@ -222,7 +222,9 @@ type GPU(kernelsFilename : string) =
                     }
             member __.ToHost () = img }
 
-    member __.AllocateImage (img: VoxImage) =
+    member this.AllocateImage img = this.AllocateImage (img,img.NComponents)
+
+    member __.AllocateImage (img: VoxImage,nComponents) =
         let dimension =            
             match img.Dimension with 
             | 2 -> CLEnum.MemObjectImage2D
@@ -230,7 +232,7 @@ type GPU(kernelsFilename : string) =
             | d -> raise <| UnsupportedImageDimensionException d
         
         let channelOrder =            
-            match img.NComponents  with
+            match nComponents  with
             | 1 -> CLEnum.R
             | 4 -> CLEnum.Rgba 
             | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
@@ -267,6 +269,7 @@ type GPU(kernelsFilename : string) =
             }
    
             member __.ToHost () =
+                printfn "%A" depth
                 use startPtr = fixed [|0un;0un;0un|]
                 use endPtr = fixed [|unativeint width;unativeint height; unativeint depth|]
 
@@ -281,10 +284,17 @@ type GPU(kernelsFilename : string) =
                     | 4 -> VoxImage.RGBA (create img) (create img) (create img) (create img)
                     | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
-                img2.GetBufferAsFloat
-                    (fun buf -> 
-                        let ptr = NativePtr.toVoidPtr buf.Pointer
-                        checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
+                match img2.BufferType with
+                | UInt8 ->
+                    img2.GetBufferAsUInt8
+                        (fun buf -> 
+                            let ptr = NativePtr.toVoidPtr buf.Pointer
+                            checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
+                | Float32 ->
+                    img2.GetBufferAsFloat
+                        (fun buf -> 
+                            let ptr = NativePtr.toVoidPtr buf.Pointer
+                            checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
                 
                 img2
         }
@@ -297,7 +307,7 @@ type GPU(kernelsFilename : string) =
         use i' = fixed [|input.ToDevice().pointer|]
         let i = NativePtr.toVoidPtr i'
         
-        let output = this.AllocateImage(img)
+        let output = this.AllocateImage(img,1)
         let d = output.ToDevice()
         let o' = fixed [|d.pointer|]
         let o = NativePtr.toVoidPtr o'        
