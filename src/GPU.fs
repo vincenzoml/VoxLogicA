@@ -17,28 +17,32 @@ type Kernel =
     {   Name : string
         Pointer : nativeint     }    
 
-type GPU() =
+let nullPtr : nativeptr<nativeint> = NativePtr.ofNativeInt 0n
+let uNullPtr : nativeptr<unativeint> = NativePtr.ofNativeInt 0n
+let bNullPtr : nativeptr<byte> = NativePtr.ofNativeInt 0n
+let nbNullPtr : nativeptr<nativeptr<byte>> = NativePtr.ofNativeInt 0n
+let vNullPtr : voidptr = NativePtr.toVoidPtr nullPtr
+let noNotify = NotifyCallback(fun _ _ _ _ -> ())
+
+let checkErr code =
+    if code = int CLEnum.Success then ()
+    else raise <| GPUException code
+
+let checkErrPtr f =
+    let err = [|0|]
+    use errPtr = fixed err
+    let res = f errPtr
+    let code = err.[0]
+    checkErr code
+    res
+
+let API = CL.GetApi()
+
+type GPUValue<'a> =
+    abstract member Get : unit -> 'a    
+
+and GPU(kernelsFilename : string) =
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
-    let API = CL.GetApi()
-
-    let nullPtr : nativeptr<nativeint> = NativePtr.ofNativeInt 0n
-    let uNullPtr : nativeptr<unativeint> = NativePtr.ofNativeInt 0n
-    let bNullPtr : nativeptr<byte> = NativePtr.ofNativeInt 0n
-    let nbNullPtr : nativeptr<nativeptr<byte>> = NativePtr.ofNativeInt 0n
-    let vNullPtr : voidptr = NativePtr.toVoidPtr nullPtr
-    let noNotify = NotifyCallback(fun _ _ _ _ -> ())
-
-    let checkErr code =
-        if code = int CLEnum.Success then ()
-        else raise <| GPUException code
-    
-    let checkErrPtr f =
-        let err = [|0|]
-        use errPtr = fixed err
-        let res = f errPtr
-        let code = err.[0]
-        checkErr code
-        res
 
     let platformIDs =
         let mutable num = 0ul
@@ -74,7 +78,7 @@ type GPU() =
         checkErrPtr (fun errPtr -> (devices.[0],API.CreateContext(nullPtr,1ul,devicesPtr,noNotify,vNullPtr,errPtr)))   // TODO: always selects first device              
 
     let source = 
-        use streamReader = new System.IO.StreamReader(System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location) + "/kernel.cl")
+        use streamReader = new System.IO.StreamReader(kernelsFilename)
         let res = streamReader.ReadToEnd()
         streamReader.Close()
         res
@@ -137,11 +141,60 @@ type GPU() =
                 dict.Add(k,v)
         dict
     
-    let queue = 
-        checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
+    let queue = checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
 
-    let _ = ErrorMsg.Logger.Debug "GPU Initialized"
+    let _ = ErrorMsg.Logger.Debug "Initialized GPU"
+    
+    member this.LoadImage (filename : string) =
+        this.TransferImage(new VoxImage(filename))
+
+    member __.TransferImage (img: VoxImage) =        
+        let img =
+            if img.Dimension = 4
+            then img
+            else raise <| UnsupportedImageTypeException("please implement cast from 3 to 4 components")
         
+        let channelOrder =
+            match img.Dimension with
+            | 1 -> CLEnum.R
+            | 4 -> CLEnum.Rgba 
+            | _ -> raise <| UnsupportedNumberOfComponentsPerPixelException img.Dimension
+
+        let channelDataType =
+            if img.BufferType = typeof<uint8> 
+            then CLEnum.UnsignedInt8
+            else 
+                if img.BufferType = typeof<float32> 
+                then CLEnum.Float
+                else raise <| UnsupportedPixelFormatException (img.BufferType.ToString())
+        
+        let imgFormatIN = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
+        use imgFormatINPtr' = fixed [|imgFormatIN|]
+        let imgFormatINPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatINPtr')
+        
+        let (width,height) = img.Width,img.Height
+        let imgDesc = new ImageDesc(uint32 CLEnum.MemObjectImage2D,unativeint width,unativeint height,0un,0un,0un,0un,0ul,0ul)
+        use imgDescPtr' = fixed [|imgDesc|]
+        let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
+        
+        let input  =             
+            img.GetBufferAsFloat
+                (fun buf -> 
+                    let imgPtr = NativePtr.toVoidPtr buf.Pointer            
+                    checkErrPtr (fun p -> 
+                        API.CreateImage(
+                                context,
+                                enum<CLEnum>(32|||4), 
+                                // UseHostPointer|||MemReadOnly 
+                                // TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed                                
+                                imgFormatINPtr,
+                                imgDescPtr,
+                                imgPtr,
+                                p)))
+
+        { new GPUValue<VoxImage> with
+            member __.Get () = img }
+
     member __.Test =         
         let img = new VoxImage("three_coloured_items_RGBA.png")
         
@@ -203,5 +256,4 @@ type GPU() =
                 checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
         img2.Save("output.png")  
            
-        // "All done"
-        
+   

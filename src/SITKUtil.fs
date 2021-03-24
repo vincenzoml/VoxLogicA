@@ -342,6 +342,15 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     member __.NComponents = int (img.GetNumberOfComponentsPerPixel())
 
+    member __.BufferType = 
+        let pid = img.GetPixelID() 
+        if pid = PixelIDValueEnum.sitkUInt8 || pid = PixelIDValueEnum.sitkVectorUInt8
+        then typeof<uint8>
+        else
+            if  pid = PixelIDValueEnum.sitkFloat32 || pid = PixelIDValueEnum.sitkVectorFloat32 
+            then typeof<float32>
+            else raise <| UnsupportedImageTypeException(pid.ToString())
+
     member this.GetBufferAsUInt8 fn = 
         use vect = new NativeArray<uint8>(NativePtr.ofNativeInt niBuffer,(int <| img.GetNumberOfPixels()) * (int <| img.GetNumberOfComponentsPerPixel()),this)
         fn vect
