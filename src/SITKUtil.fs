@@ -19,6 +19,8 @@ open itk.simple
 open System.IO
 open ErrorMsg
 
+type PixelType = UInt8 | Float32 
+
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
 
@@ -246,8 +248,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     override __.Finalize () = dispose()
 
-    // TODO: make private!
-    member __.Image = img
+    member private __.Image = img
 
     override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
@@ -333,7 +334,8 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     member __.Size = Array.ofSeq <| Seq.map int (img.GetSize())
 
-    member __.Depth = int <| img.GetDepth() 
+    member __.Depth = max (int <| img.GetDepth()) 1
+
   
     member __.Width = int <| img.GetWidth()
     
@@ -342,6 +344,15 @@ type VoxImage private (img : Image,uniqueName : string) =
     member __.NPixels = int (img.GetNumberOfPixels())
 
     member __.NComponents = int (img.GetNumberOfComponentsPerPixel())
+
+    member __.BufferType = 
+        let pid = img.GetPixelID() 
+        if pid = PixelIDValueEnum.sitkUInt8 || pid = PixelIDValueEnum.sitkVectorUInt8
+        then UInt8
+        else
+            if  pid = PixelIDValueEnum.sitkFloat32 || pid = PixelIDValueEnum.sitkVectorFloat32 
+            then Float32
+            else raise <| UnsupportedImageTypeException(pid.ToString())
 
     member this.GetBufferAsUInt8 fn = 
         use vect = new NativeArray<uint8>(NativePtr.ofNativeInt niBuffer,(int <| img.GetNumberOfPixels()) * (int <| img.GetNumberOfComponentsPerPixel()),this)

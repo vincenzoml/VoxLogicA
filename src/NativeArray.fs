@@ -91,3 +91,5 @@ type NativeArray<'T when 'T : unmanaged> = // TODO: split this in readonly and r
     member inline this.Fill v =
         for i = 0 to this.length - 1 do // TODO: can this be repalced by some more efficient native method?            
             this.USet i v
+
+    member inline this.Pointer = this.ptr

@@ -28,7 +28,6 @@ module Lifts =
 
 open Lifts
 
-
 type SITKModel() =    
     inherit IModel()
     let mutable baseImg : option<VoxImage> = None
