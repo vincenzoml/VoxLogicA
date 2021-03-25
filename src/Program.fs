@@ -102,12 +102,29 @@ let main (argv: string array) =
         finish (Some e)
         1
 #else
+
+open VoxLogicA
+
 [<EntryPoint>]
 let main (argv: string array) =
     ErrorMsg.Logger.LogToStdout()
     ErrorMsg.Logger.Debug "Starting"
+    
     let kernelFile = System.IO.Path.Combine [|System.IO.Path.GetDirectoryName (Assembly.GetExecutingAssembly().Location); "kernel.cl"|]
+    
     let gpu = GPU.GPU(kernelFile)    
-    printfn "%A" gpu.Test    
+    
+    let img = new SITKUtil.VoxImage "./three_coloured_items_RGBA.png"        
+    
+    let input = gpu.TransferImage img
+    let output = gpu.AllocateImage img 
+    
+    gpu.Run("swapRG",input,output,img.Size,None)
+    
+    gpu.Finish() 
+
+    let img2 = output.ToHost()
+    img2.Save("output.png")  
+    
     0
 #endif

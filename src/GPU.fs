@@ -16,10 +16,6 @@ exception GPUCompileException of s : string
 exception UnsupportedImageDimensionException of i : int
     with override this.Message = sprintf "Unsupported image dimension: %d (only 2D and 3D images are supported by the GPU implementation)" this.i
 
-type Kernel = 
-    {   Name : string
-        Pointer : nativeint     }    
-
 let nullPtr : nativeptr<nativeint> = NativePtr.ofNativeInt 0n
 let uNullPtr : nativeptr<unativeint> = NativePtr.ofNativeInt 0n
 let bNullPtr : nativeptr<byte> = NativePtr.ofNativeInt 0n
@@ -54,12 +50,18 @@ type KernelArgument =
 
     override this.ToString() = sprintf "<KernelArgument %d>" this.pointer
         
+type KernelValue = 
+    abstract member ToDevice : unit -> KernelArgument
 
 type GPUValue<'a> =
-    abstract member ToHost : unit -> 'a  
-    abstract member ToDevice : unit -> KernelArgument      
+    inherit KernelValue
+    abstract member ToHost : unit -> 'a      
 
-type GPU(kernelsFilename : string) =
+type private Kernel = 
+    {   Name : string
+        Pointer : nativeint     }    
+
+and GPU(kernelsFilename : string) =
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
 
     let platformIDs =
@@ -298,32 +300,36 @@ type GPU(kernelsFilename : string) =
                 
                 img2
         }
-            
 
-    member this.Test =         
-        let img = new VoxImage "./three_coloured_items_RGBA.png"        
-        let input = this.TransferImage img
+    member __.Run (kernelName : string,args : seq<#KernelValue>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
+        let kernel = kernels.[kernelName].Pointer
+        let args' = Seq.zip (Seq.initInfinite id) args
+        for (idx,arg) in args' do
+            use a' = fixed [| arg.ToDevice().pointer |] 
+            let a = NativePtr.toVoidPtr a'
+            checkErr <| API.SetKernelArg(kernel,uint32 idx,unativeint sizeof<nativeint>,a)        
+        use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
+        let fn (localWorkSize' : nativeptr<unativeint>) = checkErr <| API.EnqueueNdrangeKernel(queue,kernel,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',0ul,nullPtr,nullPtr)
+        match oLocalWorkSize with
+        | None -> fn uNullPtr
+        | Some localWorkSize ->
+            assert (globalWorkSize.Length = localWorkSize.Length)
+            use localWorkSize' = fixed (Array.map unativeint localWorkSize)
+            fn localWorkSize'
+               
+    member this.Run(kernelName,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,seq {argument :> KernelValue},globalWorkSize,localWorkSize)
 
-        use i' = fixed [|input.ToDevice().pointer|]
-        let i = NativePtr.toVoidPtr i'
-        
-        let output = this.AllocateImage(img)
-        let d = output.ToDevice()
-        
-        let o' = fixed [|d.pointer|]
-        let o = NativePtr.toVoidPtr o'        
+    member this.Run(kernelName,argument1,argument2,globalWorkSize,localWorkSize) = this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue},globalWorkSize,localWorkSize)
 
-        let kernel = kernels.["swapRG"].Pointer 
-        let globalWorkSize = fixed [|unativeint d.width;unativeint d. height|]
-        
-        checkErr <| API.SetKernelArg(kernel,0ul,unativeint sizeof<nativeint>,i)
-        checkErr <| API.SetKernelArg(kernel,1ul,unativeint sizeof<nativeint>,o)        
-        
-        checkErr <| API.EnqueueNdrangeKernel(queue,kernel,2ul,uNullPtr,globalWorkSize,uNullPtr,0ul,nullPtr,nullPtr)
+    member this.Run(kernelName,argument1,argument2,argument3,globalWorkSize,localWorkSize) = 
+        this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue; argument3 :> KernelValue},globalWorkSize,localWorkSize)
 
-        checkErr <| API.Finish(queue)
+    member this.Run(kernelName,argument1,argument2,argument3,argument4,globalWorkSize,localWorkSize) = 
+        this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue; argument3 :> KernelValue; argument4 :> KernelValue},globalWorkSize,localWorkSize)
 
-        let img2 = output.ToHost()
-        img2.Save("output.png")  
+    member this.Run(kernelName,argument1,argument2,argument3,argument4,argument5,globalWorkSize,localWorkSize) = 
+        this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue; argument3 :> KernelValue; argument4 :> KernelValue; argument5 :> KernelValue},globalWorkSize,localWorkSize)
+
+    member __.Finish () = checkErr <| API.Finish(queue)
            
    
