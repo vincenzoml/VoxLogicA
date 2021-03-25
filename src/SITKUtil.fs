@@ -335,7 +335,6 @@ type VoxImage private (img : Image,uniqueName : string) =
     member __.Size = Array.ofSeq <| Seq.map int (img.GetSize())
 
     member __.Depth = max (int <| img.GetDepth()) 1
-
   
     member __.Width = int <| img.GetWidth()
     
