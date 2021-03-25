@@ -45,7 +45,6 @@ type private Pointer = nativeint
 
 type KernelArg = 
     abstract member Pointer : Pointer
-    //ADD HERE A MEMBER WITH AN EVENT LIST
 
 type GPUValue<'a> =    
     inherit KernelArg
