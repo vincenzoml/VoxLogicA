@@ -41,7 +41,9 @@ let checkErrPtr f =
 
 let API = CL.GetApi()
  
-type private Pointer = nativeint
+type Pointer = private { Pointer : nativeint }
+
+type Event = private { Event : nativeint }
 
 type KernelArg = 
     abstract member Pointer : Pointer
@@ -53,7 +55,7 @@ type GPUValue<'a> =
 type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) = 
     let mutable clone = new VoxImage(img)
     
-    override __.ToString() = sprintf "<GPUImage %d>" pointer
+    override __.ToString() = sprintf "<GPUImage %d>" pointer.Pointer
 
     interface GPUValue<VoxImage> with           
         member __.Pointer = pointer
@@ -74,12 +76,12 @@ type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) =
                 destination.GetBufferAsUInt8
                     (fun buf -> 
                         let ptr = NativePtr.toVoidPtr buf.Pointer
-                        checkErr <| API.EnqueueReadImage(queue,pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
+                        checkErr <| API.EnqueueReadImage(queue.Pointer,pointer.Pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
             | Float32 ->
                 destination.GetBufferAsFloat
                     (fun buf -> 
                         let ptr = NativePtr.toVoidPtr buf.Pointer
-                        checkErr <| API.EnqueueReadImage(queue,pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
+                        checkErr <| API.EnqueueReadImage(queue.Pointer,pointer.Pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
 
             destination
 
@@ -179,7 +181,7 @@ and GPU(kernelsFilename : string) =
                     let namePtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
                     checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,len.[0],namePtr,uNullPtr) 
                     let name = SilkMarshal.PtrToString(name,NativeStringEncoding.Auto)
-                    (name,{ Name = name; Pointer = k}) )                          
+                    (name,{ Name = name; Pointer = { Pointer = k}}) )                          
                 kernels
             do 
                 dict.Add(k,v)
@@ -233,7 +235,7 @@ and GPU(kernelsFilename : string) =
                                 imgPtr,
                                 p)))
 
-        new GPUImage(ptr,hImgSource,queue) :> GPUValue<VoxImage>
+        new GPUImage({ Pointer = ptr },hImgSource,{ Pointer = queue }) :> GPUValue<VoxImage>
 
                       
     member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents)
@@ -271,29 +273,30 @@ and GPU(kernelsFilename : string) =
         
         let ptr = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
-        new GPUImage(ptr,img,queue) :> GPUValue<VoxImage>
+        new GPUImage({ Pointer = ptr },img,{ Pointer = queue }) :> GPUValue<VoxImage>
         
-    member __.Run (kernelName : string,events : array<nativeint>,args : seq<KernelArg>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
+    member __.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
+        let events = Array.map (fun (x : Event) -> x.Event) events
         for (idx,arg) in args' do
-            use a' = fixed [| arg.Pointer |] 
+            use a' = fixed [| arg.Pointer.Pointer |] 
             let a = NativePtr.toVoidPtr a'
-            checkErr <| API.SetKernelArg(kernel,uint32 idx,unativeint sizeof<nativeint>,a)        
+            checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
         use event' = fixed event
         use events' = fixed events
         let fn (localWorkSize' : nativeptr<unativeint>) = 
             checkErr <| 
-            API.EnqueueNdrangeKernel(queue,kernel,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')
+            API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')
         match oLocalWorkSize with
         | None -> fn uNullPtr
         | Some localWorkSize ->
             assert (globalWorkSize.Length = localWorkSize.Length)
             use localWorkSize' = fixed (Array.map unativeint localWorkSize)
             fn localWorkSize'
-        event.[0]
+        { Event = event.[0] }
                
     member this.Run(kernelName,events,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument :> KernelArg},globalWorkSize,localWorkSize)
 

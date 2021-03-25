@@ -122,7 +122,7 @@ let main (argv: string array) =
     printfn "input: %A output: %A" input output
     
     let e1 = gpu.Run("swapRG",[||],input,output,img.Size,None)
-    let e2 = gpu.Run("swapRG",[|e1|],output,output2,img.Size,None)    
+    let e2 = gpu.Run("swapRG",[|e1|],output,output2,img.Size,None)   
     
     ignore <| gpu.Run("swapRG",[|e2|],output2,input,img.Size,None)    
     gpu.Finish() 
