@@ -1,4 +1,5 @@
 module VoxLogicA.GPU
+
 #nowarn "9"
 
 open Silk.NET.Core.Native
@@ -15,6 +16,9 @@ exception GPUCompileException of s : string
 
 exception UnsupportedImageDimensionException of i : int
     with override this.Message = sprintf "Unsupported image dimension: %d (only 2D and 3D images are supported by the GPU implementation)" this.i
+
+exception FormatMismatchInGPUMemoryTransfer
+    with override this.Message = "Format mismatch in GPU to CPU memory transfer or CPU to GPU memory transfer"
 
 let nullPtr : nativeptr<nativeint> = NativePtr.ofNativeInt 0n
 let uNullPtr : nativeptr<unativeint> = NativePtr.ofNativeInt 0n
@@ -36,30 +40,53 @@ let checkErrPtr f =
     res
 
 let API = CL.GetApi()
+ 
+type private Pointer = nativeint
 
-type KernelArgument = 
-    private { 
-        pointer : nativeint 
-        dimension : int
-        components : int
-        pixeltype : PixelType
-        width : int
-        height : int
-        depth : int        
-    }
+type KernelArg = 
+    abstract member Pointer : Pointer
+    //ADD HERE A MEMBER WITH AN EVENT LIST
 
-    override this.ToString() = sprintf "<KernelArgument %d>" this.pointer
-        
-type KernelValue = 
-    abstract member ToDevice : unit -> KernelArgument
+type GPUValue<'a> =    
+    inherit KernelArg
+    abstract member Get : unit -> 'a      
 
-type GPUValue<'a> =
-    inherit KernelValue
-    abstract member ToHost : unit -> 'a      
+type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) = 
+    let mutable clone = new VoxImage(img)
+    
+    override __.ToString() = sprintf "<GPUImage %d>" pointer
 
-type private Kernel = 
+    interface GPUValue<VoxImage> with           
+        member __.Pointer = pointer
+        member __.Get () =         
+            use startPtr = fixed [|0un;0un;0un|]
+            use endPtr = fixed [|unativeint clone.Size.[0];unativeint clone.Size.[1];unativeint (if clone.Size.Length >= 3 then clone.Size.[2] else 1)|]
+
+            let destination = 
+                lock clone (
+                    fun () ->
+                        let x = clone
+                        clone <- new VoxImage(x)
+                        x
+                )
+
+            match clone.BufferType with
+            | UInt8 ->
+                destination.GetBufferAsUInt8
+                    (fun buf -> 
+                        let ptr = NativePtr.toVoidPtr buf.Pointer
+                        checkErr <| API.EnqueueReadImage(queue,pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
+            | Float32 ->
+                destination.GetBufferAsFloat
+                    (fun buf -> 
+                        let ptr = NativePtr.toVoidPtr buf.Pointer
+                        checkErr <| API.EnqueueReadImage(queue,pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
+
+            destination
+
+type Kernel = 
     {   Name : string
-        Pointer : nativeint     }    
+        Pointer : Pointer     }    
 
 and GPU(kernelsFilename : string) =
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
@@ -148,8 +175,6 @@ and GPU(kernelsFilename : string) =
                 (fun k -> 
                     let len = [|0un|]
                     use lenPtr = fixed len
-                    let s x = failwith "" 
-                    //API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,nullPtr,sizePtr))
                     checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,vNullPtr,lenPtr) 
                     let name = SilkMarshal.Allocate (int len.[0] + 1)
                     let namePtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
@@ -164,69 +189,57 @@ and GPU(kernelsFilename : string) =
     let queue = checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
 
     let _ = ErrorMsg.Logger.Debug "Initialized GPU"
-    
-    member this.LoadImage (filename : string) =
-        this.TransferImage(new VoxImage(filename))
 
-    member __.TransferImage (img: VoxImage) =        
-        let dimension =
-            let d = img.Dimension
-            match d with 
+    
+    
+    member __.CopyImageToDevice (hImgSource: VoxImage) =        
+        let dimension =            
+            match hImgSource.Dimension with 
             | 2 -> CLEnum.MemObjectImage2D
             | 3 -> CLEnum.MemObjectImage3D
-            | _ -> raise <| UnsupportedImageDimensionException(img.Dimension)
+            | d -> raise <| UnsupportedImageDimensionException(hImgSource.Dimension)
         
         let channelOrder =
-            let c = img.NComponents 
-            match c with
+            match hImgSource.NComponents with
             | 1 -> CLEnum.R
             | 4 -> CLEnum.Rgba 
-            | _ -> raise <| UnsupportedNumberOfComponentsPerPixelException c
+            | c -> raise <| UnsupportedNumberOfComponentsPerPixelException c
 
         let channelDataType =
-            match img.BufferType with
+            match hImgSource.BufferType with
             | UInt8 -> CLEnum.UnsignedInt8
             | Float32 -> CLEnum.Float                
         
-        let imgFormatIN = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
-        use imgFormatINPtr' = fixed [|imgFormatIN|]
-        let imgFormatINPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatINPtr')
+        let imgFormat = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
+        use imgFormatPtr' = fixed [|imgFormat|]
+        let imgFormatPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatPtr')
         
-        let (width,height,depth) = img.Width,img.Height,img.Depth
+        let (width,height,depth) = hImgSource.Size.[0],hImgSource.Size.[1],if hImgSource.Size.Length >= 3 then hImgSource.Size.[2] else 1
         let imgDesc = new ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
-        let input  =             
-            img.GetBufferAsFloat
+        let ptr =
+            hImgSource.GetBufferAsFloat
                 (fun buf -> 
                     let imgPtr = NativePtr.toVoidPtr buf.Pointer            
                     checkErrPtr (fun p -> 
                         API.CreateImage(
                                 context,
-                                enum<CLEnum>(32|||4), 
-                                // UseHostPointer|||MemReadOnly 
-                                // TODO: ADD READONLY AND WRITEONLY HERE AND BELOW once https://github.com/dotnet/Silk.NET/issues/428 is fixed                                
-                                imgFormatINPtr,
+                                enum<CLEnum>(32), 
+                                // 32 = UseHostPointer
+                                // change the numeric constant to a symbolic one once https://github.com/dotnet/Silk.NET/issues/428 makes it to release (10th of April?)
+                                imgFormatPtr,
                                 imgDescPtr,
                                 imgPtr,
                                 p)))
 
-        { new GPUValue<VoxImage> with
-            member __.ToDevice () = { 
-                        pointer = input
-                        components = img.NComponents
-                        dimension = img.Dimension
-                        pixeltype = img.BufferType
-                        width = img.Width
-                        height = img.Height
-                        depth = img.Depth
-                    }
-            member __.ToHost () = img }
+        new GPUImage(ptr,hImgSource,queue) :> GPUValue<VoxImage>
 
-    member this.AllocateImage img = this.AllocateImage (img,img.NComponents)
+                      
+    member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents)
 
-    member __.AllocateImage (img: VoxImage,nComponents) =
+    member __.NewImageOnDevice (img: VoxImage,nComponents) =
         let dimension =            
             match img.Dimension with 
             | 2 -> CLEnum.MemObjectImage2D
@@ -257,78 +270,44 @@ and GPU(kernelsFilename : string) =
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
-        let output = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemWriteOnly,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+        let ptr = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
-        { new GPUValue<VoxImage> with
-            member __.ToDevice () = { 
-                pointer = output
-                components = img.NComponents
-                dimension = img.Dimension
-                pixeltype = img.BufferType
-                width = img.Width
-                height = img.Height
-                depth = img.Depth
-            }
-   
-            member __.ToHost () =
-                printfn "%A" depth
-                use startPtr = fixed [|0un;0un;0un|]
-                use endPtr = fixed [|unativeint width;unativeint height; unativeint depth|]
-
-                let create (img : VoxImage) = 
-                    match img.BufferType with
-                    | UInt8 -> VoxImage.CreateUInt8(img,0uy)
-                    | Float32 -> VoxImage.CreateFloat(img,0f)
-
-                let img2 = 
-                    match img.NComponents with
-                    | 1 -> create img
-                    | 4 -> VoxImage.RGBA (create img) (create img) (create img) (create img)
-                    | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
-
-                match img2.BufferType with
-                | UInt8 ->
-                    img2.GetBufferAsUInt8
-                        (fun buf -> 
-                            let ptr = NativePtr.toVoidPtr buf.Pointer
-                            checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
-                | Float32 ->
-                    img2.GetBufferAsFloat
-                        (fun buf -> 
-                            let ptr = NativePtr.toVoidPtr buf.Pointer
-                            checkErr <| API.EnqueueReadImage(queue,output,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
-                
-                img2
-        }
-
-    member __.Run (kernelName : string,args : seq<#KernelValue>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
+        new GPUImage(ptr,img,queue) :> GPUValue<VoxImage>
+        
+    member __.Run (kernelName : string,events : array<nativeint>,args : seq<KernelArg>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         for (idx,arg) in args' do
-            use a' = fixed [| arg.ToDevice().pointer |] 
+            use a' = fixed [| arg.Pointer |] 
             let a = NativePtr.toVoidPtr a'
             checkErr <| API.SetKernelArg(kernel,uint32 idx,unativeint sizeof<nativeint>,a)        
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
-        let fn (localWorkSize' : nativeptr<unativeint>) = checkErr <| API.EnqueueNdrangeKernel(queue,kernel,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',0ul,nullPtr,nullPtr)
+        let event = [|0n|]
+        use event' = fixed event
+        use events' = fixed events
+        let fn (localWorkSize' : nativeptr<unativeint>) = 
+            checkErr <| 
+            API.EnqueueNdrangeKernel(queue,kernel,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')
         match oLocalWorkSize with
         | None -> fn uNullPtr
         | Some localWorkSize ->
             assert (globalWorkSize.Length = localWorkSize.Length)
             use localWorkSize' = fixed (Array.map unativeint localWorkSize)
             fn localWorkSize'
+        event.[0]
                
-    member this.Run(kernelName,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,seq {argument :> KernelValue},globalWorkSize,localWorkSize)
+    member this.Run(kernelName,events,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument :> KernelArg},globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,argument1,argument2,globalWorkSize,localWorkSize) = this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue},globalWorkSize,localWorkSize)
+    member this.Run(kernelName,events,argument1,argument2,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg},globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,argument1,argument2,argument3,globalWorkSize,localWorkSize) = 
-        this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue; argument3 :> KernelValue},globalWorkSize,localWorkSize)
+    member this.Run(kernelName,events,argument1,argument2,argument3,globalWorkSize,localWorkSize) = 
+        this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg},globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,argument1,argument2,argument3,argument4,globalWorkSize,localWorkSize) = 
-        this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue; argument3 :> KernelValue; argument4 :> KernelValue},globalWorkSize,localWorkSize)
+    member this.Run(kernelName,events,argument1,argument2,argument3,argument4,globalWorkSize,localWorkSize) = 
+        this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg},globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,argument1,argument2,argument3,argument4,argument5,globalWorkSize,localWorkSize) = 
-        this.Run(kernelName,seq {argument1 :> KernelValue; argument2 :> KernelValue; argument3 :> KernelValue; argument4 :> KernelValue; argument5 :> KernelValue},globalWorkSize,localWorkSize)
+    member this.Run(kernelName,events,argument1,argument2,argument3,argument4,argument5,globalWorkSize,localWorkSize) = 
+        this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg; argument5 :> KernelArg},globalWorkSize,localWorkSize)
 
     member __.Finish () = checkErr <| API.Finish(queue)
            

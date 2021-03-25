@@ -116,15 +116,23 @@ let main (argv: string array) =
     
     let img = new SITKUtil.VoxImage "./three_coloured_items_RGBA.png"        
     
-    let input = gpu.TransferImage img
-    let output = gpu.AllocateImage img 
+    let input = gpu.CopyImageToDevice img
+    let output = gpu.NewImageOnDevice img 
+    let output2 = gpu.NewImageOnDevice img 
+    printfn "input: %A output: %A" input output
     
-    gpu.Run("swapRG",input,output,img.Size,None)
+    let e1 = gpu.Run("swapRG",[||],input,output,img.Size,None)
+    let e2 = gpu.Run("swapRG",[|e1|],output,output2,img.Size,None)    
     
+    ignore <| gpu.Run("swapRG",[|e2|],output2,input,img.Size,None)    
     gpu.Finish() 
 
-    let img2 = output.ToHost()
-    img2.Save("output.png")  
+    let img1 = input.Get()
+    let img2 = output.Get()
+    let img3 = output2.Get()
+    img1.Save("output1.png")  
+    img2.Save("output2.png")  
+    img3.Save("output3.png")  
     
     0
 #endif
