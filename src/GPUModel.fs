@@ -91,7 +91,7 @@ type GPUModel() =
                         gVal = output 
                         gEvt = [ event ]
                     }
-        } // job { return VoxImage.Border (getBaseImg()) }
+        } 
     
     // interface IImageModel<VoxImage> with
     //     member __.Intensity (img : VoxImage) = lift VoxImage.Intensity img
