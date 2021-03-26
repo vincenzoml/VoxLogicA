@@ -19,3 +19,16 @@ __kernel void swapRG(__read_only image2d_t inputImage, __write_only image2d_t ou
 
   write_imagef(outImage, gid, newf4); 
 }
+
+__kernel void slow(__read_only image2d_t inputImage, __write_only image2d_t outImage) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  float4 f4 = (float4)read_imagef(inputImage, sampler, gid);  
+  float4 newf4 = (float4)(f4.x, f4.y, f4.z, f4.w);
+
+  for(int i = 0;i < 1000; i++) {
+    for (int j = 0; j < 3; j++)
+    newf4[j] = fmod(newf4[j] * newf4[j],251.0f);
+  } 
+
+  write_imagef(outImage, gid, newf4); 
+}

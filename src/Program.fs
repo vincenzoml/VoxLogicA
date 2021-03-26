@@ -117,22 +117,24 @@ let main (argv: string array) =
     let img = new SITKUtil.VoxImage "./three_coloured_items_RGBA.png"        
     
     let input = gpu.CopyImageToDevice img
-    let output = gpu.NewImageOnDevice img 
-    let output2 = gpu.NewImageOnDevice img 
-    printfn "input: %A output: %A" input output
+    let output1 = gpu.NewImageOnDevice img 
+    let output2 = gpu.NewImageOnDevice img
     
-    let e1 = gpu.Run("swapRG",[||],input,output,img.Size,None)
-    let e2 = gpu.Run("swapRG",[|e1|],output,output2,img.Size,None)   
-    
-    ignore <| gpu.Run("swapRG",[|e2|],output2,input,img.Size,None)    
-    gpu.Finish() 
+    ErrorMsg.Logger.Debug "starting computation"
 
-    let img1 = input.Get()
-    let img2 = output.Get()
-    let img3 = output2.Get()
+    let e1 = gpu.Run("slow",[||],input,output1,img.Size,None)   
+    let e2 = gpu.Run("slow",[|e1|],input,output2,img.Size,None)   
+    gpu.Finish() 
+    ErrorMsg.Logger.Debug "saving"
+
+    let img1 = output1.Get()
+    let img2 = output2.Get()
+    
     img1.Save("output1.png")  
-    img2.Save("output2.png")  
-    img3.Save("output3.png")  
+    img2.Save("output2.png")
+
+    ErrorMsg.Logger.Debug "all done"
+    
     
     0
 #endif
