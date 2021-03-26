@@ -119,6 +119,7 @@ let main (argv: string array) =
     let input = gpu.CopyImageToDevice img
     let output = gpu.NewImageOnDevice img 
     let output2 = gpu.NewImageOnDevice img 
+    
     printfn "input: %A output: %A" input output
     
     let e1 = gpu.Run("swapRG",[||],input,output,img.Size,None)

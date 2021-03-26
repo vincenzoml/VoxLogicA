@@ -45,21 +45,22 @@ type Pointer = private { Pointer : nativeint }
 
 type Event = private { Event : nativeint }
 
-type KernelArg = 
-    abstract member Pointer : Pointer
+type KernelArg(ptr)= 
+    member private __.Pointer() = ptr
+    static member private Pointer(k : KernelArg) = k.Pointer()
 
-type GPUValue<'a> =    
-    inherit KernelArg
+[<AbstractClass>]
+type GPUValue<'a>(ptr) =    
+    inherit KernelArg(ptr)
     abstract member Get : unit -> 'a      
 
-type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) = 
-    let mutable clone = new VoxImage(img)
-    
-    override __.ToString() = sprintf "<GPUImage %d>" pointer.Pointer
+type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) =     
+    inherit GPUValue<VoxImage>(pointer) with        
+        let mutable clone = new VoxImage(img)
 
-    interface GPUValue<VoxImage> with           
-        member __.Pointer = pointer
-        member __.Get () =         
+        override __.ToString() = sprintf "<GPUImage %d>" pointer.Pointer    
+        
+        override __.Get () =         
             use startPtr = fixed [|0un;0un;0un|]
             use endPtr = fixed [|unativeint clone.Size.[0];unativeint clone.Size.[1];unativeint (if clone.Size.Length >= 3 then clone.Size.[2] else 1)|]
 
@@ -84,6 +85,8 @@ type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) =
                         checkErr <| API.EnqueueReadImage(queue.Pointer,pointer.Pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
 
             destination
+
+        
 
 type Kernel = 
     {   Name : string
@@ -280,7 +283,7 @@ and GPU(kernelsFilename : string) =
         let args' = Seq.zip (Seq.initInfinite id) args
         let events = Array.map (fun (x : Event) -> x.Event) events
         for (idx,arg) in args' do
-            use a' = fixed [| arg.Pointer.Pointer |] 
+            use a' = fixed [| (KernelArg.Pointer arg).Pointer |] 
             let a = NativePtr.toVoidPtr a'
             checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
