@@ -33,7 +33,6 @@ type CmdLine =
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
             | Filename _ -> "VoxLogicA session file"
 
-#if FALSE
 [<EntryPoint>]
 let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
@@ -46,7 +45,7 @@ let main (argv: string array) =
 
     let parsed = cmdLineParser.Parse argv
     ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
-    let model = SITKModel() :> IModel
+    let model = GPUModel() :> IModel
     let checker = ModelChecker model
     let finish = 
         if Option.isSome (parsed.TryGetResult JSon) then 
@@ -101,40 +100,3 @@ let main (argv: string array) =
         ErrorMsg.Logger.Failure "exiting."
         finish (Some e)
         1
-#else
-
-open VoxLogicA
-
-[<EntryPoint>]
-let main (argv: string array) =
-    ErrorMsg.Logger.LogToStdout()
-    ErrorMsg.Logger.Debug "Starting"
-    
-    let kernelFile = System.IO.Path.Combine [|System.IO.Path.GetDirectoryName (Assembly.GetExecutingAssembly().Location); "kernel.cl"|]
-    
-    let gpu = GPU.GPU(kernelFile)    
-    
-    let img = new SITKUtil.VoxImage "./three_coloured_items_RGBA.png"        
-    
-    let input = gpu.CopyImageToDevice img
-    let output1 = gpu.NewImageOnDevice img 
-    let output2 = gpu.NewImageOnDevice img
-    
-    ErrorMsg.Logger.Debug "starting computation"
-
-    let e1 = gpu.Run("slow",[||],input,output1,img.Size,None)   
-    let e2 = gpu.Run("slow",[|e1|],input,output2,img.Size,None)   
-    gpu.Finish() 
-    ErrorMsg.Logger.Debug "saving"
-
-    let img1 = output1.Get()
-    let img2 = output2.Get()
-    
-    img1.Save("output1.png")  
-    img2.Save("output2.png")
-
-    ErrorMsg.Logger.Debug "all done"
-    
-    
-    0
-#endif

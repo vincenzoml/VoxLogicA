@@ -275,7 +275,7 @@ and GPU(kernelsFilename : string) =
 
         new GPUImage({ Pointer = ptr },img,{ Pointer = queue }) :> GPUValue<VoxImage>
         
-    member __.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
+    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         let events = Array.map (fun (x : Event) -> x.Event) events
@@ -286,16 +286,18 @@ and GPU(kernelsFilename : string) =
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
         use event' = fixed event
-        use events' = fixed events
+        use events'' = fixed events
+        let events' = if events.Length > 0 then events'' else nullPtr
         let fn (localWorkSize' : nativeptr<unativeint>) = 
             checkErr <| 
             API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')
+        this.Finish()        
         match oLocalWorkSize with
         | None -> fn uNullPtr
         | Some localWorkSize ->
             assert (globalWorkSize.Length = localWorkSize.Length)
-            use localWorkSize' = fixed (Array.map unativeint localWorkSize)
-            fn localWorkSize'
+            use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
+            fn localWorkSize'            
         { Event = event.[0] }
                
     member this.Run(kernelName,events,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument :> KernelArg},globalWorkSize,localWorkSize)
@@ -311,6 +313,6 @@ and GPU(kernelsFilename : string) =
     member this.Run(kernelName,events,argument1,argument2,argument3,argument4,argument5,globalWorkSize,localWorkSize) = 
         this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg; argument5 :> KernelArg},globalWorkSize,localWorkSize)
 
-    member __.Finish () = checkErr <| API.Finish(queue)
+    member __.Finish () = checkErr <| API.Finish(queue)    
            
    

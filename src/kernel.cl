@@ -20,6 +20,14 @@ __kernel void swapRG(__read_only image2d_t inputImage, __write_only image2d_t ou
   write_imagef(outImage, gid, newf4); 
 }
 
+__kernel void test(__write_only image2d_t outImage) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+
+  float4 newf4 = (float4)(255, 0, 0, 255);
+  write_imagef(outImage,gid,newf4);
+}
+
+
 __kernel void slow(__read_only image2d_t inputImage, __write_only image2d_t outImage) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   float4 f4 = (float4)read_imagef(inputImage, sampler, gid);  
