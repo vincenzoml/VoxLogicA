@@ -50,7 +50,7 @@ type GPUModel() =
 
     override __.Save filename v =
         let gmv = (v :?> GPUModelValue)
-        gpu.Finish()
+        gpu.Wait <| Array.ofList gmv.gEvt
         let img = gmv.gVal.Get()
         ErrorMsg.Logger.DebugOnly (sprintf "saving image: %A" <| img.GetHashCode())
         img.Save(filename)

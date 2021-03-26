@@ -313,6 +313,12 @@ and GPU(kernelsFilename : string) =
     member this.Run(kernelName,events,argument1,argument2,argument3,argument4,argument5,globalWorkSize,localWorkSize) = 
         this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg; argument5 :> KernelArg},globalWorkSize,localWorkSize)
 
+    member __.Wait(events : array<Event>) =
+        let events = Array.map (fun (x : Event) -> x.Event) events
+        use events'' = fixed events
+        let events' = if events.Length > 0 then events'' else nullPtr
+        checkErr <| API.WaitForEvents(uint32 events.Length,events')
+
     member __.Finish () = checkErr <| API.Finish(queue)    
            
    
