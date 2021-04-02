@@ -248,7 +248,6 @@ and GPU(kernelsFilename : string) =
                                 p)))
 
         new GPUImage(ptr,hImgSource,{ Pointer = queue }) :> GPUValue<VoxImage>
-
                       
     member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents)
 
