@@ -43,9 +43,9 @@ let API = CL.GetApi()
  
 type Pointer = private { Pointer : nativeint }
 
-type Data = private { DataPointer : nativeint }
-
 type Event = private { EventPointer : nativeint }
+
+type Data = private { DataPointer : nativeint }
 
 type KArgType = Buffer of Data | Float of float32 
 
@@ -62,6 +62,19 @@ type private GPUFloat (x : float32) =
     interface GPUValue<float32> with
         member __.Value = Float x
         member __.Get() = x
+
+type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : int,queue : Pointer) =
+    
+    override __.ToString() = sprintf "<GPUArray %d>" dataPointer
+
+    interface GPUValue<array<'a>> with
+        member __.Value = Buffer { DataPointer = dataPointer }
+        member _.Get () =
+            let dest = Array.zeroCreate length
+            use ptr = fixed dest
+            let ptr' = NativePtr.toVoidPtr ptr
+            checkErr <| API.EnqueueReadBuffer(queue.Pointer,dataPointer,true,0un,unativeint length,ptr',0ul,nullPtr,nullPtr)
+            dest
 
 type private GPUImage (dataPointer : nativeint,img : VoxImage,queue : Pointer) = 
     let mutable clone = new VoxImage(img)
@@ -204,6 +217,16 @@ and GPU(kernelsFilename : string) =
 
     member __.Float32 (f : float32) =
         GPUFloat f :> GPUValue<float32>
+
+    member __.NewArrayOnDevice<'a when 'a : unmanaged> (length : int) =
+        let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,CLEnum.MemReadWrite,unativeint (length * sizeof<'a>),vNullPtr,p)
+        new GPUArray<'a>(ptr,length,{ Pointer = queue }) :> GPUValue<array<'a>>
+
+    member __.CopyArrayToDevice (v : array<'a>) =
+        use vptr' = fixed v
+        let vptr = NativePtr.toVoidPtr vptr'
+        let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,enum<CLEnum>(32),unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
+        new GPUArray<'a>(ptr,v.Length,{ Pointer = queue }) :> GPUValue<array<'a>>
 
     member __.CopyImageToDevice (hImgSource: VoxImage) =        
         let dimension =            
