@@ -43,22 +43,33 @@ let API = CL.GetApi()
  
 type Pointer = private { Pointer : nativeint }
 
-type Event = private { Event : nativeint }
+type Data = private { DataPointer : nativeint }
 
-type KernelArg = 
-    abstract member Pointer : Pointer
+type Event = private { EventPointer : nativeint }
+
+type KArgType = Buffer of Data | Float of float32 
+
+type KernelArg =
+    abstract member Value : KArgType
 
 type GPUValue<'a> =    
     inherit KernelArg
     abstract member Get : unit -> 'a      
 
-type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) = 
+type private GPUFloat (x : float32) =
+    override __.ToString() = sprintf "<GPUFloat %f>" x
+
+    interface GPUValue<float32> with
+        member __.Value = Float x
+        member __.Get() = x
+
+type private GPUImage (dataPointer : nativeint,img : VoxImage,queue : Pointer) = 
     let mutable clone = new VoxImage(img)
     
-    override __.ToString() = sprintf "<GPUImage %d>" pointer.Pointer
+    override __.ToString() = sprintf "<GPUImage %d>" dataPointer
 
-    interface GPUValue<VoxImage> with           
-        member __.Pointer = pointer
+    interface GPUValue<VoxImage> with 
+        member __.Value = Buffer { DataPointer = dataPointer }        
         member __.Get () =         
             use startPtr = fixed [|0un;0un;0un|]
             use endPtr = fixed [|unativeint clone.Size.[0];unativeint clone.Size.[1];unativeint (if clone.Size.Length >= 3 then clone.Size.[2] else 1)|]
@@ -76,12 +87,12 @@ type private GPUImage (pointer : Pointer,img : VoxImage,queue : Pointer) =
                 destination.GetBufferAsUInt8
                     (fun buf -> 
                         let ptr = NativePtr.toVoidPtr buf.Pointer
-                        checkErr <| API.EnqueueReadImage(queue.Pointer,pointer.Pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
+                        checkErr <| API.EnqueueReadImage(queue.Pointer,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
             | Float32 ->
                 destination.GetBufferAsFloat
                     (fun buf -> 
                         let ptr = NativePtr.toVoidPtr buf.Pointer
-                        checkErr <| API.EnqueueReadImage(queue.Pointer,pointer.Pointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
+                        checkErr <| API.EnqueueReadImage(queue.Pointer,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
 
             destination
 
@@ -191,8 +202,9 @@ and GPU(kernelsFilename : string) =
 
     let _ = ErrorMsg.Logger.Debug "Initialized GPU"
 
-    
-    
+    member __.Float32 (f : float32) =
+        GPUFloat f :> GPUValue<float32>
+
     member __.CopyImageToDevice (hImgSource: VoxImage) =        
         let dimension =            
             match hImgSource.Dimension with 
@@ -235,7 +247,7 @@ and GPU(kernelsFilename : string) =
                                 imgPtr,
                                 p)))
 
-        new GPUImage({ Pointer = ptr },hImgSource,{ Pointer = queue }) :> GPUValue<VoxImage>
+        new GPUImage(ptr,hImgSource,{ Pointer = queue }) :> GPUValue<VoxImage>
 
                       
     member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents)
@@ -273,16 +285,22 @@ and GPU(kernelsFilename : string) =
         
         let ptr = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
-        new GPUImage({ Pointer = ptr },img,{ Pointer = queue }) :> GPUValue<VoxImage>
+        new GPUImage(ptr,img,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
-        let events = Array.map (fun (x : Event) -> x.Event) events
-        for (idx,arg) in args' do
-            use a' = fixed [| arg.Pointer.Pointer |] 
-            let a = NativePtr.toVoidPtr a'
-            checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
+        let events = Array.map (fun (x : Event) -> x.EventPointer) events
+        for (idx,arg) in args' do            
+            match arg.Value with
+            | Buffer d -> 
+                use a' = fixed [| d.DataPointer |] 
+                let a = NativePtr.toVoidPtr a'
+                checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
+            | Float f -> 
+                use a' = fixed [| f |]
+                let a = NativePtr.toVoidPtr a'
+                checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)            
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
         use event' = fixed event
@@ -298,7 +316,7 @@ and GPU(kernelsFilename : string) =
             assert (globalWorkSize.Length = localWorkSize.Length)
             use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
             fn localWorkSize'            
-        { Event = event.[0] }
+        { EventPointer = event.[0] }
                
     member this.Run(kernelName,events,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument :> KernelArg},globalWorkSize,localWorkSize)
 
@@ -314,7 +332,7 @@ and GPU(kernelsFilename : string) =
         this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg; argument5 :> KernelArg},globalWorkSize,localWorkSize)
 
     member __.Wait(events : array<Event>) =
-        let events = Array.map (fun (x : Event) -> x.Event) events
+        let events = Array.map (fun (x : Event) -> x.EventPointer) events
         use events'' = fixed events
         let events' = if events.Length > 0 then events'' else nullPtr
         checkErr <| API.WaitForEvents(uint32 events.Length,events')
