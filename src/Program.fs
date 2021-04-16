@@ -88,7 +88,7 @@ let main (argv: string array) =
         | None, false ->
             printfn "%s\n" (cmdLineParser.PrintUsage())
             0
-        | Some filename, _ ->
+        | Some filename, _ ->            
             run filename
             finish None
             0
