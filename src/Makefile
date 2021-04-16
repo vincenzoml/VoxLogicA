@@ -18,7 +18,7 @@
 ### the program will be compiled in
 ### ./bin/release/netcoreapp2.x/win-x64/publish/voxlogica
 
-PROJ=TriaGraphLogicA
+PROJ=PolyLogicA
 UNAME := $(shell uname)
 VERSION=$(shell cat VERSION.txt)
 RELEASENAME=$(PROJ)_$(VERSION)_$(RID)
