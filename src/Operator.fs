@@ -53,7 +53,7 @@ type Operator(name : string, argtype : array<Type>, rettype : Type, fn : array<o
 
 and Constant(x,t) =
     inherit Operator(
-        (   ErrorMsg.Logger.DebugOnly(sprintf "Warning: creating a constant calling the ToString() method on an object of type %A; check that the ToString() method is as unique as you want your objects to be." <| x.GetType());
+        (   //ErrorMsg.Logger.DebugOnly(sprintf "Warning: creating a constant calling the ToString() method on an object of type %A; check that the ToString() method is as unique as you want your objects to be." <| x.GetType());
             x.ToString()),
         [||],t,(fun _ -> Job.result (x :> obj)),false,true)
 
