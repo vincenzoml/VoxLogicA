@@ -49,6 +49,7 @@ restore:
 publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
+	rm bin/release/net5.0/$(RID)/publish/*.pdb
 	cp -a bin/release/net5.0/$(RID)/publish/* $(RELEASE)
 	cp -a BINARY_LICENSE.txt $(RELEASE)
 	cd ../releases && rm -f $(RELEASENAME).zip && zip -r $(RELEASENAME).zip $(RELEASENAME)
