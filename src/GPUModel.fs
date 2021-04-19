@@ -95,6 +95,7 @@ type GPUModel() =
             match baseImg with
             | None ->
                 baseImg <- Some img
+                gpu.SetKernelSuffix <| img.Dimension.ToString() + "D"
                 img
             | Some img1 ->
                 if VoxImage.SamePhysicalSpace img1 img then

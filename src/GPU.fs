@@ -318,7 +318,7 @@ and GPU(kernelsFilename : string) =
         let tmp = 
             match kernelSuffix with
             | None -> kernelName
-            | Some suffix -> kernelName + suffix.ToString() + "D"
+            | Some suffix -> kernelName + suffix
         let kName = if kernels.ContainsKey(tmp) then tmp else kernelName       
         let kernel = kernels.[kName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
