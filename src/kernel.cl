@@ -11,6 +11,35 @@ __kernel void intensity(__read_only image2d_t inputImage,
   write_imagef(outImage, gid, f4);
 }
 
+__kernel void getComponent(__read_only image2d_t inputImage,
+                           __write_only image2d_t outputImage,
+                           __global unsigned int *c) {
+
+  int x = get_global_id(0);
+  int y = get_global_id(1);
+
+  int2 coord = (int2)(x, y);
+
+  uint4 ui4 = read_imageui(inputImage, sampler, coord);
+  int i = ((0 == *c) * ui4.x) + ((1 == *c) * ui4.y) + ((2 == *c) * ui4.z) +
+          ((3 == *c) * ui4.w);
+
+  write_imageui(outputImage, coord, i);
+}
+
+__kernel void rgbComps(__read_only image2d_t inputImage1,
+                       __read_only image2d_t inputImage2,
+                       __read_only image2d_t inputImage3,
+                       __write_only image2d_t outImage) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+
+  uint4 pix1 = (uint4)read_imageui(inputImage1, gid);
+  uint4 pix2 = (uint4)read_imageui(inputImage2, gid);
+  uint4 pix3 = (uint4)read_imageui(inputImage3, gid);
+
+  write_imageui(outImage, gid, (uint4)(pix1.x, pix2.y, pix3.z, 255));
+}
+
 __kernel void swapRG(__read_only image2d_t inputImage, __write_only image2d_t outImage) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
 

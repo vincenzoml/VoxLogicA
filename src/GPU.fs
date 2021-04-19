@@ -113,7 +113,7 @@ type Kernel =
     {   Name : string
         Pointer : Pointer     }    
 
-and GPU(kernelsFilename : string) =
+and GPU(kernelsFilename : string, dim : int) =
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
 
     let platformIDs =
@@ -309,8 +309,10 @@ and GPU(kernelsFilename : string) =
 
         new GPUImage(ptr,img,{ Pointer = queue }) :> GPUValue<VoxImage>
         
-    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>,globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
-        let kernel = kernels.[kernelName].Pointer
+    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
+        let tmp = kernelName + dim.ToString() + "D"
+        let kName = if kernels.ContainsKey(tmp) then tmp else kernelName       
+        let kernel = kernels.[kName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         let events = Array.map (fun (x : Event) -> x.EventPointer) events
         for (idx,arg) in args' do            
@@ -339,19 +341,21 @@ and GPU(kernelsFilename : string) =
             use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
             fn localWorkSize'            
         { EventPointer = event.[0] }
-               
-    member this.Run(kernelName,events,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument :> KernelArg},globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,events,argument1,argument2,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg},globalWorkSize,localWorkSize)
+    member this.Run(kernelName : string, events : array<Event>, variadic : seq<GPUValue<_>>, globalWorkSize : array<int>, localWorkSize : Option<array<int>>) = this.Run(kernelName,events, Seq.map (fun x -> x :> KernelArg) variadic, globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,events,argument1,argument2,argument3,globalWorkSize,localWorkSize) = 
-        this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg},globalWorkSize,localWorkSize)
+    // member this.Run(kernelName,events,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument :> KernelArg}, None, globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,events,argument1,argument2,argument3,argument4,globalWorkSize,localWorkSize) = 
-        this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg},globalWorkSize,localWorkSize)
+    // member this.Run(kernelName,events,argument1,argument2,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg}, globalWorkSize,localWorkSize)
 
-    member this.Run(kernelName,events,argument1,argument2,argument3,argument4,argument5,globalWorkSize,localWorkSize) = 
-        this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg; argument5 :> KernelArg},globalWorkSize,localWorkSize)
+    // member this.Run(kernelName,events,argument1,argument2,argument3,globalWorkSize,localWorkSize) = 
+    //     this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg}, None, globalWorkSize,localWorkSize)
+
+    // member this.Run(kernelName,events,argument1,argument2,argument3,argument4,globalWorkSize,localWorkSize) = 
+    //     this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg}, globalWorkSize,localWorkSize)
+
+    // member this.Run(kernelName,events,argument1,argument2,argument3,argument4,argument5,globalWorkSize,localWorkSize) = 
+    //     this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg; argument5 :> KernelArg}, globalWorkSize,localWorkSize)
 
     member __.Wait(events : array<Event>) =
         let events = Array.map (fun (x : Event) -> x.EventPointer) events
