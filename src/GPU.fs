@@ -113,7 +113,9 @@ type Kernel =
     {   Name : string
         Pointer : Pointer     }    
 
-and GPU(kernelsFilename : string, dim : int) =
+and GPU(kernelsFilename : string) =
+    let mutable kernelSuffix = None
+
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
 
     let platformIDs =
@@ -215,6 +217,9 @@ and GPU(kernelsFilename : string, dim : int) =
 
     let _ = ErrorMsg.Logger.Debug "Initialized GPU"
 
+    member __.SetKernelSuffix x =
+        kernelSuffix <- Some x
+
     member __.Float32 (f : float32) =
         GPUFloat f :> GPUValue<float32>
 
@@ -310,7 +315,10 @@ and GPU(kernelsFilename : string, dim : int) =
         new GPUImage(ptr,img,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
-        let tmp = kernelName + dim.ToString() + "D"
+        let tmp = 
+            match kernelSuffix with
+            | None -> kernelName
+            | Some suffix -> kernelName + suffix.ToString() + "D"
         let kName = if kernels.ContainsKey(tmp) then tmp else kernelName       
         let kernel = kernels.[kName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
