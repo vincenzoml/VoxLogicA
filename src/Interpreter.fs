@@ -54,8 +54,8 @@ and private Env = Map<string,DVal>
 
 type Interpreter(model : IModel, checker : ModelChecker) =
     let defaultLibDir : string = 
-        System.IO.Path.GetDirectoryName (System.Reflection.Assembly.GetExecutingAssembly().Location)
-    
+        System.IO.Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName)    
+        
     let emptyEnv () = (new Map<_,_>([]) : Env)
 
     let bindList (env : Env) (formals : string list) actuals =        

@@ -18,7 +18,7 @@
 ### the program will be compiled in
 ### ./bin/release/netcoreapp2.x/win-x64/publish/voxlogica
 
-PROJ=TriaGraphLogicA
+PROJ=PolyLogicA
 UNAME := $(shell uname)
 VERSION=$(shell cat VERSION.txt)
 RELEASENAME=$(PROJ)_$(VERSION)_$(RID)
@@ -56,7 +56,7 @@ restore:
 publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
-	cp -a bin/release/netcoreapp3.1/$(RID)/publish/* $(RELEASE)
+	cp -a bin/release/net5.0/$(RID)/publish/* $(RELEASE)
 	cp -a BINARY_LICENSE.txt $(RELEASE)
 	cd ../releases && rm -f $(RELEASENAME).zip && zip -r $(RELEASENAME).zip $(RELEASENAME)
 
