@@ -235,17 +235,15 @@ let openStarSimplex triaGraph simplex : Set<int> =
     Set.add simplex others
 
 // Compute the points that can reach a point in "target" passing only through points in "safe".
-// (If the initial point is in target, then the condition holds; if the starting point is neither in safe nor in target, then the condition does not hold)
 let reach triaGraph (safe : Truth) (target : Truth) : Truth =
-    let visited = Array.copy target
-    let result = Array.copy target
-    let rec step (frontier : list<list<int>>) =
+    let intermediate = Array.map2 (&&) (safe) (upClosure triaGraph target) // starting set of the flooding algorithm: simplexes in safe with a face in target
+    let visited = Array.copy intermediate
+    let rec step (frontier : list<int>) =
         match frontier with
-        | [] -> ()
-        | []::xs -> step xs
-        | (x::xs)::ys ->
-            result.[x] <- true
-            let closeToX =
+        | [] -> ()  // If the frontier is empty, terminate
+        | s::restOfFrontier ->  // If the frontier is not empty, pop a simplex
+            intermediate.[s] <- true  // That simplex is in the intermediate set
+            let successorsOfS =
                 List.filter
                     (fun candidate ->
                         if not visited.[candidate]
@@ -255,11 +253,35 @@ let reach triaGraph (safe : Truth) (target : Truth) : Truth =
                         else
                             false
                     )
-                    (Set.toList (openStarSimplex triaGraph x))
-            step (closeToX::(xs::ys))
-    let startList = [for i in 0..target.Length-1 do if target.[i] then yield i]
-    step [startList]
+                    (Set.toList (openStarSimplex triaGraph s))
+            step (List.append restOfFrontier successorsOfS)
+    let startList = [for i in 0..intermediate.Length-1 do if intermediate.[i] then yield i]
+    step startList
+    let result = downClosure triaGraph intermediate
     result
+
+
+    // let rec step (frontier : list<list<int>>) =
+    //     match frontier with
+    //     | [] -> ()
+    //     | []::xs -> step xs
+    //     | (x::xs)::ys ->
+    //         result.[x] <- true
+    //         let closeToX =
+    //             List.filter
+    //                 (fun candidate ->
+    //                     if not visited.[candidate]
+    //                     then
+    //                         visited.[candidate] <- true
+    //                         safe.[candidate]
+    //                     else
+    //                         false
+    //                 )
+    //                 (Set.toList (openStarSimplex triaGraph x))
+    //         step (closeToX::(xs::ys))
+    // let startList = [for i in 0..target.Length-1 do if target.[i] then yield i]
+    // step [startList]
+    // result
 
 
 
