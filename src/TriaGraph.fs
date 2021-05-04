@@ -227,7 +227,13 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
         AtomOfName = atomOfName
         SimplexId = simplexId  }    
 
-let loadTriaGraph filename = mkTriaGraph(loadFileTriaGraph(filename))
+let loadTriaGraph filename = 
+    ErrorMsg.Logger.Debug "Importing json file..."
+    let tmp = loadFileTriaGraph filename
+    ErrorMsg.Logger.Debug "Processing json file..."
+    let res = mkTriaGraph tmp
+    ErrorMsg.Logger.Debug "File loaded"
+    res
 
 
 // Computes the *set* of simplexes satysfing the property
