@@ -107,7 +107,7 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
     let hashConstructor = new Dictionary<int list,int>()
     List.iteri
         (fun idx simplex ->
-            hashConstructor.[simplex.points] <- idx
+            hashConstructor.[List.sort simplex.points] <- idx
             simplexId.[idx] <- simplex.id
             simplexDict.[simplex.id] <- idx
             // Subiteration to build atomsOfSimplex, simplexesOfAtom and atomsSet
@@ -163,8 +163,9 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
     List.iteri
         (fun idx simplex ->
             // first add the faces
-            for i in 0 .. (List.length simplex.points) do
-                let pointsOfFace = remove i simplex.points
+            let pts = List.sort simplex.points
+            for i in 0 .. (List.length pts) do
+                let pointsOfFace = remove i pts
                 let indexOfFace = hashConstructor.[pointsOfFace]
                 Faces.[idx] <- Set.union Faces.[idx] Faces.[indexOfFace]
                 facesNext.[idx] <- Set.add indexOfFace facesNext.[idx]
