@@ -165,11 +165,12 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
         (fun idx simplex ->
             // first add the faces
             let pts = List.sort simplex.points
-            for i in 0 .. (List.length pts) do
-                let pointsOfFace = remove i pts
-                let indexOfFace = hashConstructor.[pointsOfFace]
-                Faces.[idx] <- Set.union Faces.[idx] Faces.[indexOfFace]
-                facesNext.[idx] <- Set.add indexOfFace facesNext.[idx]
+            if List.length pts > 1 then 
+                for i in 0 .. (List.length pts - 1) do
+                    let pointsOfFace = remove i pts
+                    let indexOfFace = hashConstructor.[pointsOfFace]
+                    Faces.[idx] <- Set.union Faces.[idx] Faces.[indexOfFace]
+                    facesNext.[idx] <- Set.add indexOfFace facesNext.[idx]
             Faces.[idx] <- Set.add idx Faces.[idx]
             // then add the parents
             Parents.[idx] <- Set.add idx Parents.[idx]
