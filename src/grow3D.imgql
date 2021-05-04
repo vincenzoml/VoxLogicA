@@ -1,0 +1,18 @@
+load graph = "grow3D.json"
+
+let touch(a,b) = and(a,through(a,b))
+let grow(a,b) = or(a,touch(b,a))
+
+let p = ap("p")
+let q = ap("q")
+
+save "p" p
+save "q" q
+
+// save "near p" near(p)
+// save "near q" near(q)
+
+// save "q reach p" through(q,p)
+// save "p reach q" through(p,q)
+
+save "grow p with q" grow(p,q)

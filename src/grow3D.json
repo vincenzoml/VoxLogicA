@@ -1,0 +1,254 @@
+{
+    "numberOfPoints": 8,
+    "coordinatesOfPoints": [
+        [ 0, 0, 0],
+        [ 0,10, 0],
+        [ 0, 0,10],
+        [ 0,10,10],
+        [10, 0, 0],
+        [10,10, 0],
+        [10, 0,10],
+        [10,10,10]
+    ],
+    "atomNames": [
+        "p",
+        "q"
+    ],
+    "simplexes": [
+        {
+            "id": "p0",
+            "points": [0],
+            "atoms": ["p"]
+        },
+        {
+            "id": "p1",
+            "points": [1],
+            "atoms": ["p"]
+        },
+        {
+            "id": "p2",
+            "points": [2],
+            "atoms": ["p"]
+        },
+        {
+            "id": "p3",
+            "points": [3],
+            "atoms": ["p"]
+        },
+        {
+            "id": "p4",
+            "points": [4],
+            "atoms": ["q"]
+        },
+        {
+            "id": "p5",
+            "points": [5],
+            "atoms": ["q"]
+        },
+        {
+            "id": "p6",
+            "points": [6],
+            "atoms": ["q"]
+        },
+        {
+            "id": "p7",
+            "points": [7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "e0",
+            "points": [0,1],
+            "atoms": ["p"]
+        },
+        {
+            "id": "e1",
+            "points": [0,4],
+            "atoms": []
+        },
+        {
+            "id": "e2",
+            "points": [1,4],
+            "atoms": []
+        },
+        {
+            "id": "e3",
+            "points": [4,5],
+            "atoms": ["q"]
+        },
+        {
+            "id": "e4",
+            "points": [1,5],
+            "atoms": []
+        },
+        {
+            "id": "e5",
+            "points": [0,2],
+            "atoms": ["p"]
+        },
+        {
+            "id": "e6",
+            "points": [2,4],
+            "atoms": []
+        },
+        {
+            "id": "e7",
+            "points": [4,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "e8",
+            "points": [5,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "e9",
+            "points": [1,7],
+            "atoms": []
+        },
+        {
+            "id": "e10",
+            "points": [1,2],
+            "atoms": ["p"]
+        },
+        {
+            "id": "e11",
+            "points": [4,6],
+            "atoms": ["q"]
+        },
+        {
+            "id": "e12",
+            "points": [1,3],
+            "atoms": ["p"]
+        },
+        {
+            "id": "e13",
+            "points": [2,6],
+            "atoms": []
+        },
+        {
+            "id": "e14",
+            "points": [6,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "e15",
+            "points": [3,7],
+            "atoms": []
+        },
+        {
+            "id": "e16",
+            "points": [2,3],
+            "atoms": ["p"]
+        },
+        {
+            "id": "e17",
+            "points": [2,7],
+            "atoms": []
+        },
+        {
+            "id": "T0",
+            "points": [0,1,4],
+            "atoms": []
+        },
+        {
+            "id": "T1",
+            "points": [1,4,5],
+            "atoms": []
+        },
+        {
+            "id": "T2",
+            "points": [0,2,4],
+            "atoms": []
+        },
+        {
+            "id": "T3",
+            "points": [4,5,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "T4",
+            "points": [1,5,7],
+            "atoms": []
+        },
+        {
+            "id": "T5",
+            "points": [0,1,2],
+            "atoms": ["p"]
+        },
+        {
+            "id": "T6",
+            "points": [1,2,4],
+            "atoms": ["q"]
+        },
+        {
+            "id": "T7",
+            "points": [1,4,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "T8",
+            "points": [2,4,6],
+            "atoms": []
+        },
+        {
+            "id": "T9",
+            "points": [4,6,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "T10",
+            "points": [1,3,7],
+            "atoms": []
+        },
+        {
+            "id": "T11",
+            "points": [1,2,3],
+            "atoms": ["p"]
+        },
+        {
+            "id": "T12",
+            "points": [2,4,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "T13",
+            "points": [1,2,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "T14",
+            "points": [2,6,7],
+            "atoms": []
+        },
+        {
+            "id": "T15",
+            "points": [2,3,7],
+            "atoms": []
+        },
+        {
+            "id": "TT0",
+            "points": [0,1,2,4],
+            "atoms": ["q"]
+        },
+        {
+            "id": "TT1",
+            "points": [1,4,5,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "TT2",
+            "points": [1,2,4,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "TT3",
+            "points": [2,4,6,7],
+            "atoms": ["q"]
+        },
+        {
+            "id": "TT4",
+            "points": [1,2,3,7],
+            "atoms": ["q"]
+        }
+    ]
+  }

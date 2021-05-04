@@ -154,6 +154,7 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
             pointsOfSimplex.[idx] <- res
         )
         fg.simplexes
+    
     // This builds the Parents, Faces, parentsNext and facesNext
     let rec remove i l =
         match i, l with
