@@ -101,9 +101,13 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
     //         curid <- curid + 1
     //         res
 
+
     // This builds the simplexId, simplexDict, atomsOfSimplex, simplexesOfAtom and atomsSet
+    // Moreover, it fills an auxiliary dictionary (hashConstructor) with keys the set of vertices and values the index of the simplex in the array
+    let hashConstructor = new Dictionary<int list,int>()
     List.iteri
-        (fun idx simplex -> 
+        (fun idx simplex ->
+            hashConstructor.[simplex.points] <- idx
             simplexId.[idx] <- simplex.id
             simplexDict.[simplex.id] <- idx
             // Subiteration to build atomsOfSimplex, simplexesOfAtom and atomsSet
@@ -150,29 +154,55 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
             pointsOfSimplex.[idx] <- res
         )
         fg.simplexes
-    // This builds the simplexesDown, simplexesUp, facesDown and facesUp
-    let isEveryElementContained list1 list2 =
-        List.forall (fun el -> List.contains el list2) list1
+    // This builds the Parents, Faces, parentsNext and facesNext
+    let rec remove i l =
+        match i, l with
+        | 0, x::xs -> xs
+        | i, x::xs -> x::remove (i - 1) xs
+        | i, [] -> failwith "index out of range"
     List.iteri
-        (fun idx1 simplex1 ->
-            List.iteri
-                (
-                    fun idx2 simplex2 ->
-                        let cont = isEveryElementContained simplex1.points simplex2.points
-                        Parents.[idx2] <-
-                            if cont then Set.add idx1 Parents.[idx2] else Parents.[idx2]
-                        Faces.[idx1] <-
-                            if cont then Set.add idx2 Faces.[idx1] else Faces.[idx1]
-                        parentsNext.[idx2] <-
-                            if cont && List.length simplex1.points = (List.length simplex2.points) - 1 then Set.add idx1 parentsNext.[idx2] else parentsNext.[idx2]
-                        facesNext.[idx1] <-
-                            if cont && List.length simplex1.points = (List.length simplex2.points) - 1 then Set.add idx2 facesNext.[idx1] else facesNext.[idx1]
-                        ()
-                )
-                fg.simplexes
-            ()
+        (fun idx simplex ->
+            // first add the faces
+            for i in 0 .. (List.length simplex.points) do
+                let pointsOfFace = remove i simplex.points
+                let indexOfFace = hashConstructor.[pointsOfFace]
+                Faces.[idx] <- Set.union Faces.[idx] Faces.[indexOfFace]
+                facesNext.[idx] <- Set.add indexOfFace facesNext.[idx]
+            Faces.[idx] <- Set.add idx Faces.[idx]
+            // then add the parents
+            Parents.[idx] <- Set.add idx Parents.[idx]
+            for face in Faces.[idx] do
+                Parents.[face] <- Set.add idx Parents.[face]
+            for face in facesNext.[idx] do
+                parentsNext.[face] <- Set.add idx parentsNext.[face]
         )
         fg.simplexes
+        
+    
+    
+    // let isEveryElementContained list1 list2 =
+    //     List.forall (fun el -> List.contains el list2) list1
+    // List.iteri
+    //     (fun idx1 simplex1 ->
+    //         List.iteri
+    //             (
+    //                 fun idx2 simplex2 ->
+    //                     let cont = isEveryElementContained simplex1.points simplex2.points
+    //                     Parents.[idx2] <-
+    //                         if cont then Set.add idx1 Parents.[idx2] else Parents.[idx2]
+    //                     Faces.[idx1] <-
+    //                         if cont then Set.add idx2 Faces.[idx1] else Faces.[idx1]
+    //                     parentsNext.[idx2] <-
+    //                         if cont && List.length simplex1.points = (List.length simplex2.points) - 1 then Set.add idx1 parentsNext.[idx2] else parentsNext.[idx2]
+    //                     facesNext.[idx1] <-
+    //                         if cont && List.length simplex1.points = (List.length simplex2.points) - 1 then Set.add idx2 facesNext.[idx1] else facesNext.[idx1]
+    //                     ()
+    //             )
+    //             fg.simplexes
+    //         ()
+    //     )
+    //     fg.simplexes
+    
     // let nameOfAtom =
     //     apDict 
     //         |> Seq.sortBy (fun pair -> pair.Value)
