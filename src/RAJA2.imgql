@@ -2,4 +2,6 @@
 
 load model = "RAJA2-simplified.json"
 
-save "tt" tt
+let red = ap("r1") & ap("g0") & ap("b0")
+
+save "red" red
