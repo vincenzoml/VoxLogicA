@@ -6,4 +6,4 @@ releases/
 High-grade-Glioblastoma_BRATS/output
 examples/*/output
 
-.fake
+.fake.vscode/settings.json
