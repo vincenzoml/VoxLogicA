@@ -83,7 +83,7 @@ edgeSimplexesStrings = []
 for e1 in edges:
     for e2 in edges[e1]:
         # print(e2)
-        color = [round((points[e1][3][0] + points[e2][3][0]) / 2),round((points[e1][3][1] + points[e2][3][1]) / 2),round((points[e1][3][2] + points[e2][3][2]) / 2)]        
+        color = [(points[e1][3][0] + points[e2][3][0]) / 2,(points[e1][3][1] + points[e2][3][1]) / 2,(points[e1][3][2] + points[e2][3][2]) / 2]        
         edgeSimplexesStrings.append(
             simplexString(
                 'E'+str(edgeCounter),
