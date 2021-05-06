@@ -1,3 +1,5 @@
+// https://support.shapeways.com/hc/en-us/articles/360022742294-Polygon-reduction-with-MeshLab
+
 load model = "RAJA2-simplified.json"
 
-save "tt" true
+save "tt" tt

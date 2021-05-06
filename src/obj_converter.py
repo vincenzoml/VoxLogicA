@@ -2,6 +2,8 @@
 import sys
 import os
 
+def quantize(c):
+    return int(c >= 0.3)
 
 with open(sys.argv[1]) as fin:
     objContent = fin.readlines()
@@ -16,12 +18,14 @@ for line in objContent:
     lineData = line.split()
     # print(lineData)
     if lineData and (lineData[0] == "v"):
-        colorCode = lineData[4]+lineData[5]+lineData[6]
-        if colorCode not in properties:
-            properties[colorCode] = idCounter
-            idCounter += 1
-        currentProp = "p" + str(properties[colorCode])
-        points.append( [lineData[1], lineData[2], lineData[3], currentProp] )
+        r = float(lineData[4]) #round(float(lineData[4]) * 255)
+        g = float(lineData[5]) #round(float(lineData[5]) * 255)
+        b = float(lineData[6]) #round(float(lineData[6]) * 255)
+        colorCode = [r,g,b]
+        label = str(colorCode)
+        if label not in properties:
+            properties[label] = colorCode                    
+        points.append( [lineData[1], lineData[2], lineData[3], colorCode] )
 
 # collect the edges and triangles
 edges = {}
@@ -71,7 +75,7 @@ fout.write('],"simplexes": [')
 fout.write( ','.join(  [ simplexString(
     'P'+str(i),
     '['+str(i)+']',
-    '["'+point[3]+'"]'
+    '["'+'r'+str(quantize(point[3][0]))+'","'+'g'+str(quantize(point[3][1]))+'","'+'b'+str(quantize(point[3][2]))+'"]'
     ) for i,point in enumerate(points) ] ) + ',' )
 # # edges
 edgeCounter = 0
@@ -79,13 +83,13 @@ edgeSimplexesStrings = []
 for e1 in edges:
     for e2 in edges[e1]:
         # print(e2)
+        color = [round((points[e1][3][0] + points[e2][3][0]) / 2),round((points[e1][3][1] + points[e2][3][1]) / 2),round((points[e1][3][2] + points[e2][3][2]) / 2)]        
         edgeSimplexesStrings.append(
             simplexString(
                 'E'+str(edgeCounter),
-                '['+str(e1)+','+str(e2)+']',
-                '["'
-                +points[e1][3]+'","'
-                +points[e2][3]+'"]'
+                '['+str(e1)+','+str(e2)+']',                
+                #+ str(color) + 
+                '["'+'r'+str(quantize(color[0]))+'","'+'g'+str(quantize(color[1]))+'","'+'b'+str(quantize(color[2]))+'"]'                
             )
         )
         edgeCounter += 1
@@ -98,7 +102,7 @@ for tria in triangles:
         simplexString(
             'T'+str(triaCounter),
             '['+str(tria[0])+','+str(tria[1])+','+str(tria[2])+']',
-            '["'+points[tria[0]][3]+'","'+points[tria[1]][3]+'","'+points[tria[2]][3]+'"]'
+            '["' + '"]' 
         )
     )
     triaCounter += 1
