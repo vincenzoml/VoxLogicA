@@ -2,6 +2,6 @@
 
 load model = "RAJA2-simplified.json"
 
-let vein = ap("b1")
+let vein = ap("b2") | ap("b3")
 
 save "vein" vein

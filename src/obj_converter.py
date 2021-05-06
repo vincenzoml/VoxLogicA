@@ -3,7 +3,8 @@ import sys
 import os
 
 def quantize(c):
-    return int(c >= 0.3)
+    return round(3*c)
+        
 
 with open(sys.argv[1]) as fin:
     objContent = fin.readlines()
@@ -58,7 +59,7 @@ fout.write( ',\n'.join( [ '['+','.join([str(c) for c in point[:3]])+']' for poin
 
 fout.write('],"atomNames": [')
 # fout.write( '"'+ '",\n"'.join( [ 'p'+str(i) for i in range(len(properties)) ] ) + '"' )
-fout.write( '"r0","r1","g0","g1","b0","b1"')
+fout.write( '"r0","r1","r2","r3","g0","g1","g2","g3","b0","b1","b2","b3"')
 
 def simplexString(id,points,atoms):
     result = '{"id":"'
