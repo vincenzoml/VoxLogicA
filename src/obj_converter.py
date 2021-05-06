@@ -57,7 +57,8 @@ fout.write(',"coordinatesOfPoints": [')
 fout.write( ',\n'.join( [ '['+','.join([str(c) for c in point[:3]])+']' for point in points ] ) )
 
 fout.write('],"atomNames": [')
-fout.write( '"'+ '",\n"'.join( [ 'p'+str(i) for i in range(len(properties)) ] ) + '"' )
+# fout.write( '"'+ '",\n"'.join( [ 'p'+str(i) for i in range(len(properties)) ] ) + '"' )
+fout.write( '"r0","r1","g0","g1","b0","b1"')
 
 def simplexString(id,points,atoms):
     result = '{"id":"'
