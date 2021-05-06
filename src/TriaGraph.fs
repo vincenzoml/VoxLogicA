@@ -121,8 +121,7 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
                     //         res
                     atomsOfSimplex.[idx] <- Set.add atomId atomsOfSimplex.[idx]
                     simplexesOfAtom.[atomId] <- Set.add idx simplexesOfAtom.[atomId]
-                    atomsSet <- atomsSet.Add(atomId)
-                    ()
+                    atomsSet <- atomsSet.Add(atomId)                 
                 )
                 simplex.atoms
         )
