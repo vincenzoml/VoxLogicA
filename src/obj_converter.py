@@ -98,11 +98,16 @@ fout.write( ','.join(edgeSimplexesStrings) + ',' )
 triaCounter = 0
 triaSimplexesStrings = []
 for tria in triangles:
+    color = [
+        (points[tria[0]][3][0] + points[tria[2]][3][0] + points[tria[2]][3][0]) / 3,
+        (points[tria[0]][3][1] + points[tria[2]][3][1] + points[tria[2]][3][1]) / 3,
+        (points[tria[0]][3][2] + points[tria[2]][3][2] + points[tria[2]][3][2]) / 3
+    ]
     triaSimplexesStrings.append(
         simplexString(
             'T'+str(triaCounter),
             '['+str(tria[0])+','+str(tria[1])+','+str(tria[2])+']',
-            '["' + '"]' 
+            '["' + 'r'+str(quantize(color[0]))+'","'+'g'+str(quantize(color[1]))+'","'+'b'+str(quantize(color[2]))+'"]' 
         )
     )
     triaCounter += 1
