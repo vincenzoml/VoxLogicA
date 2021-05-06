@@ -7,3 +7,4 @@ High-grade-Glioblastoma_BRATS/output
 examples/*/output
 
 .fake.vscode/settings.json
+.vscode
