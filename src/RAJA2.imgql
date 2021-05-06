@@ -2,15 +2,27 @@
 
 load model = "RAJA2-simplified.json"
 
-let blueish = ap("b3")|ap("b2")|ap("b1") 
+let blueish = (ap("b3")|ap("b2")) & (ap("r0")| ap("r1"))
 let redish = ap("r3") | ap("r2") | ap("r1")
 let purplevein = blueish & (ap("r2")) & ap("g0")
 
 // WORKING:
 
-let liver = ap("b3") & (ap("r2")) & ap("g1")
-let vein = through(blueish,liver)
 
-save "blueish" blueish
+let liverCore = ap("b3") & (ap("r1")) & ap("g1")
+let liverOver = ap("b3") & (ap("r2")|ap("r1")) & ap("g1")
+let liverWithError = (liverOver | through(liverOver,vein))
+let cyan = ap("r2") & (ap("g0"))
+let hearthOrLiverOrKidneys = ap("r2") & (ap("g1"))
+
+let vein = through(blueish,liverCore) 
+let liver = liverWithError & (!hearth)
+let hearth = through(hearthOrLiverOrKidneys & (not(liverWithError)),vein)
+
 save "vein" vein
 save "liver" liver
+save "hearth" hearth
+save "hearthOrLiverOrKidneys" hearthOrLiverOrKidneys
+
+let selectedVein = vein & (!through(vein,hearth))
+save "selectedVein" selectedVein
