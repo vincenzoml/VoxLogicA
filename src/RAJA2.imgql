@@ -2,6 +2,15 @@
 
 load model = "RAJA2-simplified.json"
 
-let vein = ap("b2") | ap("b3")
+let blueish = ap("b3")|ap("b2")|ap("b1") 
+let redish = ap("r3") | ap("r2") | ap("r1")
+let purplevein = blueish & (ap("r2")) & ap("g0")
 
+// WORKING:
+
+let liver = ap("b3") & (ap("r2")) & ap("g1")
+let vein = through(blueish,liver)
+
+save "blueish" blueish
 save "vein" vein
+save "liver" liver
