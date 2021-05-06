@@ -1,0 +1,3 @@
+load model = "RAJA2-simplified.json"
+
+save "tt" true
