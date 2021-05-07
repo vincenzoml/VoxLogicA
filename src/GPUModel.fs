@@ -324,13 +324,61 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-// interface IBooleanModel<VoxImage> with
-//     member __.TT = job { return VoxImage.TT (getBaseImg()) }
-//     member __.FF = job { return VoxImage.FF (getBaseImg()) }
-//     member __.BConst value = job { if value then return VoxImage.TT (getBaseImg()) else return VoxImage.FF (getBaseImg()) }
-//     member __.And img1 img2 = lift2 VoxImage.Logand img1 img2
-//     member __.Or img1 img2 = lift2 VoxImage.Logor img1 img2
-//     member __.Not img = lift VoxImage.Lognot img
+    interface IBooleanModel<GPUModelValue> with
+        member __.TT = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img)
+
+                let event =
+                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.FF = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img)
+
+                let event =
+                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.BConst value = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img)
+
+                let event =
+                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.And img1 img2 = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img)
+
+                let event =
+                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.Or img1 img2 = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img)
+
+                let event =
+                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.Not img = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img)
+
+                let event =
+                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+
+                return { gVal = output; gEvt = [| event |] }
+            }
 
 // interface ISpatialModel<VoxImage> with
 //     member __.Near img = lift VoxImage.Near img
