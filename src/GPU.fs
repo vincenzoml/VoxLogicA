@@ -114,7 +114,7 @@ type Kernel =
         Pointer : Pointer     }    
 
 and GPU(kernelsFilename : string) =
-    let mutable kernelSuffix = None
+    let mutable dimensionIndex = None
 
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
 
@@ -217,8 +217,8 @@ and GPU(kernelsFilename : string) =
 
     let _ = ErrorMsg.Logger.Debug "Initialized GPU"
 
-    member __.SetKernelSuffix x =
-        kernelSuffix <- Some x
+    member __.SetDimensionIndex x =
+        dimensionIndex <- Some x
 
     member __.Float32 (f : float32) =
         GPUFloat f :> GPUValue<float32>
@@ -314,16 +314,13 @@ and GPU(kernelsFilename : string) =
 
         new GPUImage(ptr,img,{ Pointer = queue }) :> GPUValue<VoxImage>
         
-    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =        
-        let tmp = 
-            match kernelSuffix with
-            | None -> kernelName
-            | Some suffix -> kernelName + suffix
-        let kName = if kernels.ContainsKey(tmp) then tmp else kernelName       
-        let kernel = kernels.[kName].Pointer
+    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =               
+        let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
+        let mutable dimIdx = 0
         let events = Array.map (fun (x : Event) -> x.EventPointer) events
-        for (idx,arg) in args' do            
+        for (idx,arg) in args' do
+            dimIdx <- idx          
             match arg.Value with
             | Buffer d -> 
                 use a' = fixed [| d.DataPointer |] 
@@ -332,7 +329,10 @@ and GPU(kernelsFilename : string) =
             | Float f -> 
                 use a' = fixed [| f |]
                 let a = NativePtr.toVoidPtr a'
-                checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)            
+                checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a) 
+        use d' = fixed [| dimensionIndex |]
+        let d = NativePtr.toVoidPtr d'
+        checkErr <| API.SetKernelArg(kernel.Pointer, uint32 (dimIdx + 1), unativeint sizeof<int32>, d)           
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
         use event' = fixed event

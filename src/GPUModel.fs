@@ -95,7 +95,7 @@ type GPUModel() =
             match baseImg with
             | None ->
                 baseImg <- Some img
-                gpu.SetKernelSuffix <| img.Dimension.ToString() + "D"
+                gpu.SetDimensionIndex <| img.Dimension
                 img
             | Some img1 ->
                 if VoxImage.SamePhysicalSpace img1 img then
@@ -339,7 +339,7 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img)
 
                 let event =
-                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+                    gpu.Run("falseImg", [||], seq { output }, img.Size, None)
 
                 return { gVal = output; gEvt = [| event |] }
             }
