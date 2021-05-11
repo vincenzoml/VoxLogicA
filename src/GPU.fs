@@ -7,7 +7,7 @@ open VoxLogicA.SITKUtil
 open Silk.NET.OpenCL
 open System.Collections.Generic
 open FSharp.NativeInterop
-
+open itk.simple
 exception GPUException of c : int
     with override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
 
@@ -76,26 +76,29 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
             checkErr <| API.EnqueueReadBuffer(queue.Pointer,dataPointer,true,0un,unativeint length,ptr',0ul,nullPtr,nullPtr)
             dest
 
-type private GPUImage (dataPointer : nativeint,img : VoxImage,queue : Pointer) = 
-    let mutable clone = new VoxImage(img)
-    
+type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) = 
     override __.ToString() = sprintf "<GPUImage %d>" dataPointer
 
     interface GPUValue<VoxImage> with 
         member __.Value = Buffer { DataPointer = dataPointer }        
         member __.Get () =         
-            use startPtr = fixed [|0un;0un;0un|]
-            use endPtr = fixed [|unativeint clone.Size.[0];unativeint clone.Size.[1];unativeint (if clone.Size.Length >= 3 then clone.Size.[2] else 1)|]
+            let pixelID = 
+                match bufferType with
+                | Float32 -> PixelIDValueEnum.sitkFloat32
+                | UInt8 -> PixelIDValueEnum.sitkUInt8 
 
             let destination = 
-                lock clone (
-                    fun () ->
-                        let x = clone
-                        clone <- new VoxImage(x)
-                        x
-                )
+                if img.NComponents = nComponents then new VoxImage(img,pixelID)
+                else
+                    match nComponents with
+                    | 1 -> new VoxImage(VoxImage.Red(img),pixelID) // TODO optimize this double allocation
+                    | 4 -> new VoxImage((VoxImage.RGBA img img img img),pixelID) // TODO optimize this double allocation
+                    | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
-            match clone.BufferType with
+            use startPtr = fixed [|0un;0un;0un|]
+            use endPtr = fixed [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]
+
+            match destination.BufferType with
             | UInt8 ->
                 destination.GetBufferAsUInt8
                     (fun buf -> 
@@ -275,11 +278,11 @@ and GPU(kernelsFilename : string) =
                                 imgPtr,
                                 p)))
 
-        new GPUImage(ptr,hImgSource,{ Pointer = queue }) :> GPUValue<VoxImage>
+        new GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
                       
-    member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents)
+    //member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents,img.BufferType)
 
-    member __.NewImageOnDevice (img: VoxImage,nComponents) =
+    member __.NewImageOnDevice (img: VoxImage,nComponents,bufferType) =
         let dimension =            
             match img.Dimension with 
             | 2 -> CLEnum.MemObjectImage2D
@@ -289,11 +292,11 @@ and GPU(kernelsFilename : string) =
         let channelOrder =            
             match nComponents  with
             | 1 -> CLEnum.R
-            | 4 -> CLEnum.Rgba 
+            | 4 -> CLEnum.Rgba
             | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
         let channelDataType =
-            match img.BufferType with
+            match bufferType with
             | UInt8 -> CLEnum.UnsignedInt8
             | Float32 -> CLEnum.Float                    
             
@@ -312,7 +315,7 @@ and GPU(kernelsFilename : string) =
         
         let ptr = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
-        new GPUImage(ptr,img,{ Pointer = queue }) :> GPUValue<VoxImage>
+        new GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =               
         let kernel = kernels.[kernelName].Pointer

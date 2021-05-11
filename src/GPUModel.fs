@@ -131,7 +131,7 @@ type GPUModel() =
         member __.Border =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("test", [||], seq { output }, img.Size, None)
@@ -143,7 +143,7 @@ type GPUModel() =
         member __.Intensity(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,Float32)
 
                 let event =
                     gpu.Run(
@@ -163,7 +163,7 @@ type GPUModel() =
         member __.Red(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,Float32)
 
                 let event =
                     gpu.Run(
@@ -184,7 +184,7 @@ type GPUModel() =
         member __.Green(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,Float32)
 
                 let event =
                     gpu.Run(
@@ -205,7 +205,7 @@ type GPUModel() =
         member __.Blue(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,Float32)
 
                 let event =
                     gpu.Run(
@@ -226,7 +226,7 @@ type GPUModel() =
         member __.Alpha(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,Float32)
 
                 let event =
                     gpu.Run(
@@ -247,7 +247,7 @@ type GPUModel() =
         member __.RGB (imgr: GPUModelValue) (imgg: GPUModelValue) (imgb: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,4,Float32)
                 //which event??
                 let event =
                     gpu.Run(
@@ -269,7 +269,7 @@ type GPUModel() =
         member __.RGBA (imgr: GPUModelValue) (imgg: GPUModelValue) (imgb: GPUModelValue) (imga: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,4,Float32)
 
                 let event =
                     gpu.Run(
@@ -294,7 +294,7 @@ type GPUModel() =
         member __.MaxVol img =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("test", [||], seq { output }, img.Size, None)
@@ -305,7 +305,7 @@ type GPUModel() =
         member __.Percentiles img mask correction =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,Float32)
 
                 let event =
                     gpu.Run("test", [||], seq { output }, img.Size, None)
@@ -316,7 +316,7 @@ type GPUModel() =
         member __.LCC img =
             job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,Float32) // TODO: this could be UInt32
 
                 let event =
                     gpu.Run("test", [||], seq { output }, img.Size, None)
@@ -327,7 +327,7 @@ type GPUModel() =
     interface IBooleanModel<GPUModelValue> with
         member __.TT = job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("trueImg", [||], seq { output }, img.Size, None)
@@ -336,7 +336,7 @@ type GPUModel() =
             }
         member __.FF = job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("falseImg", [||], seq { output }, img.Size, None)
@@ -345,7 +345,7 @@ type GPUModel() =
             }
         member __.BConst value = job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("trueImg", [||], seq { output }, img.Size, None)
@@ -354,7 +354,7 @@ type GPUModel() =
             }
         member __.And img1 img2 = job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("trueImg", [||], seq { output }, img.Size, None)
@@ -363,7 +363,7 @@ type GPUModel() =
             }
         member __.Or img1 img2 = job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("trueImg", [||], seq { output }, img.Size, None)
@@ -372,7 +372,7 @@ type GPUModel() =
             }
         member __.Not img = job {
                 let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img)
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
                     gpu.Run("trueImg", [||], seq { output }, img.Size, None)

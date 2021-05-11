@@ -17,14 +17,19 @@ const sampler_t sampler =
 
 __kernel void intensity(__read_only IMG_T inputImage,
                         __write_only IMG_T outImage) {
-  
   INIT_GID(gid)
 
   float4 f4 = (float4)read_imagef(inputImage, sampler, gid);
-
   float4 newf4 = (float4)(f4.x * 0.2126 + f4.y * 0.7152 + f4.z * 0.0722, 0, 0 , 0 );
 
   write_imagef(outImage, gid, newf4);
+}
+
+
+__kernel void trueImg(__write_only IMG_T outputImage) {
+  INIT_GID(gid)
+
+  write_imageui(outputImage, gid, 1);
 }
 
 #if 0
@@ -117,20 +122,6 @@ rgbaComps(__read_only image_t inputImage1, __read_only image_t inputImage2,
   else
     write_imageui((__write_only image3d_t)outImage, gid2,
                   (uint4)(pix1.x, pix2.y, pix3.z, pix4.w));
-}
-
-__kernel void trueImg(__write_only image_t outputImage,
-                      __global unsigned int *dim) {
-
-  int2 gid;
-  int3 gid2;
-  if (*dim == 2) {
-    gid = (int2)(get_global_id(0), get_global_id(1));
-    write_imageui((image2d_t)outputImage, gid, 1);
-  } else {
-    gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
-    write_imageui((__write_only image3d_t)outputImage, gid2, 1);
-  }
 }
 
 __kernel void falseImg(__write_only image_t outputImage,
