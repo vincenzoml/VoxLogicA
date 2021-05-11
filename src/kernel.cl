@@ -4,13 +4,15 @@ const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_
 __kernel void intensity(__read_only image_t inputImage,
                         __write_only image_t outImage, __global unsigned int *dim) {
   float4 f4;
+  int2 gid;
+  int3 gid2;
 
   if(*dim == 2) {
-    int2 gid = (int2)(get_global_id(0), get_global_id(1));
+    gid = (int2)(get_global_id(0), get_global_id(1));
     f4 = (float4)read_imagef((image2d_t)inputImage, sampler, gid);
   }
   else {
-    int3 gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
+    gid2 = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
     f4 = (float4)read_imagef((__read_only image3d_t)inputImage, sampler, gid);
   }
 
@@ -19,7 +21,7 @@ __kernel void intensity(__read_only image_t inputImage,
   if(*dim == 2)
     write_imagef((image2d_t)outImage, gid, f4);
   else
-    write_imagef((__write_only image3d_t)outImage, gid, f4);
+    write_imagef((__write_only image3d_t)outImage, gid2, f4);
 }
 
 __kernel void getComponent(__read_only image_t inputImage,
@@ -27,13 +29,15 @@ __kernel void getComponent(__read_only image_t inputImage,
                            __global unsigned int *c, __global unsigned int *dim) {
 
   uint4 ui4;
+  int2 gid;
+  int3 gid2;
   if(*dim == 2) {
-    int2 gid = (int2)(get_global_id(0), get_global_id(1));
+    gid = (int2)(get_global_id(0), get_global_id(1));
     ui4 = read_imageui((image2d_t)inputImage, sampler, gid);
   }
   else {
-    int3 gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
-    ui4 = read_imageui((__read_only image3d_t)inputImage, sampler, gid);
+    gid2 = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
+    ui4 = read_imageui((__read_only image3d_t)inputImage, sampler, gid2);
   }
 
 
@@ -43,7 +47,7 @@ __kernel void getComponent(__read_only image_t inputImage,
   if(*dim == 2)
     write_imageui((image2d_t)outputImage, gid, i);
   else
-    write_imageui((__write_only image2d_t)outputImage, gid, i);
+    write_imageui((__write_only image2d_t)outputImage, gid2, i);
 }
 
 __kernel void rgbComps(__read_only image_t inputImage1,
@@ -54,25 +58,27 @@ __kernel void rgbComps(__read_only image_t inputImage1,
   uint4 pix1;
   uint4 pix2;
   uint4 pix3;
+  int2 gid;
+  int3 gid2;
   
   if(*dim == 2) {
-    int2 gid = (int2)(get_global_id(0), get_global_id(1));
+    gid = (int2)(get_global_id(0), get_global_id(1));
     pix1 = (uint4)read_imageui((image2d_t)inputImage1, gid);
     pix2 = (uint4)read_imageui((image2d_t)inputImage2, gid);
     pix3 = (uint4)read_imageui((image2d_t)inputImage3, gid);
 
   }
   else {
-    int3 gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
-    pix1 = (uint4)read_imageui((__read_only image3d_t)inputImage1, gid);
-    pix2 = (uint4)read_imageui((__read_only image3d_t)inputImage2, gid);
-    pix3 = (uint4)read_imageui((__read_only image3d_t)inputImage3, gid);
+    gid2 = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
+    pix1 = (uint4)read_imageui((__read_only image3d_t)inputImage1, gid2);
+    pix2 = (uint4)read_imageui((__read_only image3d_t)inputImage2, gid2);
+    pix3 = (uint4)read_imageui((__read_only image3d_t)inputImage3, gid2);
   }
 
   if(*dim == 2)
     write_imageui((image2d_t)outImage, gid, (uint4)(pix1.x, pix2.y, pix3.z, 255));
   else
-    write_imageui((__write_only image3d_t)outImage, gid, (uint4)(pix1.x, pix2.y, pix3.z, 255));
+    write_imageui((__write_only image3d_t)outImage, gid2, (uint4)(pix1.x, pix2.y, pix3.z, 255));
 }
 
 __kernel void rgbaComps(__read_only image_t inputImage1,
@@ -85,37 +91,42 @@ __kernel void rgbaComps(__read_only image_t inputImage1,
   uint4 pix2;
   uint4 pix3;
   uint4 pix4;
+  int2 gid;
+  int3 gid2;
   
   if(*dim == 2) {
-    int2 gid = (int2)(get_global_id(0), get_global_id(1));
-    uint4 pix1 = (uint4)read_imageui((image2d_t)inputImage1, gid);
-    uint4 pix2 = (uint4)read_imageui((image2d_t)inputImage2, gid);
-    uint4 pix3 = (uint4)read_imageui((image2d_t)inputImage3, gid);
-    uint4 pix4 = (uint4)read_imageui((image2d_t)inputImage4, gid);
+    gid = (int2)(get_global_id(0), get_global_id(1));
+    pix1 = (uint4)read_imageui((image2d_t)inputImage1, gid);
+    pix2 = (uint4)read_imageui((image2d_t)inputImage2, gid);
+    pix3 = (uint4)read_imageui((image2d_t)inputImage3, gid);
+    pix4 = (uint4)read_imageui((image2d_t)inputImage4, gid);
   } else {
-    int3 gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
-    uint4 pix1 = (uint4)read_imageui((__read_only image3d_t)inputImage1, gid);
-    uint4 pix2 = (uint4)read_imageui((__read_only image3d_t)inputImage2, gid);
-    uint4 pix3 = (uint4)read_imageui((__read_only image3d_t)inputImage3, gid);
-    uint4 pix4 = (uint4)read_imageui((__read_only image3d_t)inputImage4, gid);
+    gid2 = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
+    pix1 = (uint4)read_imageui((__read_only image3d_t)inputImage1, gid2);
+    pix2 = (uint4)read_imageui((__read_only image3d_t)inputImage2, gid2);
+    pix3 = (uint4)read_imageui((__read_only image3d_t)inputImage3, gid2);
+    pix4 = (uint4)read_imageui((__read_only image3d_t)inputImage4, gid2);
   }
 
   if(*dim == 2)
     write_imageui((image2d_t)outImage, gid, (uint4)(pix1.x, pix2.y, pix3.z, pix4.w));
   else
-    write_imageui((__write_only image3d_t)outImage, gid, (uint4)(pix1.x, pix2.y, pix3.z, pix4.w));
+    write_imageui((__write_only image3d_t)outImage, gid2, (uint4)(pix1.x, pix2.y, pix3.z, pix4.w));
 
 }
 
 __kernel void trueImg(__write_only image_t outputImage,
                       __global unsigned int *dim) {
+  
+  int2 gid;
+  int3 gid2;
   if(*dim == 2) {
-    int2 gid = (int2)(get_global_id(0), get_global_id(1));
+    gid = (int2)(get_global_id(0), get_global_id(1));
     write_imageui((image2d_t)outputImage, gid, 1);
   }
   else {
-    int3 gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
-    write_imageui((__write_only image3d_t)outputImage, gid, 1);
+    gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
+    write_imageui((__write_only image3d_t)outputImage, gid2, 1);
   }
 
   
@@ -123,13 +134,15 @@ __kernel void trueImg(__write_only image_t outputImage,
 
 __kernel void falseImg(__write_only image_t outputImage,
                        __global unsigned int *dim) {
+  int2 gid;
+  int3 gid2;
   if(*dim == 2) {
     int2 gid = (int2)(get_global_id(0), get_global_id(1));
     write_imageui((image2d_t)outputImage, gid, 0);
   }
   else {
     int3 gid = (int3)(get_global_id(0), get_global_id(1), get_global_id(2));
-    write_imageui((__write_only image3d_t)outputImage, gid, 0);
+    write_imageui((__write_only image3d_t)outputImage, gid2, 0);
   }
 
 }
