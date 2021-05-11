@@ -329,10 +329,7 @@ and GPU(kernelsFilename : string) =
             | Float f -> 
                 use a' = fixed [| f |]
                 let a = NativePtr.toVoidPtr a'
-                checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a) 
-        use d' = fixed [| dimensionIndex |]
-        let d = NativePtr.toVoidPtr d'
-        checkErr <| API.SetKernelArg(kernel.Pointer, uint32 (dimIdx + 1), unativeint sizeof<int32>, d)           
+                checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
         use event' = fixed event
