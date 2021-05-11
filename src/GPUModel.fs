@@ -330,7 +330,16 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
-                    gpu.Run("booleanImg", [||], seq { output, 1.0 }, img.Size, None)
+                    gpu.Run(
+                        "booleanImg", 
+                        [||], 
+                        seq { 
+                            output :> KernelArg
+                            gpu.Float32(1f) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -339,16 +348,35 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
-                    gpu.Run("booleanImg", [||], seq { output, 0.0 }, img.Size, None)
+                    gpu.Run(
+                        "booleanImg", 
+                        [||], 
+                        seq { 
+                            output :> KernelArg
+                            gpu.Float32(0f) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
 
                 return { gVal = output; gEvt = [| event |] }
             }
         member __.BConst value = job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
+                let v = if value then 1f else 0f
 
                 let event =
-                    gpu.Run("booleanImg", [||], seq { output, value }, img.Size, None)
+                    gpu.Run(
+                        "booleanImg", 
+                        [||], 
+                        seq { 
+                            output :> KernelArg
+                            gpu.Float32(v) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
 
                 return { gVal = output; gEvt = [| event |] }
             }
