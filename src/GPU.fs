@@ -114,7 +114,7 @@ type Kernel =
         Pointer : Pointer     }    
 
 and GPU(kernelsFilename : string) =
-    let mutable dimensionIndex = None
+    let mutable dimensionIndex = 0
 
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
 
@@ -218,7 +218,7 @@ and GPU(kernelsFilename : string) =
     let _ = ErrorMsg.Logger.Debug "Initialized GPU"
 
     member __.SetDimensionIndex x =
-        dimensionIndex <- Some x
+        dimensionIndex <- x
 
     member __.Float32 (f : float32) =
         GPUFloat f :> GPUValue<float32>
