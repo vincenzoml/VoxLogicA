@@ -22,9 +22,9 @@ __kernel void intensity(__read_only IMG_T inputImage,
 
   float4 f4 = (float4)read_imagef(inputImage, sampler, gid);
 
-  float4 newf4 = (float4)(f4.x * 0.2126, f4.y * 0.7152, f4.z * 0.0722, f4.w);
+  float4 newf4 = (float4)(f4.x * 0.2126 + f4.y * 0.7152 + f4.z * 0.0722, 0, 0 , 255 );
 
-  write_imagef(outImage, gid, f4);
+  write_imagef(outImage, gid, newf4);
 }
 
 #if 0
