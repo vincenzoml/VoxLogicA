@@ -26,10 +26,10 @@ __kernel void intensity(__read_only IMG_T inputImage,
 }
 
 
-__kernel void trueImg(__write_only IMG_T outputImage) {
+__kernel void booleanImg(__write_only IMG_T outputImage, __global unsigned float *val) {
   INIT_GID(gid)
 
-  write_imageui(outputImage, gid, 1);
+  write_imageui(outputImage, gid, (int)val);
 }
 
 #if 0

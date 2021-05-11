@@ -330,7 +330,7 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
-                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+                    gpu.Run("booleanImg", [||], seq { output, 1.0 }, img.Size, None)
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -339,7 +339,7 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
-                    gpu.Run("falseImg", [||], seq { output }, img.Size, None)
+                    gpu.Run("booleanImg", [||], seq { output, 0.0 }, img.Size, None)
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -348,7 +348,7 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
-                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+                    gpu.Run("booleanImg", [||], seq { output, value }, img.Size, None)
 
                 return { gVal = output; gEvt = [| event |] }
             }
