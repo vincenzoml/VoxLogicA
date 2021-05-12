@@ -1,0 +1,5 @@
+load x = "three_coloured_items_RGBA.png"
+
+let in = intensity(x)
+let res = tt & (in >. 0)
+save "test.png" res
