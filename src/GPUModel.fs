@@ -248,11 +248,12 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img,4,Float32)
-                //which event??
+                let tmpEvents = Seq.distinct (Array.append (Array.append imgr.gEvt imgg.gEvt) imgb.gEvt)
+                let newEvents = Seq.toArray tmpEvents
                 let event =
                     gpu.Run(
                         "rgbComps",
-                        [||],
+                        newEvents,
                         seq {
                             imgr.gVal
                             imgg.gVal
@@ -270,11 +271,15 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img,4,Float32)
+                let evt1 = Array.append imgr.gEvt imgg.gEvt
+                let evt2 = Array.append evt1 imgb.gEvt
+                let tmpEvents = Seq.distinct (Array.append evt2 imga.gEvt)
+                let newEvents = Seq.toArray tmpEvents
 
                 let event =
                     gpu.Run(
                         "rgbaComps",
-                        [||],
+                        newEvents,
                         seq {
                             imgr.gVal
                             imgg.gVal
@@ -383,9 +388,17 @@ type GPUModel() =
         member __.And img1 img2 = job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
+                let tmpEvents = Seq.distinct (Array.append img1.gEvt img2.gEvt)
+                let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+                    gpu.Run(
+                        "trueImg", 
+                        newEvents, 
+                        seq { output }, 
+                        img.Size, 
+                        None
+                    )
 
                 return { gVal = output; gEvt = [| event |] }
             }

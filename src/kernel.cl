@@ -32,6 +32,18 @@ __kernel void booleanImg(__write_only IMG_T outputImage, float val) {
   write_imageui(outputImage, gid, convert_int(val));
 }
 
+__kernel void logand(__read_only IMG_T inputImage1,
+                     __read_only IMG_T inputImage2,
+                     __write_only IMG_T outImage) {
+
+  INIT_GID(gid)
+
+  int value1 = read_imagef(inputImage1, sampler, gid);
+  int value2 = read_imagef(inputImage2, sampler, gid);
+
+  write_imageui(outImage, gid, (value1 != 0) && (value2 != 0));
+}
+
 #if 0
 
 __kernel void getComponent(__read_only image_t inputImage,
