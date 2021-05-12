@@ -134,7 +134,7 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
-                    gpu.Run("test", [||], seq { output }, img.Size, None)
+                    gpu.Run("border", [||], seq { output }, img.Size, None)
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -294,40 +294,40 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.Volume img = job { return 0.5 }
+        //member __.Volume img = job { return 0.5 }
 
-        member __.MaxVol img =
-            job {
-                let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img,1,UInt8)
+        //member __.MaxVol img =
+        //    job {
+        //        let img = getBaseImg ()
+        //        let output = gpu.NewImageOnDevice(img,1,UInt8)
 
-                let event =
-                    gpu.Run("test", [||], seq { output }, img.Size, None)
+        //        let event =
+        //            gpu.Run("test", [||], seq { output }, img.Size, None)
 
-                return { gVal = output; gEvt = [| event |] }
-            }
+        //        return { gVal = output; gEvt = [| event |] }
+        //    }
 
-        member __.Percentiles img mask correction =
-            job {
-                let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img,1,Float32)
+        //member __.Percentiles img mask correction =
+        //    job {
+        //        let img = getBaseImg ()
+        //        let output = gpu.NewImageOnDevice(img,1,Float32)
 
-                let event =
-                    gpu.Run("test", [||], seq { output }, img.Size, None)
+        //        let event =
+        //            gpu.Run("test", [||], seq { output }, img.Size, None)
 
-                return { gVal = output; gEvt = [| event |] }
-            }
+        //        return { gVal = output; gEvt = [| event |] }
+        //    }
 
-        member __.LCC img =
-            job {
-                let img = getBaseImg ()
-                let output = gpu.NewImageOnDevice(img,1,Float32) // TODO: this could be UInt32
+        //member __.LCC img =
+        //    job {
+        //        let img = getBaseImg ()
+        //        let output = gpu.NewImageOnDevice(img,1,Float32) // TODO: this could be UInt32
 
-                let event =
-                    gpu.Run("test", [||], seq { output }, img.Size, None)
+        //        let event =
+        //            gpu.Run("test", [||], seq { output }, img.Size, None)
 
-                return { gVal = output; gEvt = [| event |] }
-            }
+        //        return { gVal = output; gEvt = [| event |] }
+        //    }
 
     interface IBooleanModel<GPUModelValue> with
         member __.TT = job {
@@ -409,52 +409,420 @@ type GPUModel() =
         member __.Or img1 img2 = job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
+                let tmpEvents = Seq.distinct (Array.append img1.gEvt img2.gEvt)
+                let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
-
+                    gpu.Run(
+                        "logor", 
+                        newEvents, 
+                        seq { 
+                            img1.gVal
+                            img2.gVal 
+                            output 
+                        }, 
+                        img.Size, 
+                        None
+                    )
                 return { gVal = output; gEvt = [| event |] }
             }
-        member __.Not img = job {
+        member __.Not imgIn = job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img,1,UInt8)
 
                 let event =
-                    gpu.Run("trueImg", [||], seq { output }, img.Size, None)
+                    gpu.Run(
+                        "lognot", 
+                        imgIn.gEvt, 
+                        seq {
+                            imgIn.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
 
                 return { gVal = output; gEvt = [| event |] }
             }
 
-// interface ISpatialModel<VoxImage> with
-//     member __.Near img = lift VoxImage.Near img
-//     member __.Interior img = lift VoxImage.Interior img
+    interface ISpatialModel<GPUModelValue> with
+        member __.Near imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
+
+                let event =
+                    gpu.Run(
+                        "dilate", 
+                        imgIn.gEvt, 
+                        seq {
+                            imgIn.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.Interior imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
+
+                let event =
+                    gpu.Run(
+                        "erode", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
 //     member __.Through img1 img2 = lift2 VoxImage.Through img1 img2
 
 // interface IDistanceModel<VoxImage> with
 //     member __.DT img = lift VoxImage.Dt img
 
-// interface IQuantitativeModel<VoxImage> with
-//     member __.Const value = job { return VoxImage.CreateFloat (getBaseImg(),float32 value) }
-//     member __.EqSV value img = lift2 VoxImage.Eq value img
+    interface IQuantitativeModel<GPUModelValue> with
+        member __.Const value = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
 
-//     member __.GeqSV value img = lift2 VoxImage.Geq value img
-//     member __.LeqSV value img = lift2 VoxImage.Leq value img
-//     member __.Between value1 value2 img = job { return VoxImage.Between value1 value2 img }
-//     member __.Abs img = job { return VoxImage.Abs img }
+                let event =
+                    gpu.Run(
+                        "constImg", 
+                        [||], 
+                        seq { 
+                            output :> KernelArg
+                            gpu.Float32(float32 value) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.EqSV value imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
+
+                let event =
+                    gpu.Run(
+                        "eq", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 value) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            } 
+        member __.GeqSV value imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
+
+                let event =
+                    gpu.Run(
+                        "geq", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 value) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.LeqSV value imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
+
+                let event =
+                    gpu.Run(
+                        "leq", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 value) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.Between value1 value2 imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,UInt8)
+
+                let event =
+                    gpu.Run(
+                        "between", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 value1) :> KernelArg
+                            gpu.Float32(float32 value2) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.Abs imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+
+                let event =
+                    gpu.Run(
+                        "abs", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
 //     member __.Max img = lift VoxImage.Max img
 //     member __.Min img = lift VoxImage.Min img
-//     member __.SubtractVV img1 img2 = job { return VoxImage.Subtract(img1,img2) }
-//     member __.AddVV img1 img2 = job {return VoxImage.Add(img1,img2) }
-//     member __.MultiplyVV img1 img2 = job { return VoxImage.Mult(img1,img2) }
-//     member __.DivideVV img1 img2 = job { return VoxImage.Div(img1,img2) }
-//     member __.Mask (img : VoxImage) (maskImg : VoxImage) = job { return VoxImage.Mask img maskImg 0.0 }
+        member __.SubtractVV img1 img2 = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+                let tmpEvents = Seq.distinct (Array.append img1.gEvt img2.gEvt)
+                let newEvents = Seq.toArray tmpEvents
+
+                let event =
+                    gpu.Run(
+                        "sub", 
+                        newEvents, 
+                        seq { 
+                            img1.gVal
+                            img2.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.AddVV img1 img2 = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+                let tmpEvents = Seq.distinct (Array.append img1.gEvt img2.gEvt)
+                let newEvents = Seq.toArray tmpEvents
+
+                let event =
+                    gpu.Run(
+                        "add", 
+                        newEvents, 
+                        seq { 
+                            img1.gVal
+                            img2.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.MultiplyVV img1 img2 = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+                let tmpEvents = Seq.distinct (Array.append img1.gEvt img2.gEvt)
+                let newEvents = Seq.toArray tmpEvents
+
+                let event =
+                    gpu.Run(
+                        "mul", 
+                        newEvents, 
+                        seq { 
+                            img1.gVal
+                            img2.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.DivideVV img1 img2 = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+                let tmpEvents = Seq.distinct (Array.append img1.gEvt img2.gEvt)
+                let newEvents = Seq.toArray tmpEvents
+
+                let event =
+                    gpu.Run(
+                        "div", 
+                        newEvents, 
+                        seq { 
+                            img1.gVal
+                            img2.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.Mask imgIn maskImg = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+                let tmpEvents = Seq.distinct (Array.append imgIn.gEvt maskImg.gEvt)
+                let newEvents = Seq.toArray tmpEvents
+
+                let event =
+                    gpu.Run(
+                        "mask", 
+                        newEvents, 
+                        seq { 
+                            imgIn.gVal
+                            maskImg.gVal
+                            output
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
 //     member __.Avg (img : VoxImage) (maskImg : VoxImage)  = lift2 VoxImage.Avg img maskImg
-//     member __.AddVS (img : VoxImage) k = job { return VoxImage.Add(img,k) }
-//     member __.MulVS (img : VoxImage) k = job { return VoxImage.Mult(img,k) }
-//     member __.SubVS (img : VoxImage) k = job { return VoxImage.Subtract(img,k) }
-//     member __.DivVS (img : VoxImage) k = job { return VoxImage.Mult(img,1.0/k) }
-//     member __.SubSV k (img : VoxImage) = job { return VoxImage.Subtract(k,img) }
-//     member __.DivSV k (img : VoxImage) = job { return VoxImage.Div(k,img) }
+        member __.AddVS imgIn k = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+
+                let event =
+                    gpu.Run(
+                        "addVS", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 k) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.MulVS imgIn  k = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+
+                let event =
+                    gpu.Run(
+                        "mulVS", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 k) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.SubVS imgIn  k = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+
+                let event =
+                    gpu.Run(
+                        "subVS", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 k) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.DivVS imgIn  k = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+
+                let event =
+                    gpu.Run(
+                        "divVS", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 k) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.SubSV k imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+
+                let event =
+                    gpu.Run(
+                        "subSV", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 k) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
+        member __.DivSV k imgIn = job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img,1,Float32)
+
+                let event =
+                    gpu.Run(
+                        "divSV", 
+                        imgIn.gEvt, 
+                        seq { 
+                            imgIn.gVal :> KernelArg
+                            output :> KernelArg
+                            gpu.Float32(float32 k) :> KernelArg
+                        }, 
+                        img.Size, 
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
 
 // interface IStatisticalModel<VoxImage> with
 //     member __.CrossCorrelation rho a b fb m1 m2 k = VoxImage.Crosscorrelation rho a b fb m1 m2 k
