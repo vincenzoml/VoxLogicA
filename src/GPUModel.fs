@@ -393,9 +393,13 @@ type GPUModel() =
 
                 let event =
                     gpu.Run(
-                        "trueImg", 
+                        "logand", 
                         newEvents, 
-                        seq { output }, 
+                        seq { 
+                            img1.gVal
+                            img2.gVal 
+                            output 
+                        }, 
                         img.Size, 
                         None
                     )

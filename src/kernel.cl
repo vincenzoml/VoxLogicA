@@ -38,10 +38,10 @@ __kernel void logand(__read_only IMG_T inputImage1,
 
   INIT_GID(gid)
 
-  int value1 = read_imagef(inputImage1, sampler, gid);
-  int value2 = read_imagef(inputImage2, sampler, gid);
+  float4 value1 = (float4)read_imagef(inputImage1, sampler, gid);
+  float4 value2 = (float4)read_imagef(inputImage2, sampler, gid);
 
-  write_imageui(outImage, gid, (value1 != 0) && (value2 != 0));
+  write_imageui(outImage, gid, ((value1.x != 0.0) && (value2.x != 0.0)));
 }
 
 #if 0
