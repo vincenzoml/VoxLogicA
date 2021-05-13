@@ -1,3 +1,5 @@
+#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable
+
 const sampler_t sampler =
     CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
@@ -5,8 +7,8 @@ const sampler_t sampler =
 #if DIM==3
 
 #define IMG_T image3d_t
-#define GID_T int3
-#define INIT_GID(gid) GID_T gid; gid = (GID_T)(get_global_id(0), get_global_id(1), get_global_id(2));
+#define GID_T int4
+#define INIT_GID(gid) GID_T gid; gid = (GID_T)(get_global_id(0), get_global_id(1), get_global_id(2),0);
 
 #else
 #define IMG_T image2d_t

@@ -1,7 +1,9 @@
-load x = "three_coloured_items_RGBA.png"
+// load x = "three_coloured_items_RGBA.png"
+
+load x = "Brats17_2013_17_1_flair.nii.gz"
 
 let in = intensity(x)
 let p = percentiles(in,tt,0.5)
-save "in.png" in
-save "p.png" p *. 255
-save "out.png" p >. 0.5
+save "in.nii.gz" in
+save "p.nii.gz" p
+save "out.nii.gz" p >. 0.5
