@@ -316,6 +316,7 @@ type GPUModel() =
 
         member __.Percentiles imgIn mask correction = // IN CPU
             job {
+                ErrorMsg.Logger.Warning "the percentiles operation is not fully implemented yet"
                 let cpuImg = imgIn.gVal.Get()
                 let cpuMask = mask.gVal.Get()
 
