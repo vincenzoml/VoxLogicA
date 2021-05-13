@@ -1,5 +1,7 @@
 load x = "three_coloured_items_RGBA.png"
 
 let in = intensity(x)
-let res = tt & (in >. 0)
-save "test.png" res
+let p = percentiles(in,tt,0.5)
+save "in.png" in
+save "p.png" p *. 255
+save "out.png" p >. 0.5
