@@ -81,7 +81,7 @@ type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int
 
     interface GPUValue<VoxImage> with 
         member __.Value = Buffer { DataPointer = dataPointer }        
-        member __.Get () =         
+        member this.Get () =         
             let pixelID = 
                 match bufferType with
                 | Float32 -> PixelIDValueEnum.sitkFloat32
@@ -96,7 +96,7 @@ type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int
                     | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
             use startPtr = fixed [|0un;0un;0un|]
-            use endPtr = fixed [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]
+            use endPtr = fixed [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]            
 
             match destination.BufferType with
             | UInt8 ->

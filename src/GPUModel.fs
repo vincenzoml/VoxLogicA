@@ -317,14 +317,18 @@ type GPUModel() =
         member __.Percentiles imgIn mask correction = // IN CPU
             job {
                 ErrorMsg.Logger.Warning "the percentiles operation is not fully implemented yet"
+                let evt = Array.append imgIn.gEvt mask.gEvt
+                gpu.Wait evt
+
                 let cpuImg = imgIn.gVal.Get()
                 let cpuMask = mask.gVal.Get()
-
+                
                 let result =
                     VoxImage.Percentiles cpuImg cpuMask correction
 
                 let output = gpu.CopyImageToDevice result
-                return { gVal = output; gEvt = [||] }
+
+                return { gVal = output; gEvt = evt } // THIS evt is meaningless
             }
 
     //member __.LCC img =
