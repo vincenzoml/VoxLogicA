@@ -217,7 +217,7 @@ and GPU(kernelsFilename : string) =
         dict
     
     let queue = checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
-
+    
     let _ = ErrorMsg.Logger.Debug "Initialized GPU"
 
     member __.SetDimensionIndex x =
@@ -367,10 +367,11 @@ and GPU(kernelsFilename : string) =
     //     this.Run(kernelName,events,seq {argument1 :> KernelArg; argument2 :> KernelArg; argument3 :> KernelArg; argument4 :> KernelArg; argument5 :> KernelArg}, globalWorkSize,localWorkSize)
 
     member __.Wait(events : array<Event>) =
-        let events = Array.map (fun (x : Event) -> x.EventPointer) events
-        use events'' = fixed events
-        let events' = if events.Length > 0 then events'' else nullPtr
-        checkErr <| API.WaitForEvents(uint32 events.Length,events')
+        if events.Length > 0 then 
+            let events = Array.map (fun (x : Event) -> x.EventPointer) events
+            use events'' = fixed events
+            let events' = if events.Length > 0 then events'' else nullPtr
+            checkErr <| API.WaitForEvents(uint32 events.Length,events')
 
     member __.Finish () = checkErr <| API.Finish(queue)    
            

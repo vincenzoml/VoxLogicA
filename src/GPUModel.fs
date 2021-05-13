@@ -81,7 +81,7 @@ type GPUModel() =
         | _ -> false
 
     override __.Save filename v =
-        let gmv = (v :?> GPUModelValue)
+        let gmv = (v :?> GPUModelValue)        
         gpu.Wait <| gmv.gEvt
         let img = gmv.gVal.Get()
         ErrorMsg.Logger.DebugOnly(sprintf "saving image: %A" <| img.GetHashCode())
@@ -317,6 +317,7 @@ type GPUModel() =
         member __.Percentiles imgIn mask correction = // IN CPU
             job {
                 ErrorMsg.Logger.Warning "the percentiles operation is not fully implemented yet"
+               
                 let evt = Array.append imgIn.gEvt mask.gEvt
                 gpu.Wait evt
 
@@ -327,8 +328,8 @@ type GPUModel() =
                     VoxImage.Percentiles cpuImg cpuMask correction
 
                 let output = gpu.CopyImageToDevice result
-
-                return { gVal = output; gEvt = evt } // THIS evt is meaningless
+                
+                return { gVal = output; gEvt = [||] } // THIS evt is meaningless
             }
 
     //member __.LCC img =
