@@ -1,7 +1,7 @@
 const sampler_t sampler =
     CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
-#define DIM 2
+#define DIM 3
 #if DIM==3
 
 #define IMG_T image3d_t
