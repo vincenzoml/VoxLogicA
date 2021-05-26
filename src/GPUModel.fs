@@ -327,7 +327,7 @@ type GPUModel() =
 
                 let output = gpu.CopyImageToDevice result
 
-                return { gVal = output; gEvt = [||] } // THIS evt is meaningless
+                return { gVal = output; gEvt = [||] }
             }
 
         member __.LCC img =
@@ -341,7 +341,7 @@ type GPUModel() =
 
                 let output = gpu.CopyImageToDevice result
 
-                return { gVal = output; gEvt = [||] } // THIS evt is meaningless
+                return { gVal = output; gEvt = [||] }
             }
 
     interface IBooleanModel<GPUModelValue> with
@@ -520,8 +520,19 @@ type GPUModel() =
             }
     //     member __.Through img1 img2 = lift2 VoxImage.Through img1 img2
 
-    // interface IDistanceModel<VoxImage> with
-//     member __.DT img = lift VoxImage.Dt img
+    interface IDistanceModel<GPUModelValue> with
+        member __.DT img = job {
+                gpu.Wait img.gEvt
+
+                let cpuImg = img.gVal.Get()
+
+                let result =
+                    VoxImage.Dt cpuImg
+
+                let output = gpu.CopyImageToDevice result
+
+                return { gVal = output; gEvt = [||] }
+            }
 
     interface IQuantitativeModel<GPUModelValue> with
         member __.Const value =
