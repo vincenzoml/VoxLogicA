@@ -301,7 +301,17 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        //member __.Volume img = job { return 0.5 }
+        member __.Volume img = 
+            job {
+                gpu.Wait img.gEvt
+
+                let cpuImg = img.gVal.Get()
+
+                let result =
+                    VoxImage.Volume cpuImg
+
+                return result
+            }
 
         //member __.MaxVol img =
         //    job {
