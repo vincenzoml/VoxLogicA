@@ -4,6 +4,7 @@ load x = "Brats17_2013_17_1_flair.nii.gz"
 
 let in = intensity(x)
 let p = percentiles(in,tt,0.5)
-//save "in.nii.gz" in
+save "in.nii.gz" in
+save "tmp.nii.gz" in >=. 10
 save "p.nii.gz" p
-//save "out.nii.gz" p >=. 0.5
+save "out.nii.gz" p >=. 0.5
