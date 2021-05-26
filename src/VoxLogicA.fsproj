@@ -16,12 +16,12 @@
     <Compile Include="ModelChecker.fs" />
     <Compile Include="LogicFragments.fs" />
     <Compile Include="Parser.fs" />
-    <Compile Include="Interpreter.fs" />
     <Compile Include="NativeArray.fs" />
+    <Compile Include="Interpreter.fs" />
     <Compile Include="SITKUtil.fs" />
     <Compile Include="GPU.fs" />
     <Compile Include="GPUModel.fs" />
-    <Compile Include="Program.fs" />    
+    <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Silk.Net.OpenCL" Version="2.4.0" />

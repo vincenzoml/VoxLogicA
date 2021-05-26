@@ -81,7 +81,7 @@ type GPUModel() =
         | _ -> false
 
     override __.Save filename v =
-        let gmv = (v :?> GPUModelValue)        
+        let gmv = (v :?> GPUModelValue)
         gpu.Wait <| gmv.gEvt
         let img = gmv.gVal.Get()
         ErrorMsg.Logger.DebugOnly(sprintf "saving image: %A" <| img.GetHashCode())
@@ -316,32 +316,33 @@ type GPUModel() =
 
         member __.Percentiles imgIn mask correction = // IN CPU
             job {
-                ErrorMsg.Logger.Warning "the percentiles operation is not fully implemented yet"
-               
                 let evt = Array.append imgIn.gEvt mask.gEvt
                 gpu.Wait evt
 
                 let cpuImg = imgIn.gVal.Get()
                 let cpuMask = mask.gVal.Get()
-                
+
                 let result =
                     VoxImage.Percentiles cpuImg cpuMask correction
 
                 let output = gpu.CopyImageToDevice result
-                
+
                 return { gVal = output; gEvt = [||] } // THIS evt is meaningless
             }
 
-    //member __.LCC img =
-    //    job {
-    //        let img = getBaseImg ()
-    //        let output = gpu.NewImageOnDevice(img,1,Float32) // TODO: this could be UInt32
+        member __.LCC img =
+            job {
+                gpu.Wait img.gEvt
 
-    //        let event =
-    //            gpu.Run("test", [||], seq { output }, img.Size, None)
+                let cpuImg = img.gVal.Get()
 
-    //        return { gVal = output; gEvt = [| event |] }
-    //    }
+                let result =
+                    VoxImage.Lcc cpuImg
+
+                let output = gpu.CopyImageToDevice result
+
+                return { gVal = output; gEvt = [||] } // THIS evt is meaningless
+            }
 
     interface IBooleanModel<GPUModelValue> with
         member __.TT =
