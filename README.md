@@ -18,6 +18,8 @@ source code for the gpu implementation: https://github.com/vincenzoml/VoxLogicA/
 
 source code for the gpu implementation with garbage collection: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu-GC
 
+source code for PolyLogicA, the implementation operating on polyhedra: https://github.com/vincenzoml/VoxLogicA/blob/polyhedra
+
 ESMRM-B 2019 poster: 
 
 ![VoxLogicA poster](https://github.com/vincenzoml/VoxLogicA/raw/master/docs/poster-ciancia.jpg "Poster")
