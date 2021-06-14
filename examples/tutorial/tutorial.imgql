@@ -91,7 +91,3 @@ save "output/05_maskedImage.png" maskedImage
 // Let us also save the original image so that you can check the difference in the image viewer.
 
 save "output/00_original_image.png" image
-
-
-save "output/pdt.png" pdt(thingsMask)
-save "output/dt.png" dt(thingsMask)
