@@ -375,6 +375,9 @@ type VoxImage private (img : Image,uniqueName : string) =
         res.GetBufferAsFloat (fun (buf : NativeArray<_>) -> buf.Fill v)    
         res
 
+    static member Clone (img : VoxImage) =
+        new VoxImage(img)
+
     static member SamePhysicalSpace (img1 : VoxImage) (img2 : VoxImage) =
         try
             use x = SimpleITK.Add(img1.Image,img2.Image) 
@@ -517,24 +520,25 @@ type VoxImage private (img : Image,uniqueName : string) =
     static member Mask (img : VoxImage) (mask : VoxImage) (value : float) = new VoxImage(SimpleITK.Mask(img.Image,mask.Image,value))
     
     static member LabelConnectedComponents (img : VoxImage) = 
-        use flt = new ConnectedComponentImageFilter()
+        use flt = new ConnectedComponentImageFilter()        
         flt.SetFullyConnected(true)
-        (new VoxImage(flt.Execute(img.Image)),int <| flt.GetObjectCount())
+        let res = flt.Execute(img.Image)                        
+        (new VoxImage(SimpleITK.Subtract(res,-1.0)),int <| flt.GetObjectCount())
 
     static member Lcc (img : VoxImage) =        
         let (tmp,_) = VoxImage.LabelConnectedComponents img
         use tmp = tmp
         new VoxImage(SimpleITK.Cast(tmp.Image,PixelIDValueEnum.sitkFloat32))
 
-    static member Through (img1 : VoxImage) (img2 : VoxImage) =  // x satisfies (through phi1 phi2) iff the connected component of phi2 containing x also contains a point of phi1
-        let (cc,k) = VoxImage.LabelConnectedComponents img2
-        use cc2 = cc
-        let ccs = Array.create (k+1) 0uy
+    static member CCThrough (img1 : VoxImage) (img2 : VoxImage) n = 
+        // x satisfies (CCThrough phi1 phi2) iff img2 has value l > 0 at x, and there is at least one pixel with the same label l in img2, which is true in phi1.        
+        let ccs = VoxImage.Clone(img2)
+        //let ccs = Array.create (k+1) 0uy
 
-        use m1 = VoxImage.Mask cc2 img1 0.0
+        use m1 = VoxImage.Mask img2 img1 0.0
         m1.GetBufferAsUInt32 (
             fun bufm1 ->
-                cc2.GetBufferAsUInt32 (
+                img2.GetBufferAsUInt32 (
                     fun bufcc2 ->
                         let npixels = bufm1.Length
                         for i = 0 to npixels - 1 do
@@ -564,35 +568,36 @@ type VoxImage private (img : Image,uniqueName : string) =
         flt.SetMaskOutput(true)
         flt.SetMaskValue(1uy)        
         new VoxImage(flt.Execute(img.Image,mask.Image))        
-
+    
     static member MaxVol (img : VoxImage) =
-        let (ccs,k) = VoxImage.LabelConnectedComponents img
-        use ccs = ccs
-        let res = new VoxImage(img)
-        ccs.GetBufferAsUInt32
-            (fun bufccs ->
-                let volumes = Array.create (k + 1) 0
-                for i = 0 to bufccs.Length - 1 do
-                    let cc = int <| bufccs.UGet i
-                    if cc <> 0 then volumes.[cc] <- volumes.[cc] + 1
-                let mutable maxvol,ccs = 0,[]
-                for i = 1 to volumes.Length - 1 do
-                    let vol = volumes.[i]
-                    if vol > maxvol then         
-                        maxvol <- vol
-                        List.iter (fun cc -> volumes.[cc] <- 0) ccs
-                        volumes.[i] <- 1
-                        ccs <- [i]
-                    else if vol = maxvol then 
-                        ccs <- i::ccs
-                        volumes.[i] <- 1
-                    else volumes.[i] <- 0
-                res.GetBufferAsUInt8
-                    (fun bufres ->                
-                        for i = 0 to bufres.Length - 1 do
-                            let cc = int <| bufccs.UGet i
-                            bufres.USet i (uint8 (volumes.[cc]))))
-        res       
+        failwith "MaxVol has been deactivated because its source code needs to be checked; please get in touch if you need it."
+    //     let (ccs,k) = VoxImage.LabelConnectedComponents img 
+    //     use ccs = ccs
+    //     let res = new VoxImage(img)
+    //     ccs.GetBufferAsUInt32
+    //         (fun bufccs ->
+    //             let volumes = Array.create k 0
+    //             for i = 0 to bufccs.Length - 1 do
+    //                 let cc = int <| bufccs.UGet i
+    //                 if cc <> -1 then volumes.[cc] <- volumes.[cc] + 1
+    //             let mutable maxvol,ccs = 0,[]
+    //             for i = 0 to volumes.Length - 1 do
+    //                 let vol = volumes.[i]
+    //                 if vol > maxvol then         
+    //                     maxvol <- vol
+    //                     List.iter (fun cc -> volumes.[cc] <- 0) ccs
+    //                     volumes.[i] <- 1
+    //                     ccs <- [i]
+    //                 else if vol = maxvol then 
+    //                     ccs <- i::ccs
+    //                     volumes.[i] <- 1
+    //                 else volumes.[i] <- 0
+    //             res.GetBufferAsUInt8
+    //                 (fun bufres ->                
+    //                     for i = 0 to bufres.Length - 1 do
+    //                         let cc = int <| bufccs.UGet i
+    //                         bufres.USet i (uint8 (volumes.[cc]))))
+    //     res       
 
     static member Percentiles (img : VoxImage) (mask : VoxImage) (correction : float) =    
         let res = VoxImage.Mask img mask -1.0

@@ -34,6 +34,9 @@ let B+(a) = (near(a)) \ a
 let \(a,b) = and(a,not(b))
 
 // Reachability derived operators
+
+//through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2
+let through(img1,img2) = ccthrough(img1,lcc(img2))
 let mayReach(a,b) = N((b ~> N a) | a)
 let touch(a,b) = a ~> N b
 let grow(a,b) = (a | touch(b,a))
