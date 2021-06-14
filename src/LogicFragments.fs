@@ -58,8 +58,8 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     //abstract member Max : 'Value -> Job<float>
     [<OperatorAttribute("abs","valuation(number)","valuation(number)","Computes an image where each voxel contains the absolute value of the corresponding voxel in the input image")>]
     abstract member Abs : 'Value -> Job<'Value>
-    //[<OperatorAttribute("min","valuation(number)","number","Finds the minimum value among the voxels in its argument")>]
-    //abstract member Min : 'Value -> Job<float>
+    // [<OperatorAttribute("min","valuation(number)","number","Finds the minimum value among the voxels in its argument")>]
+    // abstract member Min : 'Value -> Job<float>
     [<OperatorAttribute("+",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise addition")>]    
     abstract member AddVV : 'Value -> 'Value -> Job<'Value>
     [<OperatorAttribute("*",[|"valuation(number)";"valuation(number)"|],"valuation(number)","Voxel-wise multiplication")>]    
@@ -91,8 +91,8 @@ type ISpatialModel<'Value when 'Value : equality> =
     abstract member Near : 'Value -> Job<'Value>
     [<OperatorAttribute("interior","valuation(bool)","valuation(bool)","Spatial-logical interior (that is, erosion)")>]
     abstract member Interior : 'Value -> Job<'Value>
-    //[<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2")>]
-    //abstract member Through : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2")>]
+    abstract member Through : 'Value -> 'Value -> Job<'Value>
     
 type IStatisticalModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>

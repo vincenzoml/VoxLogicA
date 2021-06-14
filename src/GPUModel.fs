@@ -509,6 +509,22 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
+        member __.Through img1 img2 =
+            job {
+                let evt = Array.append img1.gEvt img2.gEvt
+                gpu.Wait evt
+
+                let cpuImg1 = img1.gVal.Get()
+                let cpuImg2 = img2.gVal.Get()
+
+                let result = VoxImage.Through cpuImg1 cpuImg2
+
+                let output = gpu.CopyImageToDevice result
+
+                return { gVal = output; gEvt = [||]}                               
+            }
+
+
         member __.Interior imgIn =
             job {
                 let img = getBaseImg ()
@@ -528,7 +544,6 @@ type GPUModel() =
 
                 return { gVal = output; gEvt = [| event |] }
             }
-    //     member __.Through img1 img2 = lift2 VoxImage.Through img1 img2
 
     interface IDistanceModel<GPUModelValue> with
         member __.DT img = job {
@@ -670,7 +685,23 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
         //     member __.Max img = lift VoxImage.Max img
-//     member __.Min img = lift VoxImage.Min img
+        
+        // member __.Min img = 
+        
+        //     job {
+        //         gpu.Wait img.gEvt
+     
+        //         let cpuImg = img.gVal.Get()
+
+        //         let result = VoxImage.Min cpuImg
+
+        //         let output = gpu.CopyImageToDevice result
+
+        //         return { gVal = output; gEvt = [||] }
+        //     }
+
+
+
         member __.SubtractVV img1 img2 =
             job {
                 let img = getBaseImg ()

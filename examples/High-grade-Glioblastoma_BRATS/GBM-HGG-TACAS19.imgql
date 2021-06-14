@@ -32,7 +32,9 @@ let diceM(x) = dice(x,manualContouringGTV)
 // computes the local statistical similarity score (namely cross-correlation 
 // of a local histogram w.r.t. that of "target region" a) at each point.
 // We just fix some parameters (radius, number of bins, minimum and maximum values).
-let similarFLAIRTo(a) = crossCorrelation(3,flair,flair,a,min(flair),max(flair),20)
+
+
+// COMMENTED FOR GPU let similarFLAIRTo(a) = crossCorrelation(3,flair,flair,a,min(flair),max(flair),20)
 
 // The actual analysis session starts here
 
@@ -51,16 +53,17 @@ let veryIntense =  flt(2.0,vI)
 let growTum = grow(hyperIntense,veryIntense)
 
 // 4. Statistical texture similarity
-let tumSim = similarFLAIRTo(growTum) 
-let tumStatCC = flt(2.0,tumSim >. 0.6)
-let gtv = grow(growTum,tumStatCC)
+// COMMENTED FOR GPU let tumSim = similarFLAIRTo(growTum) 
+// COMMENTED FOR GPU let tumStatCC = flt(2.0,tumSim >. 0.6)
+// COMMENTED FOR GPU let gtv = grow(growTum,tumStatCC)
+let gtv = growTum // stub
 
 // Print some interesting Dice-Soerensen scores
 // In particular: growTum already says a lot about the tumour.
-print "01_dice_hyperIntense" diceM(hyperIntense)
-print "02_dice_veryIntense" diceM(veryIntense)
-print "03_dice_growTum" diceM(growTum)
-print "04_dice_gtv" diceM(gtv)
+// COMMENTED FOR GPU print "01_dice_hyperIntense" diceM(hyperIntense)
+// COMMENTED FOR GPU print "02_dice_veryIntense" diceM(veryIntense)
+// COMMENTED FOR GPU print "03_dice_growTum" diceM(growTum)
+// COMMENTED FOR GPU print "04_dice_gtv" diceM(gtv)
 
 // Save the results growTum and gtv (uncomment the other lines to get the 
 // intermediate steps, keep them commented to save disk space).
@@ -68,7 +71,7 @@ print "04_dice_gtv" diceM(gtv)
 // save "$OUTPUTDIR/pflair.nii.gz" pflair
 // save "$OUTPUTDIR/hyperIntense.nii.gz" hyperIntense
 // save "$OUTPUTDIR/veryIntense.nii.gz" veryIntense
-save "$OUTPUTDIR/growTum.nii.gz" growTum
+// save "$OUTPUTDIR/growTum.nii.gz" growTum
 // save "$OUTPUTDIR/tumSim.nii.gz" tumSim
 // save "$OUTPUTDIR/tumStatCC.nii.gz" tumStatCC
 save "$OUTPUTDIR/gtv.nii.gz" gtv
