@@ -43,11 +43,12 @@ canonical() {
 
 if [ "$VOXLOGICA" == "" ]; then
     VOXLOGICA=""
-    PATHS="$HOME/VoxLogicA/VoxLogicA $HOME/bin/VoxLogicA /opt/VoxLogicA/VoxLogicA /usr/local/bin/VoxLogicA"
+    PATHS="../../src/VoxLogicA $HOME/VoxLogicA/VoxLogicA $HOME/bin/VoxLogicA /opt/VoxLogicA/VoxLogicA /usr/local/bin/VoxLogicA"
     for vlpath in $PATHS
-        do  echo $vlpath
+        do  echo checking for VoxLogicA in $vlpath
             if test -f $vlpath; then  
                 VOXLOGICA=$vlpath
+                echo found VoxLogicA in $vlpath
                 break
             fi
     done
