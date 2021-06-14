@@ -68,7 +68,7 @@ and private Env = Map<string, DVal>
 
 type Interpreter(model: IModel, checker: ModelChecker) =
     let defaultLibDir: string =
-        System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+        System.IO.Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName)
 
     let emptyEnv () = (new Map<_, _>([]): Env)
 
@@ -192,6 +192,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                     raise
                     <| InterpreterException(StackTrace([ "print", pos ]), CantPrintException(typ))
             | Import fname :: rest ->
+                printfn "%A" libdir
                 let find filename =
                     if File.Exists filename then
                         Some filename
