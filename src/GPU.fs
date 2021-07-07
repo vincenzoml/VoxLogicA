@@ -137,11 +137,11 @@ and GPU(kernelsFilename : string) =
         for platformID in platformIDs do
             let mutable num = 0ul            
             use ptr = fixed [||]           
-            if 0 = API.GetDeviceIDs(platformID,CLEnum.DeviceTypeGpu,0ul,ptr,&num) then
+            if 0 = API.GetDeviceIDs(platformID,CLEnum.DeviceTypeCpu,0ul,ptr,&num) then
                 if num > 0ul then
                     let tmp = Array.create (int num) 0n
                     use ptr = fixed tmp
-                    if 0 = API.GetDeviceIDs(platformID,CLEnum.DeviceTypeGpu,uint32 num,ptr,&num) then                    
+                    if 0 = API.GetDeviceIDs(platformID,CLEnum.DeviceTypeCpu,uint32 num,ptr,&num) then                    
                         res <- (platformID,tmp)::res
         match res with 
         | [] -> raise <| GPUException 0 // TODO: error code for unknown error?

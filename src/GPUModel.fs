@@ -342,16 +342,59 @@ type GPUModel() =
 
         member __.LCC img =
             job {
-                gpu.Wait img.gEvt
+                let mutable flag = gpu.Float32(1f)
 
-                let cpuImg = img.gVal.Get()
+                let bimg = getBaseImg ()
+                let mutable output = gpu.NewImageOnDevice(bimg, 1, UInt8)
+                let mutable tmp = gpu.NewImageOnDevice(bimg, 1, UInt8)
+                let comp = gpu.Float32(0f)
+                let mutable event = [||]
 
-                let result =
-                    VoxImage.Lcc cpuImg
+                let swap () =
+                    let temp = tmp           
+                    tmp <- output
+                    output <- temp
+ 
+                gpu.Run(
+                    "initCCL3D",
+                    img.gEvt,
+                    seq {
+                        img.gVal
+                        tmp
+                    },
+                    bimg.Size,
+                    None
+                ) |> ignore
 
-                let output = gpu.CopyImageToDevice result
+                while flag <> comp do
+                    for _ = 0 to 8 do
+                        gpu.Run(
+                            "iterateCCL3D",
+                            img.gEvt,
+                            seq {
+                                img.gVal
+                                tmp
+                                output
+                            },
+                            bimg.Size,
+                            None
+                        ) |> ignore
+                        swap()
+                    event.[0] <- 
+                        gpu.Run(
+                            "reconnectCCL3D",
+                            [||],
+                            seq {
+                                img.gVal
+                                tmp
+                                output
+                            },
+                            bimg.Size,
+                            None
+                        )
+                    swap()
 
-                return { gVal = output; gEvt = [||] }
+                return { gVal = output; gEvt = event }
             }
 
     interface IBooleanModel<GPUModelValue> with
