@@ -355,16 +355,21 @@ type GPUModel() =
                     tmp <- output
                     output <- temp
  
-                gpu.Run(
-                    "initCCL3D",
-                    img.gEvt,
-                    seq {
-                        img.gVal
-                        tmp
-                    },
-                    bimg.Size,
-                    None
-                ) |> ignore
+                let evt = 
+                    gpu.Run(
+                        "initCCL3D",
+                        img.gEvt,
+                        seq {
+                            img.gVal
+                            tmp
+                        },
+                        bimg.Size,
+                        None
+                    )
+
+                gpu.Wait([|evt|])
+                let prova = tmp.Get()
+                prova.Save("./prova.nii.gz")
 
                 while flag <> comp do
                     for _ = 0 to 8 do

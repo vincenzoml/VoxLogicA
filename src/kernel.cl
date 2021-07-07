@@ -326,7 +326,7 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
   int condition = (ui4.x > 0);
 
   //Too large?
-  write_imageui(outputImage, gid, condition * (z * (y * size.y) * ((size.x + x)*(size.x + x))));
+  write_imagef(outputImage, gid, condition * (z * (y * size.y) * ((size.x + x)*(size.x + x))));
 }
 
 __kernel void iterateCCL(__read_only image2d_t image,
@@ -372,24 +372,24 @@ __kernel void iterateCCL3D(__read_only image3d_t image,
     goto stop;
 
   guard = 1;
-  uint4 base = read_imageui(image, sampler, gid);
-  uint4 ui4a = read_imageui(inputImage1, sampler, gid);
-  int4 t = (int4)(ui4a.x % size.x, ui4a.x / size.x, ui4a.y % size.y, ui4a.y / size.y);
+  float4 base = read_imagef(image, sampler, gid);
+  float4 ui4a = read_imagef(inputImage1, sampler, gid);
+  int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
 
-  unsigned int m = ui4a.x;  
+  float m = ui4a.x;  
 
   if (base.x > 0) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         for (int c = -1; c <= 1; c++) {
-          uint4 tmpa =
-              read_imageui(inputImage1, sampler, (int4)(t.x + a, t.y + b, t.z + c, 0));
+          float4 tmpa =
+              read_imagef(inputImage1, sampler, (int4)(t.x + a, t.y + b, t.z + c, 0));
           m = max(tmpa.x, m);
         }
       }
   }
 
-  stop: write_imageui(outImage1, gid, (uint4)(m, 0, 0, 0));
+  stop: write_imagef(outImage1, gid, (float4)(1, 0, 0, 0));
 }
 
 __kernel void reconnectCCL(__read_only image2d_t image,
@@ -434,20 +434,20 @@ __kernel void reconnectCCL3D(__read_only image3d_t image,
 
   int4 size = get_image_dim(inputImage1);
 
-  uint4 base = read_imageui(image, sampler, gid);
-  uint4 ui4a = read_imageui(inputImage1, sampler, gid);
-  int4 t = (int4)(ui4a.x % size.x, ui4a.x / size.x, ui4a.y % size.y, ui4a.y / size.y);
+  float4 base = read_imagef(image, sampler, gid);
+  float4 ui4a = read_imagef(inputImage1, sampler, gid);
+  int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
 
-  uint4 tmpa = read_imageui(inputImage1, sampler, (int4)(t.x, t.y, t.z, 0));
-  unsigned int m = max(ui4a.x,tmpa.x);
-  unsigned int n = ui4a.x;
+  float4 tmpa = read_imagef(inputImage1, sampler, (int4)(t.x, t.y, t.z, 0));
+  float m = max(ui4a.x,tmpa.x);
+  float n = ui4a.x;
 
   if (base.x > 0) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         for (int c = -1; c <= 1; c++) {
           //m = max(tmpa.x, m);
-          uint4 tmpb = read_imageui(inputImage1, sampler, (int4)(x + a, y + b, z + c, 0));
+          float4 tmpb = read_imagef(inputImage1, sampler, (int4)(x + a, y + b, z + c, 0));
           n = max(tmpb.x, n);
         }
       }
@@ -456,5 +456,5 @@ __kernel void reconnectCCL3D(__read_only image3d_t image,
   if(n != base.x)
     guard = 1;
 
-  if(n > m) write_imageui(outImage1,t,(n,0,0,0));
+  if(n > m) write_imagef(outImage1,t,(float4)(n,0,0,0));
 }
