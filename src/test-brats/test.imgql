@@ -6,4 +6,3 @@ let y = through(x, 900 .<= intensity(img))
 
 save "output/through.nii.gz" y
 save "output/intensity.nii.gz" x 
- 
