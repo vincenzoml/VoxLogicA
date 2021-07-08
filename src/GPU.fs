@@ -132,7 +132,11 @@ and GPU(kernelsFilename : string) =
             checkErr <| API.GetPlatformIDs (uint32 num,ptr,&num)  
         platformIDs
 
-    let deviceType = CLEnum.DeviceTypeGpu
+    let deviceType = 
+        if isNull <| System.Environment.GetEnvironmentVariable "VOXLOGICA_USE_CPU" then 
+            CLEnum.DeviceTypeGpu
+        else
+            CLEnum.DeviceTypeCpu
 
     let deviceGroups =        
         let mutable res = [] 
