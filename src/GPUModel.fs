@@ -559,19 +559,74 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.Through img1 img2 =
+        member __.Through img img2 =
             job {
-                let evt = Array.append img1.gEvt img2.gEvt
-                gpu.Wait evt
+                let mutable flag = gpu.Float32(1f)
 
-                let cpuImg1 = img1.gVal.Get()
-                let cpuImg2 = img2.gVal.Get()
+                let bimg = getBaseImg ()
+                let mutable output = gpu.NewImageOnDevice(bimg, 1, Float32)
+                let mutable tmp = gpu.NewImageOnDevice(bimg, 1, Float32)
+                let comp = gpu.Float32(0f)
+                let mutable event = [||]
 
-                let result = VoxImage.Through cpuImg1 cpuImg2
+                gpu.Wait(img.gEvt)
+                let prova = img.gVal.Get()
+                prova.Save("output/input.nii.gz")
 
-                let output = gpu.CopyImageToDevice result
+                let swap () =
+                    let temp = tmp           
+                    tmp <- output
+                    output <- temp
+ 
+                let evt = 
+                    gpu.Run(
+                        "initCCL3D",
+                        img.gEvt,
+                        seq {
+                            img.gVal
+                            tmp
+                        },
+                        bimg.Size,
+                        None
+                    )
+                gpu.Wait([|evt|])
+                let prova = tmp.Get()
+                prova.Save("output/provainit.nii.gz")
+                
+                while flag <> comp do
+                    for _ = 0 to 8 do
+                        gpu.Run(
+                            "iterateCCL3D",
+                            img.gEvt,
+                            seq {
+                                img.gVal :> KernelArg
+                                tmp :> KernelArg
+                                output :> KernelArg
+                                flag :> KernelArg
+                            },
+                            bimg.Size,
+                            None
+                        ) |> ignore
+                        swap()
+                    event <- Array.append event
+                        [|gpu.Run(
+                            "reconnectCCL3D",
+                            [||],
+                            seq {
+                                img.gVal :> KernelArg
+                                tmp :> KernelArg
+                                output :> KernelArg
+                                flag :> KernelArg
+                            },
+                            bimg.Size,
+                            None
+                        )|]
+                    gpu.Wait([|evt|])
+                    let prova = tmp.Get()
+                    prova.Save("output/provalcc.nii.gz")
+                    swap()
 
-                return { gVal = output; gEvt = [||]}                               
+                return { gVal = output; gEvt = event }
             }
 
 

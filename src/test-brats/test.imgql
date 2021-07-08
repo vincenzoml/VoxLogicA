@@ -2,5 +2,8 @@ load img = "BraTS19_2013_10_1_flair.nii.gz"
 
 let x = 900 .<= intensity(img)  
 
+let y = through(x, 900 .<= intensity(img))
+
+save "output/through.nii.gz" y
 save "output/intensity.nii.gz" x 
  
