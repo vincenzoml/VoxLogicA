@@ -1,6 +1,6 @@
 load img = "BraTS19_2013_10_1_flair.nii.gz"
 
-let x = intensity(img) >. 900
+let x = 900 .<= intensity(img)  
 
 save "output/intensity.nii.gz" x 
  

@@ -142,22 +142,24 @@ type GPUModel() =
     interface IImageModel<GPUModelValue> with
         member __.Intensity(imgIn: GPUModelValue) =
             job {
-                let img = getBaseImg ()
+                let img = getBaseImg ()                
                 let output = gpu.NewImageOnDevice(img, 1, Float32)
+                if img.NComponents > 1 then
+                    let event =
+                        gpu.Run(
+                            "intensity",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
-                let event =
-                    gpu.Run(
-                        "intensity",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
-
-                return { gVal = output; gEvt = [| event |] }
+                    return { gVal = output; gEvt = [| event |] }
+                else
+                    return imgIn
             }
 
         member __.Red(imgIn: GPUModelValue) =
@@ -674,7 +676,6 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img, 1, UInt8)
-
                 let event =
                     gpu.Run(
                         "leq",

@@ -151,7 +151,7 @@ __kernel void leq(__read_only IMG_T inputImage,
 
   float4 ui4 = (float4)read_imagef(inputImage, sampler, gid);
 
-  int condition = (ui4.x < value);
+  unsigned int condition = (unsigned int)(value <= ui4.x);
 
   write_imageui(outImage, gid, condition);
 }

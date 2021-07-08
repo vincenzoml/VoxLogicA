@@ -49,9 +49,9 @@ type IQuantitativeModel<'Value when 'Value : equality> =
     [<OperatorAttribute(".=",[|"number";"valuation(number)"|],"valuation(bool)","eq(n,i) is true at voxels of i that are equal to n")>]    
     abstract member EqSV : float -> 'Value -> Job<'Value>
     [<OperatorAttribute(".<=",[|"number";"valuation(number)"|],"valuation(bool)","n .<= img is true at voxels of img that are greater than or equal to n")>]    
-    abstract member GeqSV : float -> 'Value -> Job<'Value>
-    [<OperatorAttribute(".>=",[|"number";"valuation(number)"|],"valuation(bool)","n .>= img is true at voxels of img that are less than or equal to n")>]    
     abstract member LeqSV : float -> 'Value -> Job<'Value>
+    [<OperatorAttribute(".>=",[|"number";"valuation(number)"|],"valuation(bool)","n .>= img is true at voxels of img that are less than or equal to n")>]    
+    abstract member GeqSV : float -> 'Value -> Job<'Value>
     [<OperatorAttribute("between",[|"number";"number";"valuation(number)"|],"valuation(bool)","between(n1,n2,i) is true at voxels of i that are greater than or equal to n1, and less than or equal to n2")>]
     abstract member Between : float -> float -> 'Value -> Job<'Value>
     //[<OperatorAttribute("max","valuation(number)","number","Finds the maximum value among the voxels in its argument")>]
