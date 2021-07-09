@@ -388,7 +388,7 @@ __kernel void iterateCCL3D(__read_only image3d_t image,
       }
   }
 
-  stop: write_imagef(outImage1, gid, (float4)(1, 0, 0, 0));
+  stop: write_imagef(outImage1, gid, (float4)(m, 0, 0, 0));
 }
 
 __kernel void reconnectCCL(__read_only image2d_t image,

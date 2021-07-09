@@ -142,8 +142,9 @@ type GPUModel() =
     interface IImageModel<GPUModelValue> with
         member __.Intensity(imgIn: GPUModelValue) =
             job {
-                let img = getBaseImg ()                
+                let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img, 1, Float32)
+
                 if img.NComponents > 1 then
                     let event =
                         gpu.Run(
@@ -303,14 +304,13 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.Volume img = 
+        member __.Volume img =
             job {
                 gpu.Wait img.gEvt
 
                 let cpuImg = img.gVal.Get()
 
-                let result =
-                    VoxImage.Volume cpuImg
+                let result = VoxImage.Volume cpuImg
 
                 return result
             }
@@ -350,18 +350,14 @@ type GPUModel() =
                 let mutable output = gpu.NewImageOnDevice(bimg, 1, Float32)
                 let mutable tmp = gpu.NewImageOnDevice(bimg, 1, Float32)
                 let comp = gpu.Float32(0f)
-                let mutable event = [||]
-
-                gpu.Wait(img.gEvt)
-                let prova = img.gVal.Get()
-                prova.Save("output/input.nii.gz")
+                //let mutable event = [||]
 
                 let swap () =
-                    let temp = tmp           
+                    let temp = tmp
                     tmp <- output
                     output <- temp
- 
-                let evt = 
+
+                let evt =
                     gpu.Run(
                         "initCCL3D",
                         img.gEvt,
@@ -372,44 +368,59 @@ type GPUModel() =
                         bimg.Size,
                         None
                     )
+                    
                 gpu.Wait([|evt|])
                 let prova = tmp.Get()
                 prova.Save("output/provainit.nii.gz")
-                
-                while flag <> comp do
-                    for _ = 0 to 8 do
+
+                while flag <> comp do                    
+                    let step evt = 
                         gpu.Run(
-                            "iterateCCL3D",
-                            img.gEvt,
-                            seq {
-                                img.gVal :> KernelArg
-                                tmp :> KernelArg
-                                output :> KernelArg
-                                flag :> KernelArg
-                            },
-                            bimg.Size,
-                            None
-                        ) |> ignore
-                        swap()
-                    event <- Array.append event
-                        [|gpu.Run(
-                            "reconnectCCL3D",
-                            [||],
-                            seq {
-                                img.gVal :> KernelArg
-                                tmp :> KernelArg
-                                output :> KernelArg
-                                flag :> KernelArg
-                            },
-                            bimg.Size,
-                            None
-                        )|]
-                    gpu.Wait([|evt|])
+                                "iterateCCL3D",
+                                [| evt |],
+                                seq {
+                                    img.gVal :> KernelArg
+                                    tmp :> KernelArg
+                                    output :> KernelArg
+                                    flag :> KernelArg
+                                },
+                                bimg.Size,
+                                None
+                            )
+
+                    let rec iterate n evt =
+                        if n <= 0 then evt
+                        else
+                            let evt' = step evt
+                            swap() 
+                            iterate (n-1) evt'
+
+                    let evt = iterate 1 evt
+                    
+                    gpu.Wait([| evt |])
                     let prova = tmp.Get()
                     prova.Save("output/provalcc.nii.gz")
-                    swap()
+                    swap ()
 
-                return { gVal = output; gEvt = event }
+                    failwith "EXIT HERE"
+
+                    let evt =
+                        gpu.Run(
+                               "reconnectCCL3D",
+                               [|evt|],
+                               seq {
+                                   img.gVal :> KernelArg
+                                   tmp :> KernelArg
+                                   output :> KernelArg
+                                   flag :> KernelArg
+                               },
+                               bimg.Size,
+                               None
+                        )
+
+                    ignore evt
+
+                return { gVal = output; gEvt = [|evt|] }
             }
 
 
@@ -568,7 +579,7 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.Through img img2 = job { return failwith "stub" }            
+        member __.Through img img2 = job { return failwith "stub" }
 
         member __.Interior imgIn =
             job {
@@ -591,13 +602,13 @@ type GPUModel() =
             }
 
     interface IDistanceModel<GPUModelValue> with
-        member __.DT img = job {
+        member __.DT img =
+            job {
                 gpu.Wait img.gEvt
 
                 let cpuImg = img.gVal.Get()
 
-                let result =
-                    VoxImage.Dt cpuImg
+                let result = VoxImage.Dt cpuImg
 
                 let output = gpu.CopyImageToDevice result
 
@@ -671,6 +682,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img, 1, UInt8)
+
                 let event =
                     gpu.Run(
                         "leq",
@@ -729,12 +741,12 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
         //     member __.Max img = lift VoxImage.Max img
-        
-        // member __.Min img = 
-        
+
+        // member __.Min img =
+
         //     job {
         //         gpu.Wait img.gEvt
-     
+
         //         let cpuImg = img.gVal.Get()
 
         //         let result = VoxImage.Min cpuImg
