@@ -324,7 +324,7 @@ and GPU(kernelsFilename : string) =
         new GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =    
-        ErrorMsg.Logger.Debug kernelName           
+        //ErrorMsg.Logger.Debug kernelName           
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         let mutable dimIdx = 0
