@@ -380,7 +380,7 @@ type GPUModel() =
 
                 //while flag.Value <> comp.Value do
                 let mutable retval = evt   
-                for _ = 1 to 16 do                 
+                for _ = 1 to 128 do                 
                     let step evt = 
                         gpu.Run(
                                 "iterateCCL3D",
