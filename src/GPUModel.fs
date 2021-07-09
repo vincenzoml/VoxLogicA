@@ -402,7 +402,7 @@ type GPUModel() =
                         //swap() 
                         iterate (n-1) evt'
                         
-                retval <- iterate 1000 evt
+                retval <- iterate 10000 evt
                     
                     //gpu.Wait([| evt |])
                     //let prova = tmp.Get()
