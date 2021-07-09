@@ -357,6 +357,11 @@ type GPUModel() =
                     tmp <- output
                     output <- temp
 
+                //gpu.Wait(img.gEvt)
+                //let prova = img.gVal.Get()
+                //printfn "%A" <| prova.BufferType
+                //prova.Save("output/input.nii.gz")
+
                 let evt =
                     gpu.Run(
                         "initCCL3D",
@@ -369,11 +374,13 @@ type GPUModel() =
                         None
                     )
                     
-                gpu.Wait([|evt|])
-                let prova = tmp.Get()
-                prova.Save("output/provainit.nii.gz")
+                //gpu.Wait([|evt|])
+                //let prova = tmp.Get()
+                //prova.Save("output/provainit.nii.gz")
 
-                while flag <> comp do                    
+                //while flag.Value <> comp.Value do
+                let mutable retval = evt   
+                for _ = 1 to 16 do                 
                     let step evt = 
                         gpu.Run(
                                 "iterateCCL3D",
@@ -397,12 +404,12 @@ type GPUModel() =
 
                     let evt = iterate 1 evt
                     
-                    gpu.Wait([| evt |])
-                    let prova = tmp.Get()
-                    prova.Save("output/provalcc.nii.gz")
+                    //gpu.Wait([| evt |])
+                    //let prova = tmp.Get()
+                    //prova.Save("output/provalcc.nii.gz")
                     swap ()
 
-                    failwith "EXIT HERE"
+                    //failwith "EXIT HERE"
 
                     let evt =
                         gpu.Run(
@@ -417,8 +424,12 @@ type GPUModel() =
                                bimg.Size,
                                None
                         )
-
-                    ignore evt
+                    retval <- evt
+                    //gpu.Wait([|evt|])
+                    //let newFlag = gpu.Float32(flag.Get())
+                    //flag <- newFlag
+                    //printfn "flag is %A" flag.Value
+                    //printfn "comp is %A" comp.Value
 
                 return { gVal = output; gEvt = [|evt|] }
             }

@@ -54,7 +54,7 @@ type KernelArg =
 
 type GPUValue<'a> =    
     inherit KernelArg
-    abstract member Get : unit -> 'a      
+    abstract member Get : unit -> 'a  
 
 type private GPUFloat (x : float32) =
     override __.ToString() = sprintf "<GPUFloat %f>" x

@@ -322,8 +322,8 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
   int z = gid.z;
   int4 size = get_image_dim(inputImage);
 
-  float4 ui4 = (float4)read_imagef(inputImage, sampler, gid);
-  unsigned int condition = (unsigned int)(ui4.x > 0.0);
+  uint4 ui4 = read_imageui(inputImage, sampler, gid);
+  unsigned int condition = (ui4.x > 0);
 
   write_imagef(outputImage, gid, (float)(condition * (z * (y * size.y) * (size.x * x))));
 }
@@ -370,7 +370,7 @@ __kernel void iterateCCL3D(__read_only image3d_t image,
   if(guard == 0)
     goto stop;
 
-  guard = 1;
+  guard = 0;
   float4 base = read_imagef(image, sampler, gid);
   float4 ui4a = read_imagef(inputImage1, sampler, gid);
   int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
