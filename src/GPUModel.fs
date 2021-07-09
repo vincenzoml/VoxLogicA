@@ -380,29 +380,29 @@ type GPUModel() =
 
                 //while flag.Value <> comp.Value do
                 let mutable retval = evt   
-                for _ = 1 to 128 do                 
-                    let step evt = 
-                        gpu.Run(
-                                "iterateCCL3D",
-                                [| evt |],
-                                seq {
-                                    img.gVal :> KernelArg
-                                    tmp :> KernelArg
-                                    output :> KernelArg
-                                    flag :> KernelArg
-                                },
-                                bimg.Size,
-                                None
-                            )
+                //for _ = 1 to 128 do                 
+                let step evt = 
+                    gpu.Run(
+                            "iterateCCL3D",
+                            [| evt |],
+                            seq {
+                                img.gVal :> KernelArg
+                                tmp :> KernelArg
+                                output :> KernelArg
+                                flag :> KernelArg
+                            },
+                            bimg.Size,
+                            None
+                        )
 
-                    let rec iterate n evt =
-                        if n <= 0 then evt
-                        else
-                            let evt' = step evt
-                            //swap() 
-                            iterate (n-1) evt'
-
-                    retval <- iterate 1 evt
+                let rec iterate n evt =
+                    if n <= 0 then evt
+                    else
+                        let evt' = step evt
+                        //swap() 
+                        iterate (n-1) evt'
+                        
+                retval <- iterate 128 evt
                     
                     //gpu.Wait([| evt |])
                     //let prova = tmp.Get()
@@ -431,7 +431,7 @@ type GPUModel() =
                     //printfn "flag is %A" flag.Value
                     //printfn "comp is %A" comp.Value
 
-                return { gVal = output; gEvt = [|evt|] }
+                return { gVal = output; gEvt = [|retval|] }
             }
 
 
