@@ -402,7 +402,7 @@ type GPUModel() =
                             //swap() 
                             iterate (n-1) evt'
 
-                    let evt = iterate 1 evt
+                    retval <- iterate 1 evt
                     
                     //gpu.Wait([| evt |])
                     //let prova = tmp.Get()
@@ -411,20 +411,20 @@ type GPUModel() =
 
                     //failwith "EXIT HERE"
 
-                    let evt =
-                        gpu.Run(
-                               "reconnectCCL3D",
-                               [|evt|],
-                               seq {
-                                   img.gVal :> KernelArg
-                                   tmp :> KernelArg
-                                   output :> KernelArg
-                                   flag :> KernelArg
-                               },
-                               bimg.Size,
-                               None
-                        )
-                    retval <- evt
+                    //let evt =
+                    //    gpu.Run(
+                    //           "reconnectCCL3D",
+                    //           [|evt|],
+                    //           seq {
+                    //               img.gVal :> KernelArg
+                    //               tmp :> KernelArg
+                    //               output :> KernelArg
+                    //               flag :> KernelArg
+                    //           },
+                    //           bimg.Size,
+                    //           None
+                    //    )
+                    //retval <- evt
                     //gpu.Wait([|evt|])
                     //let newFlag = gpu.Float32(flag.Get())
                     //flag <- newFlag
