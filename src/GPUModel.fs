@@ -399,7 +399,7 @@ type GPUModel() =
                         if n <= 0 then evt
                         else
                             let evt' = step evt
-                            swap() 
+                            //swap() 
                             iterate (n-1) evt'
 
                     let evt = iterate 1 evt
@@ -407,7 +407,7 @@ type GPUModel() =
                     //gpu.Wait([| evt |])
                     //let prova = tmp.Get()
                     //prova.Save("output/provalcc.nii.gz")
-                    swap ()
+                    //swap ()
 
                     //failwith "EXIT HERE"
 
