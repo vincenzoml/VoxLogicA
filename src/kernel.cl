@@ -326,7 +326,7 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
   write_imagef(outputImage, gid, (float4)(ui4.x*x, ui4.x*y, ui4.x*z, ui4.x));
 }
 
-__kernel void iterateCCL(__read_only image2d_t image,
+__kernel void iterateCCL(__read_only image2d_t image, // TODO FIXME
                          __read_only image2d_t inputImage1,
                          __write_only image2d_t outImage1) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
@@ -371,7 +371,7 @@ __kernel void iterateCCL3D(__read_only image3d_t image,
   guard = 0;
   float4 base = read_imagef(image, sampler, gid);
   float4 ui4a = read_imagef(inputImage1, sampler, gid);
-  int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
+//  int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
 
   float mx = ui4a.x;
   float my = ui4a.y;
