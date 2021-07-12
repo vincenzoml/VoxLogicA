@@ -4,6 +4,4 @@ let x = 900 .<= intensity(img)
 
 let y = lcc(x)
 
-save "output/test.nii.gz" near(x)
 save "output/lcc.nii.gz" y
-save "output/x.nii.gz" x

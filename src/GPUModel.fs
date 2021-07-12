@@ -590,7 +590,7 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.Through img img2 = job { return failwith "through: stub" }
+        member __.Through img img2 = job { return (failwith "through: stub" : GPUModelValue) }
 
         member __.Interior imgIn =
             job {
