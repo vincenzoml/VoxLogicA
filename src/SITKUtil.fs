@@ -47,7 +47,7 @@ open Microsoft.FSharp.NativeInterop
 let private allocate (img : Image, pixeltype : PixelIDValueEnum) = // Does not guarantee the memory is cleared.
     match (img.GetNumberOfComponentsPerPixel(),img.GetPixelID() = pixeltype) with
         | (1ul,true) -> new Image(img)
-        | (_,true) -> SimpleITK.VectorIndexSelectionCast(img,0ul)            
+        | (_,true) -> SimpleITK.VectorIndexSelectionCast(img,0ul)
         | (1ul,false) -> SimpleITK.Cast(img,pixeltype)    
         | (_,_) -> SimpleITK.VectorIndexSelectionCast(img,0ul,pixeltype)
             
@@ -250,7 +250,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     member private __.Image = img
 
-    override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
+    override __.ToString() = printfn "check this"; sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
     new (img : Image) =
         new VoxImage(img,"") 
@@ -293,12 +293,34 @@ type VoxImage private (img : Image,uniqueName : string) =
                     res
                 | (x,y) -> img.Dispose(); raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
         new VoxImage(loadedImg,sprintf "file:%s" filename)  // TODO: canonicize filename and / or use the file hash
-    
+
     new (img : VoxImage, pixeltype : PixelIDValueEnum) =        
         new VoxImage(
                 allocate(img.Image,pixeltype),
                 (   Logger.DebugOnly <| sprintf "Allocating image from %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
                     sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))
+
+    new (img : VoxImage, ncomponents : int, pixeltype : PixelIDValueEnum) =
+        match ncomponents with
+        | 1 -> new VoxImage(img)
+        | 3 -> 
+            let r = new VoxImage(img,pixeltype)
+            let g = new VoxImage(img,pixeltype)
+            let b = new VoxImage(img,pixeltype)
+            let flt = new ComposeImageFilter()
+            let res = flt.Execute(r.Image,g.Image,b.Image)
+            new VoxImage(res,sprintf "allocate:(%s)[%s][%s]" (ncomponents.ToString()) (img.ToString()) (pixeltype.ToString()))
+        | 4 -> 
+            let r = new VoxImage(img,pixeltype)
+            let g = new VoxImage(img,pixeltype)
+            let b = new VoxImage(img,pixeltype)
+            let a = new VoxImage(img,pixeltype)
+            let flt = new ComposeImageFilter()
+            let res = flt.Execute(r.Image,g.Image,b.Image,a.Image)
+            new VoxImage(res,sprintf "allocate:(%s)[%s][%s]" (ncomponents.ToString()) (img.ToString()) (pixeltype.ToString()))
+        | x -> 
+            let _ = raise <| UnsupportedNumberOfComponentsPerPixelException(x)
+            new VoxImage(img.Image,"")
 
     new (img : VoxImage) = new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
     

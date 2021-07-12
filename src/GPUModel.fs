@@ -374,8 +374,8 @@ type GPUModel() =
                         None
                     )
                     
-                //gpu.Wait([|evt|])
-                //let prova = tmp.Get()
+                gpu.Wait([|evt|])
+                let prova = tmp.Get()
                 //prova.Save("output/provainit.nii.gz")
 
                 //while flag.Value <> comp.Value do
@@ -590,7 +590,7 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.Through img img2 = job { return failwith "stub" }
+        member __.Through img img2 = job { return failwith "through: stub" }
 
         member __.Interior imgIn =
             job {

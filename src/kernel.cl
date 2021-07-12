@@ -322,10 +322,8 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
   int z = gid.z;
   int4 size = get_image_dim(inputImage);
 
-  uint4 ui4 = read_imageui(inputImage, sampler, gid);
-  unsigned int condition = (ui4.x > 0);
-
-  write_imagef(outputImage, gid, (float4)(condition*x, condition*y, condition*z, 0));
+  uint4 ui4 = read_imageui(inputImage, sampler, gid);  
+  write_imagef(outputImage, gid, (float4)(ui4.x*x, ui4.x*y, ui4.x*z, ui4.x));
 }
 
 __kernel void iterateCCL(__read_only image2d_t image,

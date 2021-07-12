@@ -81,7 +81,7 @@ type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int
 
     interface GPUValue<VoxImage> with 
         member __.Value = Buffer { DataPointer = dataPointer }        
-        member this.Get () =         
+        member __.Get () =         
             let pixelID = 
                 match bufferType with
                 | Float32 -> PixelIDValueEnum.sitkFloat32
@@ -92,12 +92,12 @@ type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int
                 else
                     match nComponents with
                     | 1 -> new VoxImage(VoxImage.Red(img),pixelID) // TODO optimize this double allocation
-                    | 4 -> new VoxImage((VoxImage.RGBA img img img img),pixelID) // TODO optimize this double allocation
+                    | 4 -> new VoxImage(img,4,pixelID) // TODO optimize this double allocation
                     | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
             use startPtr = fixed [|0un;0un;0un|]
             use endPtr = fixed [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]            
-
+            
             match destination.BufferType with
             | UInt8 ->
                 destination.GetBufferAsUInt8
@@ -321,7 +321,7 @@ and GPU(kernelsFilename : string) =
         
         let ptr = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
-        new GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+        GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =    
         //ErrorMsg.Logger.Debug kernelName           
