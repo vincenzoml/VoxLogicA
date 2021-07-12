@@ -371,7 +371,7 @@ __kernel void iterateCCL3D(__read_only image3d_t image,
   guard = 0;
   float4 base = read_imagef(image, sampler, gid);
   float4 ui4a = read_imagef(inputImage1, sampler, gid);
-//  int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
+  int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
 
   float mx = ui4a.x;
   float my = ui4a.y;
