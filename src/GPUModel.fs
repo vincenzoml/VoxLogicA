@@ -347,8 +347,8 @@ type GPUModel() =
                 let mutable flag = gpu.Float32(1f)
 
                 let bimg = getBaseImg ()
-                let mutable output = gpu.NewImageOnDevice(bimg, 1, Float32)
-                let mutable tmp = gpu.NewImageOnDevice(bimg, 1, Float32)
+                let mutable output = gpu.NewImageOnDevice(bimg, 4, Float32)
+                let mutable tmp = gpu.NewImageOnDevice(bimg, 4, Float32)
                 let comp = gpu.Float32(0f)
                 //let mutable event = [||]
 
@@ -402,7 +402,7 @@ type GPUModel() =
                         //swap() 
                         iterate (n-1) evt'
                         
-                retval <- iterate 10000 evt
+                retval <- iterate 32 evt
                     
                     //gpu.Wait([| evt |])
                     //let prova = tmp.Get()
