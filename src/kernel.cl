@@ -314,8 +314,7 @@ __kernel void initCCL(__read_only image2d_t inputImage,
   write_imageui(outputImage, gid, condition * (y * size.x + x));
 }
 
-__kernel void initCCL3D(__read_only image3d_t inputImage,
-                          __write_only image3d_t outputImage, __global float* flag) {
+__kernel void initCCL3D(__read_only image3d_t inputImage,__write_only image3d_t outputImage) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
   int x = gid.x;
   int y = gid.y;
@@ -323,9 +322,7 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
   int4 size = get_image_dim(inputImage);
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);  
-  write_imagef(outputImage, gid, (float4)(ui4.x*x, ui4.x*y, ui4.x*z, ui4.x));
-  printf("gpu: flag: %d\n",*flag);
-  *flag = 3;
+  write_imagef(outputImage, gid, (float4)(x, y, z, ui4.x));
 }
 
 __kernel void iterateCCL(__read_only image2d_t image, // TODO FIXME
@@ -355,44 +352,38 @@ __kernel void iterateCCL(__read_only image2d_t image, // TODO FIXME
   write_imageui(outImage1, gid, (uint4)(m, 0, 0, 0));
 }
 
-__kernel void iterateCCL3D(__read_only image3d_t image,
+__kernel void iterateCCL3D(//__read_only image3d_t image,
                            __read_only image3d_t inputImage1,
                            __write_only image3d_t outImage1,
-                           float guard) {
+                           __global float flag[1]) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
   int x = gid.x;
   int y = gid.y;
   int z = gid.z;
-  //int lock = 0;
 
   int4 size = get_image_dim(inputImage1);
+  
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+  
+  float labelx = input1.x;
+  float labely = input1.y;
+  float labelz = input1.z;
+  float orig = input1.w; // original boolean image (see the initialization kernel)
 
-  if(guard == 0)
-    goto stop;
-
-  guard = 0;
-  float4 base = read_imagef(image, sampler, gid);
-  float4 ui4a = read_imagef(inputImage1, sampler, gid);
-  int4 t = (int4)(((int)ui4a.x) % size.x, ((int)ui4a.x) / size.x, ((int)ui4a.y) % size.y, ((int)ui4a.y) / size.y);
-
-  float mx = ui4a.x;
-  float my = ui4a.y;
-  float mz = ui4a.z;
-
-  if (base.x > 0) {
+  if (orig > 0) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         for (int c = -1; c <= 1; c++) {
           float4 tmpa =
-              read_imagef(inputImage1, sampler, (int4)(t.x + a, t.y + b, t.z + c, 0));
-          mx = max(tmpa.x, mx);
-          my = max(tmpa.y, my);
-          mz = max(tmpa.z, mz);
+              read_imagef(inputImage1, sampler, (int4)(labelx + a, labely + b, labelz + c, 0));
+          if (tmpa.x > labelx || (tmpa.x == labelx && tmpa.y > labely) || (tmpa.x == labelx && tmpa.y == labely && tmpa.z > labelz)) {
+            write_imagef(outImage1, gid, tmpa);
+          } else {
+            write_imagef(outImage1, gid, input1);
+          }
         }
       }
   }
-
-  stop: write_imagef(outImage1, gid, (float4)(mx, my, mz, 0));
 }
 
 /*__kernel void reconnectCCL(__read_only image2d_t image,

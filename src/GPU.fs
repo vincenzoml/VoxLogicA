@@ -239,7 +239,8 @@ and GPU(kernelsFilename : string) =
     member __.CopyArrayToDevice (v : array<'a>) =
         use vptr' = fixed v
         let vptr = NativePtr.toVoidPtr vptr'
-        let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,API,unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
+        printfn "length: %A size: %A" v.Length sizeof<'a>
+        let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,enum<CLEnum>(32),unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
         new GPUArray<'a>(ptr,v.Length,{ Pointer = queue }) :> GPUValue<array<'a>>
 
     member __.CopyImageToDevice (hImgSource: VoxImage) =        
@@ -265,7 +266,7 @@ and GPU(kernelsFilename : string) =
         let imgFormatPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatPtr')
         
         let (width,height,depth) = hImgSource.Size.[0],hImgSource.Size.[1],if hImgSource.Size.Length >= 3 then hImgSource.Size.[2] else 1
-        let imgDesc = new ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
+        let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
@@ -276,6 +277,7 @@ and GPU(kernelsFilename : string) =
                     checkErrPtr (fun p -> 
                         API.CreateImage(
                                 context,
+                                //CLEnum.MemUseHostPtr,
                                 enum<CLEnum>(32), 
                                 // 32 = UseHostPointer
                                 // change the numeric constant to a symbolic one once https://github.com/dotnet/Silk.NET/issues/428 makes it to release (10th of April?)
@@ -284,7 +286,7 @@ and GPU(kernelsFilename : string) =
                                 imgPtr,
                                 p)))
 
-        new GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+        GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
                       
     //member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents,img.BufferType)
 
