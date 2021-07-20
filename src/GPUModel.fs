@@ -344,12 +344,12 @@ type GPUModel() =
 
         member __.LCC img =
             job {
-                let mutable flag = gpu.Float32(1f)
+                let mutable flag = gpu.CopyArrayToDevice([|7f|])
 
                 let bimg = getBaseImg ()
                 let mutable output = gpu.NewImageOnDevice(bimg, 4, Float32)
                 let mutable tmp = gpu.NewImageOnDevice(bimg, 4, Float32)
-                let comp = gpu.Float32(0f)
+                // let comp = gpu.Float32(0f)
                 //let mutable event = [||]
 
                 let swap () =
@@ -362,20 +362,14 @@ type GPUModel() =
                 //printfn "%A" <| prova.BufferType
                 //prova.Save("output/input.nii.gz")
 
-                let evt =
-                    gpu.Run(
-                        "initCCL3D",
-                        img.gEvt,
-                        seq {
-                            img.gVal
-                            tmp
-                        },
-                        bimg.Size,
-                        None
-                    )
+                let evt = gpu.Run("initCCL3D", img.gEvt, seq { img.gVal :> KernelArg; tmp :> KernelArg; flag :> KernelArg}, bimg.Size, None)
                     
                 gpu.Wait([|evt|])
                 let prova = tmp.Get()
+                let res = (flag.Get()).[0]
+                printfn "res: %A" res
+
+                failwith "Exit here"
                 //prova.Save("output/provainit.nii.gz")
 
                 //while flag.Value <> comp.Value do

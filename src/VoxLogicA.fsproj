@@ -28,7 +28,7 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Silk.Net.OpenCL" Version="2.4.0" />
+    <PackageReference Include="Silk.Net.OpenCL" Version="2.6.0" />
     <PackageReference Include="Argu" Version="6.1.1" />
     <PackageReference Include="FParsec" Version="1.1.1" />
     <PackageReference Include="FSharp.Data" Version="4.0.1" />

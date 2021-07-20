@@ -239,7 +239,7 @@ and GPU(kernelsFilename : string) =
     member __.CopyArrayToDevice (v : array<'a>) =
         use vptr' = fixed v
         let vptr = NativePtr.toVoidPtr vptr'
-        let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,enum<CLEnum>(32),unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
+        let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,API,unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
         new GPUArray<'a>(ptr,v.Length,{ Pointer = queue }) :> GPUValue<array<'a>>
 
     member __.CopyImageToDevice (hImgSource: VoxImage) =        

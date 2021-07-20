@@ -315,7 +315,7 @@ __kernel void initCCL(__read_only image2d_t inputImage,
 }
 
 __kernel void initCCL3D(__read_only image3d_t inputImage,
-                          __write_only image3d_t outputImage) {
+                          __write_only image3d_t outputImage, __global float* flag) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
   int x = gid.x;
   int y = gid.y;
@@ -324,6 +324,8 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);  
   write_imagef(outputImage, gid, (float4)(ui4.x*x, ui4.x*y, ui4.x*z, ui4.x));
+  printf("gpu: flag: %d\n",*flag);
+  *flag = 3;
 }
 
 __kernel void iterateCCL(__read_only image2d_t image, // TODO FIXME
