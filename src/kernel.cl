@@ -308,10 +308,8 @@ __kernel void initCCL(__read_only image2d_t inputImage,
   int y = gid.y;
   int2 size = get_image_dim(inputImage);
 
-  float4 ui4 = (float4)read_imagef(inputImage, sampler, gid);
-  int condition = (ui4.x > 0);
-
-  write_imageui(outputImage, gid, condition * (y * size.x + x));
+  uint4 ui4 = read_imageui(inputImage, sampler, gid);  
+  write_imagef(outputImage, gid, (float4)(x, y, 0, ui4.x));
 }
 
 __kernel void initCCL3D(__read_only image3d_t inputImage,__write_only image3d_t outputImage) {
@@ -325,31 +323,33 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,__write_only image3d_t 
   write_imagef(outputImage, gid, (float4)(x, y, z, ui4.x));
 }
 
-__kernel void iterateCCL(__read_only image2d_t image, // TODO FIXME
-                         __read_only image2d_t inputImage1,
-                         __write_only image2d_t outImage1) {
+__kernel void iterateCCL(__read_only image2d_t inputImage1,
+                         __write_only image2d_t outImage1,
+                         __global float flag[1]) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
 
   int2 size = get_image_dim(inputImage1);
 
-  uint4 base = read_imageui(image, sampler, gid);
-  uint4 ui4a = read_imageui(inputImage1, sampler, gid);
-  int2 t = (int2)(ui4a.x % size.x, ui4a.x / size.x);
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+  
+  float labelx = input1.x;
+  float labely = input1.y;
+  float labelz = input1.z;
+  float orig = input1.w; // original boolean image (see the initialization kernel)
 
-  unsigned int m = ui4a.x;  
-
-  if (base.x > 0) {
-    for (int a = -1; a <= 1; a++)
+  if (orig > 0) {
+    for (int a = -1; a <= 1; a++) {
       for (int b = -1; b <= 1; b++) {
-        uint4 tmpa =
-            read_imageui(inputImage1, sampler, (int2)(t.x + a, t.y + b));
-        m = max(tmpa.x, m);
+        float4 tmpa =
+            read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
+        unsigned int condition = ((tmpa.x > labelx) || (tmpa.x == labelx && tmpa.y > labely) || (tmpa.x == labelx && tmpa.y == labely && tmpa.z > labelz));
+        condition = condition && tmpa.w > 0;
+        write_imagef(outImage1, gid, (float4)((condition * tmpa.x) + (!condition * input1.x), (condition * tmpa.y) + (!condition * input1.y), (condition * tmpa.z) + (!condition * input1.z), orig));
       }
+    }
   }
-
-  write_imageui(outImage1, gid, (uint4)(m, 0, 0, 0));
 }
 
 __kernel void iterateCCL3D(//__read_only image3d_t image,
@@ -378,7 +378,7 @@ __kernel void iterateCCL3D(//__read_only image3d_t image,
               read_imagef(inputImage1, sampler, (int4)(labelx + a, labely + b, labelz + c, 0));
           unsigned int condition = ((tmpa.x > labelx) || (tmpa.x == labelx && tmpa.y > labely) || (tmpa.x == labelx && tmpa.y == labely && tmpa.z > labelz));
           condition = condition && tmpa.w > 0;
-          write_imagef(outImage1, gid, (float4)((condition * tmpa.x) + (!condition * input1.x), (condition * tmpa.y) + (!condition * input1.y), (condition * tmpa.z) + + (!condition * input1.z), orig));
+          write_imagef(outImage1, gid, (float4)((condition * tmpa.x) + (!condition * input1.x), (condition * tmpa.y) + (!condition * input1.y), (condition * tmpa.z) + (!condition * input1.z), orig));
         }
       }
     }
