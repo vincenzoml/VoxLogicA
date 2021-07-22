@@ -371,18 +371,17 @@ __kernel void iterateCCL3D(//__read_only image3d_t image,
   float orig = input1.w; // original boolean image (see the initialization kernel)
 
   if (orig > 0) {
-    for (int a = -1; a <= 1; a++)
+    for (int a = -1; a <= 1; a++) {
       for (int b = -1; b <= 1; b++) {
         for (int c = -1; c <= 1; c++) {
           float4 tmpa =
               read_imagef(inputImage1, sampler, (int4)(labelx + a, labely + b, labelz + c, 0));
-          if (tmpa.x > labelx || (tmpa.x == labelx && tmpa.y > labely) || (tmpa.x == labelx && tmpa.y == labely && tmpa.z > labelz)) {
-            write_imagef(outImage1, gid, tmpa);
-          } else {
-            write_imagef(outImage1, gid, input1);
-          }
+          unsigned int condition = ((tmpa.x > labelx) || (tmpa.x == labelx && tmpa.y > labely) || (tmpa.x == labelx && tmpa.y == labely && tmpa.z > labelz));
+          condition = condition && tmpa.w > 0;
+          write_imagef(outImage1, gid, (float4)((condition * tmpa.x) + (!condition * input1.x), (condition * tmpa.y) + (!condition * input1.y), (condition * tmpa.z) + + (!condition * input1.z), orig));
         }
       }
+    }
   }
 }
 
