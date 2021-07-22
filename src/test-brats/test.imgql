@@ -1,6 +1,6 @@
-load img = "test1.png"
+load img = "test2.png"
 
-let x = 900 .<= intensity(img)  
+let x = 1 .<= intensity(img)  
 
 let y = lcc(x)
 
