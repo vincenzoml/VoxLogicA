@@ -1,4 +1,4 @@
-load img = "test1.png"
+load img = "test2.png"
 
 let x = 1 .<= intensity(img)  
 
