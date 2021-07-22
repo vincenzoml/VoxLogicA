@@ -357,19 +357,19 @@ type GPUModel() =
                     tmp <- output
                     output <- temp
                 
-                let evt = gpu.Run("initCCL3D", img.gEvt, seq { img.gVal :> KernelArg; tmp :> KernelArg }, bimg.Size, None)               
+                let evt = gpu.Run("initCCL", img.gEvt, seq { img.gVal :> KernelArg; tmp :> KernelArg }, bimg.Size, None)               
 
                 gpu.Wait([|evt|])
                 let prova = tmp.Get()
                 printfn "%A" <| prova.BufferType
-                prova.Save("output/init.nii.gz")
+                prova.Save("output/init.png")
 
                 //while flag.Value <> comp.Value do
                 let mutable retval = evt   
                 //for _ = 1 to 128 do                 
                 let step evt = 
                     gpu.Run(
-                            "iterateCCL3D",
+                            "iterateCCL",
                             [| evt |],
                             seq {
                                 tmp :> KernelArg
@@ -384,14 +384,14 @@ type GPUModel() =
                     if n <= 0 then evt
                     else
                         let evt' = step evt
-                        //swap() 
+                        swap() 
                         iterate (n-1) evt'
                         
-                retval <- iterate 32 evt
+                retval <- iterate 64 evt
 
                 gpu.Wait([|evt|])
                 let prova = tmp.Get()
-                prova.Save("output/provainit.nii.gz")
+                prova.Save("output/provainit.png")
                 failwith "Exit here" 
                     
                     //gpu.Wait([| evt |])
