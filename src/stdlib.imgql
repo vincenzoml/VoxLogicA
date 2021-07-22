@@ -22,7 +22,10 @@ let !(a) = not(a)
 // "Through" operator in infix form; used internally to define mayReach and
 // surrounded 
 // a ~> b is true at point x if there is a connected component C of
-// the points that are true in a, with C containing one point which is true in b 
+// the points that are true in a, with C containing x and one point 
+// which is true in b 
+// In other words, there is a path starting in x and reaching a point of b, 
+// with all the points of the path in a
 let ~>(a,b) = through(b,a)      
 
 // Prefix operator form for near, interior, and external boundary
@@ -103,3 +106,4 @@ let overlayColor(boolean,img,r,g,b) =
 
 let divZ(i1,i2,i3) = 
     mask((i1 / mask(constant(1),!(i2 =. 0))),!(i2 =. 0)) + (mask(i3,i2 =. 0))
+
