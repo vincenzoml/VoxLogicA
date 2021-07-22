@@ -375,6 +375,10 @@ __kernel void iterateCCL3D(//__read_only image3d_t image,
   float labely = parent.y;
   float labelz = parent.z;
 
+  if(flag[0] == 0)
+    return;
+
+  flag[0] = 0;
   if (orig > 0) {
     for (int a = -1; a <= 1; a++) {
       for (int b = -1; b <= 1; b++) {
@@ -390,38 +394,50 @@ __kernel void iterateCCL3D(//__read_only image3d_t image,
   }
 }
 
-/*__kernel void reconnectCCL(__read_only image2d_t image,
-                           __read_only image2d_t inputImage1,
-                           __write_only image2d_t outImage1) {
+__kernel void reconnectCCL(__read_only image2d_t inputImage1,
+                           __write_only image2d_t outImage1,
+                           __global float flag[1]) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
-  int lock = 0;
 
   int2 size = get_image_dim(inputImage1);
 
-  uint4 base = read_imageui(image, sampler, gid);
-  uint4 ui4a = read_imageui(inputImage1, sampler, gid);
-  int2 t = (int2)(ui4a.x % size.x, ui4a.x / size.x);
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+  
+  float currentx = input1.x;
+  float currenty = input1.y;
+  float orig = input1.w; // original boolean image (see the initialization kernel)
 
-  uint4 tmpa = read_imageui(inputImage1, sampler, (int2)(t.x, t.y));
-  unsigned int m = max(ui4a.x,tmpa.x);
-  unsigned int n = ui4a.x;
+  float4 parent = read_imagef(inputImage1, sampler, (int2)(currentx, currenty)); // pointer jumping
+  float labelx = parent.x;
+  float labely = parent.y;
 
-  if (base.x > 0) {
+  unsigned int condition = (labelx > currentx || (labelx == currentx && labely > currenty));
+  float4 max = (condition*labelx + (!condition * currentx), condition*labely + (!condition * currenty), 0, orig);
+  float4 locmax = max;
+  //uint4 tmpa = read_imageui(inputImage1, sampler, (int2)(t.x, t.y));
+  //float4 m = max(ui4a, tmpa);
+  //unsigned int n = ui4a.x;
+
+  if (orig > 0) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
-        
-        //m = max(tmpa.x, m);
-        uint4 tmpb = read_imageui(inputImage1, sampler, (int2)(x + a, y + b));
-        n = max(tmpb.x, n);
+        float4 tmpb = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
+        unsigned int tmpcondition = ((tmpb.x > labelx) || (tmpb.x == labelx && tmpb.y > labely));
+        tmpcondition = tmpcondition && tmpb.w > 0;
+        locmax = (tmpcondition*tmpb.x + (!tmpcondition * currentx), tmpcondition*tmpb.y + (!tmpcondition * currenty), 0, orig);
       }
   }
 
-  if(n > m) write_imageui(outImage1,t,(uint4)(n,0,0,0));
+  unsigned int nc = ((max.x > locmax.x) || (max.x == locmax.x && max.y > locmax.y));
+  float4 color = (float4)(nc * max.x + (!nc*locmax.x), nc * max.y + (!nc * locmax.y), 0, orig);
+  if(color.x == currentx && color.y == currenty)
+    flag[0] = 1;
+  write_imagef(outImage1,(int2)(labelx, labely),color);
 }
 
-__kernel void reconnectCCL3D(__read_only image3d_t image,
+/*__kernel void reconnectCCL3D(__read_only image3d_t image,
                              __read_only image3d_t inputImage1,
                              __write_only image3d_t outImage1,
                              float guard) {

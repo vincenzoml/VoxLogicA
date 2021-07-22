@@ -346,7 +346,7 @@ type GPUModel() =
             job {
                 let bimg = getBaseImg ()
                 
-                let mutable flag = gpu.CopyArrayToDevice([|0uy|]) : GPUValue<array<uint8>>
+                let mutable flag = gpu.CopyArrayToDevice([|1uy|]) : GPUValue<array<uint8>>
                 let mutable output = gpu.NewImageOnDevice(bimg, 4, Float32)
                 let mutable tmp = gpu.NewImageOnDevice(bimg, 4, Float32)
                 // let comp = gpu.Float32(0f)
@@ -366,60 +366,57 @@ type GPUModel() =
 
                 //while flag.Value <> comp.Value do
                 let mutable retval = evt   
-                //for _ = 1 to 128 do                 
-                let step evt = 
-                    gpu.Run(
-                            "iterateCCL",
-                            [| evt |],
-                            seq {
-                                tmp :> KernelArg
-                                output :> KernelArg
-                                flag :> KernelArg
-                            },
-                            bimg.Size,
-                            None
+                for _ = 1 to 32 do                 
+                    let step evt = 
+                        gpu.Run(
+                                "iterateCCL",
+                                [| evt |],
+                                seq {
+                                    tmp :> KernelArg
+                                    output :> KernelArg
+                                    flag :> KernelArg
+                                },
+                                bimg.Size,
+                                None
+                            )
+
+                    let rec iterate n evt =
+                        if n <= 0 then evt
+                        else
+                            let evt' = step evt
+                            swap() 
+                            iterate (n-1) evt'
+
+                    retval <- iterate 32 evt
+
+                    gpu.Wait([|evt|])
+                    let prova = tmp.Get()
+                    prova.Save("output/provainit.png")
+                    //failwith "Exit here" 
+
+                    let evt =
+                        gpu.Run(
+                               "reconnectCCL",
+                               [|evt|],
+                               seq {
+                                   tmp :> KernelArg
+                                   output :> KernelArg
+                                   flag :> KernelArg
+                               },
+                               bimg.Size,
+                               None
                         )
+                    retval <- evt
 
-                let rec iterate n evt =
-                    if n <= 0 then evt
-                    else
-                        let evt' = step evt
-                        swap() 
-                        iterate (n-1) evt'
-                        
-                retval <- iterate 128 evt
-
-                gpu.Wait([|evt|])
-                let prova = tmp.Get()
-                prova.Save("output/provainit.png")
-                failwith "Exit here" 
-                    
-                    //gpu.Wait([| evt |])
-                    //let prova = tmp.Get()
-                    //prova.Save("output/provalcc.nii.gz")
-                    //swap ()
-
-                    //failwith "EXIT HERE"
-
-                    //let evt =
-                    //    gpu.Run(
-                    //           "reconnectCCL3D",
-                    //           [|evt|],
-                    //           seq {
-                    //               img.gVal :> KernelArg
-                    //               tmp :> KernelArg
-                    //               output :> KernelArg
-                    //               flag :> KernelArg
-                    //           },
-                    //           bimg.Size,
-                    //           None
-                    //    )
-                    //retval <- evt
-                    //gpu.Wait([|evt|])
-                    //let newFlag = gpu.Float32(flag.Get())
-                    //flag <- newFlag
-                    //printfn "flag is %A" flag.Value
-                    //printfn "comp is %A" comp.Value
+                    gpu.Wait([|retval|])
+                    let prova = output.Get()
+                    prova.Save("output/provarec.png")
+                    //failwith "Exit here" 
+                //gpu.Wait([|evt|])
+                //let newFlag = gpu.Float32(flag.Get())
+                //flag <- newFlag
+                //printfn "flag is %A" flag.Value
+                //printfn "comp is %A" comp.Value
 
                 return { gVal = output; gEvt = [|retval|] }
             }
