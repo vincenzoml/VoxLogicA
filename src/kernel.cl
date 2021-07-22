@@ -363,10 +363,15 @@ __kernel void iterateCCL3D(//__read_only image3d_t image,
   
   float4 input1 = read_imagef(inputImage1, sampler, gid);
   
-  float labelx = input1.x;
-  float labely = input1.y;
-  float labelz = input1.z;
+  float currentx = input1.x;
+  float currenty = input1.y;
+  float currentz = input1.z;
   float orig = input1.w; // original boolean image (see the initialization kernel)
+
+  float4 parent = read_imagef(inputImage1, sampler, (int4)(currentx, currenty, currentz, 0)); // pointer jumping
+  float labelx = parent.x;
+  float labely = parent.y;
+  float labelz = parent.z;
 
   if (orig > 0) {
     for (int a = -1; a <= 1; a++) {
