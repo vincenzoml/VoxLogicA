@@ -409,7 +409,7 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   float currenty = input1.y;
   float orig = input1.w; // original boolean image (see the initialization kernel)
 
-  float4 parent = read_imagef(inputImage1, sampler, (int2)(currentx, currenty)); // pointer jumping
+  float4 parent = read_imagef(inputImage1, sampler, (int2)(currentx, currenty));
   float labelx = parent.x;
   float labely = parent.y;
 
@@ -423,8 +423,8 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   if (orig > 0) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
-        float4 tmpb = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
-        unsigned int tmpcondition = ((tmpb.x > labelx) || (tmpb.x == labelx && tmpb.y > labely));
+        float4 tmpb = read_imagef(inputImage1, sampler, (int2)(locmax.x + a, locmax.y + b));
+        unsigned int tmpcondition = ((tmpb.x > locmax.x) || (tmpb.x == locmax.x && tmpb.y > locmax.y));
         tmpcondition = tmpcondition && tmpb.w > 0;
         locmax = (tmpcondition*tmpb.x + (!tmpcondition * currentx), tmpcondition*tmpb.y + (!tmpcondition * currenty), 0, orig);
       }
