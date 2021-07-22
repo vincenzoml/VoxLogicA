@@ -339,15 +339,13 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
   float labelz = input1.z;
   float orig = input1.w; // original boolean image (see the initialization kernel)
 
-  if (orig > 0) {
-    for (int a = -1; a <= 1; a++) {
-      for (int b = -1; b <= 1; b++) {
-        float4 tmpa =
-            read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
-        unsigned int condition = ((tmpa.x > labelx) || (tmpa.x == labelx && tmpa.y > labely) || (tmpa.x == labelx && tmpa.y == labely && tmpa.z > labelz));
-        condition = condition && tmpa.w > 0;
-        write_imagef(outImage1, gid, (float4)((condition * tmpa.x) + (!condition * input1.x), (condition * tmpa.y) + (!condition * input1.y), (condition * tmpa.z) + (!condition * input1.z), orig));
-      }
+  for (int a = -1; a <= 1; a++) {
+    for (int b = -1; b <= 1; b++) {
+      float4 tmpa =
+          read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
+      unsigned int condition = ((tmpa.x > labelx) || (tmpa.x == labelx && tmpa.y > labely) || (tmpa.x == labelx && tmpa.y == labely && tmpa.z > labelz));
+      condition = condition && tmpa.w > 0 && orig > 0;
+      write_imagef(outImage1, gid, (float4)((condition * tmpa.x) + (!condition * input1.x), (condition * tmpa.y) + (!condition * input1.y), (condition * tmpa.z) + (!condition * input1.z), orig));
     }
   }
 }
