@@ -364,9 +364,8 @@ type GPUModel() =
                 printfn "%A" <| prova.BufferType
                 prova.Save("output/init.png")
 
-                //while flag.Value <> comp.Value do
                 let mutable retval = evt   
-                for _ = 1 to 32 do                 
+                for _ = 1 to 2 do                 
                     let step evt = 
                         gpu.Run(
                                 "iterateCCL",
@@ -407,10 +406,11 @@ type GPUModel() =
                                None
                         )
                     retval <- evt
+                    swap()
 
-                    gpu.Wait([|retval|])
-                    let prova = output.Get()
-                    prova.Save("output/provarec.png")
+                gpu.Wait([|retval|])
+                let prova = output.Get()
+                prova.Save("output/provarec.png")
                     //failwith "Exit here" 
                 //gpu.Wait([|evt|])
                 //let newFlag = gpu.Float32(flag.Get())
