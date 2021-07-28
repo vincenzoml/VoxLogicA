@@ -409,13 +409,13 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   float currenty = input1.y;
   float orig = input1.w; // original boolean image (see the initialization kernel)
 
-  float4 parent = read_imagef(inputImage1, sampler, (int2)(currentx, currenty));
-  float labelx = parent.x;
-  float labely = parent.y;
+  //float4 parent = read_imagef(inputImage1, sampler, (int2)(currentx , currenty));
+  //float labelx = parent.x;
+  //float labely = parent.y;
 
-  unsigned int condition = (labelx > currentx || (labelx == currentx && labely > currenty));
-  float4 max = (condition*labelx + (!condition * currentx), condition*labely + (!condition * currenty), 0, orig);
-  float4 locmax = max;
+  //unsigned int condition = (labelx > currentx || (labelx == currentx && labely > currenty));
+  //float4 max = (condition*labelx + (!condition * currentx), condition*labely + (!condition * currenty), 0, orig);
+  float4 locmax = input1;
   //uint4 tmpa = read_imageui(inputImage1, sampler, (int2)(t.x, t.y));
   //float4 m = max(ui4a, tmpa);
   //unsigned int n = ui4a.x;
@@ -423,18 +423,18 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   if (orig > 0) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
-        float4 tmpb = read_imagef(inputImage1, sampler, (int2)(locmax.x + a, locmax.y + b));
+        float4 tmpb = read_imagef(inputImage1, sampler, (int2)(x + a, y + b));
         unsigned int tmpcondition = ((tmpb.x > locmax.x) || (tmpb.x == locmax.x && tmpb.y > locmax.y));
         tmpcondition = tmpcondition && tmpb.w > 0;
         locmax = (tmpcondition*tmpb.x + (!tmpcondition * currentx), tmpcondition*tmpb.y + (!tmpcondition * currenty), 0, orig);
       }
   }
 
-  unsigned int nc = ((max.x > locmax.x) || (max.x == locmax.x && max.y > locmax.y));
-  float4 color = (float4)(nc * max.x + (!nc*locmax.x), nc * max.y + (!nc * locmax.y), 0, orig);
-  if(color.x == currentx && color.y == currenty)
+  //unsigned int nc = ((max.x > locmax.x) || (max.x == locmax.x && max.y > locmax.y));
+  //float4 color = (float4)(nc * max.x + (!nc*locmax.x), nc * max.y + (!nc * locmax.y), 0, orig);
+  if(locmax.x != currentx || locmax.y != currenty)
     flag[0] = 1;
-  write_imagef(outImage1,(int2)(labelx, labely),color);
+  write_imagef(outImage1,(int2)(x, y),locmax);
 }
 
 /*__kernel void reconnectCCL3D(__read_only image3d_t image,
