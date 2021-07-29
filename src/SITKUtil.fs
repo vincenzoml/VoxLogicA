@@ -250,7 +250,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     member private __.Image = img
 
-    override __.ToString() = printfn "check this"; sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
+    override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
     new (img : Image) =
         new VoxImage(img,"") 

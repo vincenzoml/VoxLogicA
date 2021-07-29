@@ -1,7 +1,7 @@
-load img = "test1.png"
+load img = "test3.png"
 
 let x = 1 .<= intensity(img)  
 
 let y = lcc(x)
 
-save "output/lcc.nii.gz" y
+save "output/lcc.png" y *. 100

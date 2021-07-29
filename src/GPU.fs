@@ -239,7 +239,6 @@ and GPU(kernelsFilename : string) =
     member __.CopyArrayToDevice (v : array<'a>) =
         use vptr' = fixed v
         let vptr = NativePtr.toVoidPtr vptr'
-        printfn "length: %A size: %A" v.Length sizeof<'a>
         let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,enum<CLEnum>(32),unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
         new GPUArray<'a>(ptr,v.Length,{ Pointer = queue }) :> GPUValue<array<'a>>
 

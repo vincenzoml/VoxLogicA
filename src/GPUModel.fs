@@ -346,57 +346,49 @@ type GPUModel() =
             job {
                 let bimg = getBaseImg ()
                 
-                let mutable flag = gpu.CopyArrayToDevice([|1uy|]) : GPUValue<array<uint8>>
+                let mutable flag = gpu.CopyArrayToDevice([|0uy|]) : GPUValue<array<uint8>>
                 let mutable output = gpu.NewImageOnDevice(bimg, 4, Float32)
                 let mutable tmp = gpu.NewImageOnDevice(bimg, 4, Float32)
-                // let comp = gpu.Float32(0f)
-                //let mutable event = [||]
 
                 let swap () =
                     let temp = tmp
                     tmp <- output
                     output <- temp
                 
-                let evt = gpu.Run("initCCL", img.gEvt, seq { img.gVal :> KernelArg; tmp :> KernelArg }, bimg.Size, None)               
+                let evt0 = gpu.Run("initCCL", img.gEvt, seq { img.gVal :> KernelArg; tmp :> KernelArg }, bimg.Size, None)               
 
-                gpu.Wait([|evt|])
-                let prova = tmp.Get()
-                printfn "%A" <| prova.BufferType
-                prova.Save("output/init.png")
-
-                let mutable retval = evt   
-                for _ = 1 to 2 do                 
-                    let step evt = 
-                        gpu.Run(
+                let rec iterate n iterations evt =
+                    if n >= iterations then evt
+                    else
+                        let evt' =
+                            gpu.Run(
                                 "iterateCCL",
                                 [| evt |],
                                 seq {
                                     tmp :> KernelArg
                                     output :> KernelArg
-                                    flag :> KernelArg
                                 },
                                 bimg.Size,
                                 None
-                            )
+                            )  
+                        swap()                                                  
+                        iterate (n+1) iterations evt'
 
-                    let rec iterate n evt =
-                        if n <= 0 then evt
-                        else
-                            let evt' = step evt
-                            swap() 
-                            iterate (n-1) evt'
+                let mutable terminated = false
+                            
+                let mutable whileEvt = evt0
 
-                    retval <- iterate 32 evt
+                let mutable nsteps = 0
+                let mutable nrecs = 0
 
-                    gpu.Wait([|evt|])
-                    let prova = tmp.Get()
-                    prova.Save("output/provainit.png")
-                    //failwith "Exit here" 
+                while not terminated do                            
 
-                    let evt =
+                    let evt1 = iterate 0 16 whileEvt
+
+                    let evt2 =
                         gpu.Run(
                                "reconnectCCL",
-                               [|evt|],
+                               [|evt1|],
                                seq {
                                    tmp :> KernelArg
                                    output :> KernelArg
@@ -405,20 +397,19 @@ type GPUModel() =
                                bimg.Size,
                                None
                         )
-                    retval <- evt
-                    swap()
+                    
+                    nsteps <- nsteps + 16
+                    nrecs <- nrecs + 1
 
-                gpu.Wait([|retval|])
-                let prova = output.Get()
-                prova.Save("output/provarec.png")
-                    //failwith "Exit here" 
-                //gpu.Wait([|evt|])
-                //let newFlag = gpu.Float32(flag.Get())
-                //flag <- newFlag
-                //printfn "flag is %A" flag.Value
-                //printfn "comp is %A" comp.Value
+                    gpu.Wait([|evt2|])
+                    if flag.Get().[0] > 0uy then 
+                        swap()                        
+                        whileEvt <- gpu.Run("resetFlag",[||],seq { flag },[|1|],None)    
+                    else 
+                        ErrorMsg.Logger.Debug(sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs)
+                        terminated <- true                        
 
-                return { gVal = output; gEvt = [|retval|] }
+                return { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag                
             }
 
 
