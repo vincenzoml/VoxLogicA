@@ -145,7 +145,7 @@ __kernel void geq(__read_only IMG_T image, __write_only IMG_T outImage,
 
   int condition = (ui4.x > value);
 
-  write_imageui(outImage, gid, condition);
+  write_imageui(outImage, gid, 1);
 }
 
 __kernel void leq(__read_only IMG_T inputImage, __write_only IMG_T outImage,
