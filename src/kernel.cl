@@ -53,7 +53,7 @@ __kernel void rgbComps(__read_only IMG_T inputImage1,
   float4 pix2 = (float4)read_imagef(inputImage2, gid);
   float4 pix3 = (float4)read_imagef(inputImage3, gid);
 
-  write_imagef(outImage, gid, (float4)(pix1.x, pix2.y, pix3.z, 255));
+  write_imagef(outImage, gid, (float4)(pix1.x, pix2.y, pix3.z, 255)); // TODO: why 255? What if the image is 16bit? Float32? This primitive needs a value for alpha
 }
 
 __kernel void rgbaComps(__read_only IMG_T inputImage1,
@@ -148,26 +148,27 @@ __kernel void geq(__read_only IMG_T image, __write_only IMG_T outImage,
   write_imageui(outImage, gid, condition);
 }
 
-__kernel void copy4fto1f2D(__read_only image2d_t input, __write_only image2d_t output) {
+__kernel void copy4fto1f2D(__read_only image2d_t input,
+                           __write_only image2d_t output) {
   const sampler_t sampler =
       CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
 
-  const float4 v = read_imagef(input, sampler,gid);
-  
+  const float4 v = read_imagef(input, sampler, gid);
+
   write_imagef(output, gid, v.x);
 }
 
 __kernel void leq(__read_only IMG_T inputImage, __write_only IMG_T outImage,
                   float value) {
 
-  INIT_GID(gid)  
+  INIT_GID(gid)
 
   const float4 f4 = read_imagef(inputImage, sampler, gid);
-  
+
   unsigned int condition = (unsigned int)(value <= f4.x);
-  write_imageui(outImage, gid, condition);  
+  write_imageui(outImage, gid, condition);
 }
 
 __kernel void eq(__read_only IMG_T image, __write_only IMG_T outImage,
@@ -318,7 +319,7 @@ __kernel void initCCL(__read_only image2d_t inputImage,
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
   write_imagef(outputImage, gid,
-               (float4)(ui4.x * x, ui4.x * y, 0, ui4.x * 255));
+               (float4)(ui4.x * x, ui4.x * y, 0, ui4.x * 65535));
 }
 
 __kernel void initCCL3D(__read_only image3d_t inputImage,
@@ -343,8 +344,7 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
 
   float currentx = input1.x;
   float currenty = input1.y;
-  float orig =
-      input1.w; // original boolean image (see the initialization kernel)
+  float orig = input1.w; // original image (see the initialization kernel)
 
   float4 parent = read_imagef(inputImage1, sampler,
                               (int2)(currentx, currenty)); // pointer jumping
@@ -359,10 +359,57 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
       unsigned int condition =
           ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy))) &&
           (tmpa.w > 0) && (orig > 0);
-      maxx = condition * tmpa.x + !condition * maxx;
-      maxy = condition * tmpa.y + !condition * maxy;
+      maxx = (condition * tmpa.x) + ((!condition) * maxx);
+      maxy = (condition * tmpa.y) + ((!condition) * maxy);
     }
   }
+
+  write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
+  // TODO: optimize by assuming input and output are copies of each other
+  // (requires change in initialization?)
+}
+
+__kernel void iterateCCLNew(__read_only image2d_t inputImage1,
+                         __write_only image2d_t outImage1) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  int x = gid.x;
+  int y = gid.y;
+
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+
+  float currentx = input1.x;
+  float currenty = input1.y;
+  float orig = input1.w; // original image (see the initialization kernel)
+
+  float4 parent = read_imagef(inputImage1, sampler,
+                              (int2)(currentx, currenty)); // pointer jumping
+  float labelx = parent.x;
+  float labely = parent.y;
+  float4 tmpa;
+  float4 tmpb;
+  float maxx = labelx;
+  float maxy = labely;
+  for (int a = -1; a <= 1; a++) {
+    for (int b = -1; b <= 1; b++) {
+      tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
+      unsigned int conditiona =
+          ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy))) &&
+          (tmpa.w > 0) && (orig > 0);      
+      maxx = (conditiona * tmpa.x) + ((!conditiona) * maxx);
+      maxy = (conditiona * tmpa.y) + ((!conditiona) * maxy);
+    }
+  }
+  // for (int a = -1; a <= 1; a++) {
+  //   for (int b = -1; b <= 1; b++) {
+  //     tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
+  //     tmpb = read_imagef(inputImage1, sampler, (int2)(x + a,y+b));
+  //     unsigned int conditionb =
+  //         ((tmpb.x > maxx) || ((tmpb.x == maxx) && (tmpb.y > maxy))) &&
+  //         (tmpb.w > 0) && (orig > 0);
+  //     maxx = conditionb * tmpb.x + !conditionb * maxx;
+  //     maxy = conditionb * tmpb.y + !conditionb * maxy;   
+  //   }
+  // }
 
   write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
   // TODO: optimize by assuming input and output are copies of each other
@@ -442,18 +489,17 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
         unsigned int tmpcondition =
             ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y)) &&
             (tmpb.w > 0);
-        // if (x == 8 && y == 8)
         max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
-                       tmpcondition * tmpb.y + (!tmpcondition * max.x), 0.0,
+                       tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
                        orig);
         toFlag = toFlag || tmpcondition;
       }
   }
 
-  if (toFlag)
+  if (toFlag) {
     flag[0] = 1;
-
-  write_imagef(outImage1, (int2)(x, y), max);
+    write_imagef(outImage1, (int2)(currentx, currenty), max);
+  }  
 }
 
 /*__kernel void reconnectCCL3D(__read_only image3d_t image,

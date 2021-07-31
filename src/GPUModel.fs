@@ -367,6 +367,9 @@ type GPUModel() =
                         None
                     )
 
+                // gpu.Wait([|evt0|])
+                // tmp.Get().Save("output/init.png")
+
                 let rec iterate n iterations evt =
                     if n >= iterations then
                         evt
@@ -383,6 +386,9 @@ type GPUModel() =
                                 None
                             )
 
+                        // gpu.Wait([|evt'|])
+                        // output.Get().Save(sprintf "output/iteration-%02d.png" n)
+
                         swap ()
                         iterate (n + 1) iterations evt'
 
@@ -395,7 +401,9 @@ type GPUModel() =
 
                 while not terminated do
 
-                    let evt1 = iterate 0 16 whileEvt
+                    let k = 64
+
+                    let evt1 = iterate 0 k whileEvt
 
                     let evt2 =
                         gpu.Run(
@@ -410,10 +418,10 @@ type GPUModel() =
                             None
                         )
 
-                    nsteps <- nsteps + 16
+                    nsteps <- nsteps + k
                     nrecs <- nrecs + 1
 
-                    gpu.Wait([| evt2 |])
+                    gpu.Wait([| evt2 |]) // DO NOT REMOVE THIS
 
                     if flag.Get().[0] > 0uy then
                         swap ()
@@ -422,8 +430,9 @@ type GPUModel() =
                         ErrorMsg.Logger.Debug(
                             sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
                         )
-
                         terminated <- true
+                    
+                    // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
                 return { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
             }
