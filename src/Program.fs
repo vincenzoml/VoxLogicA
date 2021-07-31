@@ -45,8 +45,6 @@ let main (argv: string array) =
 
     let parsed = cmdLineParser.Parse argv
     ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
-    let model = GPUModel() :> IModel
-    let checker = ModelChecker model
     let finish = 
         if Option.isSome (parsed.TryGetResult JSon) then 
             let readLog = ErrorMsg.Logger.LogToMemory()
@@ -62,6 +60,8 @@ let main (argv: string array) =
         else 
             ErrorMsg.Logger.LogToStdout ()
             ignore
+    let model = GPUModel() :> IModel
+    let checker = ModelChecker model
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning
             (sprintf

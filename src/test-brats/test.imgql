@@ -1,7 +1,6 @@
 load img = "test2.png"
 
-let x = 10 .<= intensity(img)  
+let x = (10 .<= intensity(img))
 
-save "output/x.png" x
+save "output/lcc.png" lcc(x)
 
-let y = lcc(x)

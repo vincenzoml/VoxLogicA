@@ -192,7 +192,6 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                     raise
                     <| InterpreterException(StackTrace([ "print", pos ]), CantPrintException(typ))
             | Import fname :: rest ->
-                printfn "%A" libdir
                 let find filename =
                     if File.Exists filename then
                         Some filename

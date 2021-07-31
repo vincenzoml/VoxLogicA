@@ -196,7 +196,6 @@ and GPU(kernelsFilename : string) =
         prg               
 
     let kernels = // TODO: it is possible in opencl to retrieve information on each parameter (type etc.) with a suitable option to the compiler. Use this to generate typed methods (with a typeprovider?)
-        // checkErr (fun p -> API.CreateKernel(program,"intdensity",p))
         let num = [|0ul|]
         use numPtr = fixed num
         checkErr (API.CreateKernelsInProgram(program,0ul,nullPtr,numPtr))        
@@ -204,7 +203,6 @@ and GPU(kernelsFilename : string) =
         use kvPtr = fixed kv
         checkErr (API.CreateKernelsInProgram(program,num.[0],kvPtr,numPtr))
         let kernels = kv.[0..(int num.[0]-1)]
-        //Map.ofSeq <|
         let dict = Dictionary<_,_>()
         for (k,v) in
             Array.map 
@@ -224,7 +222,7 @@ and GPU(kernelsFilename : string) =
     
     let queue = checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
     
-    let _ = ErrorMsg.Logger.Debug "Initialized GPU"
+    let _ = ErrorMsg.Logger.Debug "GPU initialized" 
 
     member __.SetDimensionIndex x =
         dimensionIndex <- x
@@ -316,7 +314,7 @@ and GPU(kernelsFilename : string) =
         let height = img.Height
         let depth = img.Depth
 
-        let imgDesc = new ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
+        let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
@@ -325,7 +323,6 @@ and GPU(kernelsFilename : string) =
         GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =    
-        // ErrorMsg.Logger.Debug kernelName           
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         let mutable dimIdx = 0

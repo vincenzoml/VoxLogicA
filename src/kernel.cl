@@ -3,7 +3,7 @@
 const sampler_t sampler =
     CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
-#define DIM 3
+#define DIM 2
 #if DIM == 3
 
 #define IMG_T image3d_t
@@ -145,18 +145,29 @@ __kernel void geq(__read_only IMG_T image, __write_only IMG_T outImage,
 
   int condition = (ui4.x > value);
 
-  write_imageui(outImage, gid, 1);
+  write_imageui(outImage, gid, condition);
+}
+
+__kernel void copy4fto1f2D(__read_only image2d_t input, __write_only image2d_t output) {
+  const sampler_t sampler =
+      CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
+
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+
+  const float4 v = read_imagef(input, sampler,gid);
+  
+  write_imagef(output, gid, v.x);
 }
 
 __kernel void leq(__read_only IMG_T inputImage, __write_only IMG_T outImage,
                   float value) {
-  INIT_GID(gid)
 
-  float4 ui4 = (float4)read_imagef(inputImage, sampler, gid);
+  INIT_GID(gid)  
 
-  unsigned int condition = (unsigned int)(value <= ui4.x);
-
-  write_imageui(outImage, gid, condition);
+  const float4 f4 = read_imagef(inputImage, sampler, gid);
+  
+  unsigned int condition = (unsigned int)(value <= f4.x);
+  write_imageui(outImage, gid, condition);  
 }
 
 __kernel void eq(__read_only IMG_T image, __write_only IMG_T outImage,
@@ -404,9 +415,7 @@ __kernel void iterateCCL3D( //__read_only image3d_t image,
   }
 }
 
-__kernel void resetFlag(__global char flag[1]) {
-  flag[0] = 0;
-}
+__kernel void resetFlag(__global char flag[1]) { flag[0] = 0; }
 
 __kernel void reconnectCCL(__read_only image2d_t inputImage1,
                            __write_only image2d_t outImage1,
@@ -433,15 +442,16 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
         unsigned int tmpcondition =
             ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y)) &&
             (tmpb.w > 0);
-        //if (x == 8 && y == 8)          
+        // if (x == 8 && y == 8)
         max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
                        tmpcondition * tmpb.y + (!tmpcondition * max.x), 0.0,
-                       orig);        
+                       orig);
         toFlag = toFlag || tmpcondition;
       }
   }
 
-  if (toFlag) flag[0] = 1;
+  if (toFlag)
+    flag[0] = 1;
 
   write_imagef(outImage1, (int2)(x, y), max);
 }
