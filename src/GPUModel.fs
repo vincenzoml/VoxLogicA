@@ -401,7 +401,7 @@ type GPUModel() =
 
                 while not terminated do
 
-                    let k = 64
+                    let k = 8
 
                     let evt1 = iterate 0 k whileEvt
 
