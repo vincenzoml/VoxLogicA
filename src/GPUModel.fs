@@ -81,6 +81,7 @@ type GPUModel() =
         | _ -> false
 
     override __.Save filename v =
+        ErrorMsg.Logger.Debug (sprintf "about to save: %A" filename)
         let gmv = (v :?> GPUModelValue)
         gpu.Wait <| gmv.gEvt
         let img = gmv.gVal.Get()
@@ -427,9 +428,9 @@ type GPUModel() =
                         swap ()
                         whileEvt <- gpu.Run("resetFlag", [||], seq { flag }, [| 1 |], None)
                     else
-                        ErrorMsg.Logger.Debug(
-                            sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
-                        )
+                        // ErrorMsg.Logger.Debug(
+                        //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
+                        // )
                         terminated <- true
                     
                     // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true

@@ -1,6 +1,12 @@
 load img = "test3.png"
 
-let x = (10 .<= intensity(img))
+let i = intensity(img)
 
-save "output/lcc.png" lcc(x)
+let thr(x) = (1 .<= x) 
+let ccthr(x) = lcc(thr(x))
+
+let a(x) = ccthr(ccthr(ccthr(ccthr(x))))
+let b(x) = a(a(a(a(x))))
+
+save "output/lcc.png" b(i)
 
