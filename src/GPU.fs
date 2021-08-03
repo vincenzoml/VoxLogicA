@@ -88,7 +88,9 @@ type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int
                 | UInt8 -> PixelIDValueEnum.sitkUInt8 
 
             let destination = 
-                if img.NComponents = nComponents then new VoxImage(img,pixelID)
+                if img.NComponents = nComponents then 
+                    if nComponents = 1 then new VoxImage(img,pixelID)
+                    else new VoxImage(img,nComponents,pixelID)
                 else
                     match nComponents with
                     | 1 -> new VoxImage(VoxImage.Red(img),pixelID) // TODO optimize this double allocation
