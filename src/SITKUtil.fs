@@ -295,7 +295,7 @@ type VoxImage private (img : Image,uniqueName : string) =
         new VoxImage(loadedImg,sprintf "file:%s" filename)  // TODO: canonicize filename and / or use the file hash
 
     new (img : VoxImage, pixeltype : PixelIDValueEnum) =        
-        new VoxImage(
+        new VoxImage(                
                 allocate(img.Image,pixeltype),
                 (   Logger.DebugOnly <| sprintf "Allocating image from %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
                     sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))

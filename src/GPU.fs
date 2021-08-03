@@ -88,7 +88,9 @@ type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int
                 | UInt8 -> PixelIDValueEnum.sitkUInt8 
 
             let destination = 
-                if img.NComponents = nComponents then new VoxImage(img,pixelID)
+                if img.NComponents = nComponents then 
+                    if nComponents = 1 then new VoxImage(img,pixelID)
+                    else new VoxImage(img,nComponents,pixelID)
                 else
                     match nComponents with
                     | 1 -> new VoxImage(VoxImage.Red(img),pixelID) // TODO optimize this double allocation
@@ -96,13 +98,14 @@ type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int
                     | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
             use startPtr = fixed [|0un;0un;0un|]
-            use endPtr = fixed [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]            
+            let size = [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]
+            use endPtr = fixed size   
             
             match destination.BufferType with
             | UInt8 ->
                 destination.GetBufferAsUInt8
                     (fun buf -> 
-                        let ptr = NativePtr.toVoidPtr buf.Pointer
+                        let ptr = NativePtr.toVoidPtr buf.Pointer                        
                         checkErr <| API.EnqueueReadImage(queue.Pointer,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
             | Float32 ->
                 destination.GetBufferAsFloat

@@ -53,7 +53,11 @@ __kernel void rgbComps(__read_only IMG_T inputImage1,
   float4 pix2 = (float4)read_imagef(inputImage2, gid);
   float4 pix3 = (float4)read_imagef(inputImage3, gid);
 
-  write_imagef(outImage, gid, (float4)(pix1.x, pix2.y, pix3.z, 255)); // TODO: why 255? What if the image is 16bit? Float32? This primitive needs a value for alpha
+  write_imagef(
+      outImage, gid,
+      (float4)(pix1.x, pix2.y, pix3.z,
+               255)); // TODO: why 255? What if the image is 16bit? Float32?
+                      // This primitive needs a value for alpha
 }
 
 __kernel void rgbaComps(__read_only IMG_T inputImage1,
@@ -335,7 +339,8 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
 }
 
 __kernel void iterateCCL(__read_only image2d_t inputImage1,
-                         __write_only image2d_t outImage1) {
+                         __write_only image2d_t outImage1,
+                         __global char flag[1]) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
@@ -346,74 +351,38 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
   float currenty = input1.y;
   float orig = input1.w; // original image (see the initialization kernel)
 
-  float4 parent = read_imagef(inputImage1, sampler,
-                              (int2)(currentx, currenty)); // pointer jumping
-  float labelx = parent.x;
-  float labely = parent.y;
-  float4 tmpa;
-  float maxx = labelx;
-  float maxy = labely;
-  for (int a = -1; a <= 1; a++) {
-    for (int b = -1; b <= 1; b++) {
-      tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
-      unsigned int condition =
-          ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy))) &&
-          (tmpa.w > 0) && (orig > 0);
-      maxx = (condition * tmpa.x) + ((!condition) * maxx);
-      maxy = (condition * tmpa.y) + ((!condition) * maxy);
+  if (orig > 0) {
+    float4 parent = read_imagef(inputImage1, sampler,
+                                (int2)(currentx, currenty)); // pointer jumping
+    float labelx = parent.x;
+    float labely = parent.y;
+    float4 tmpa;
+    float maxx = labelx;
+    float maxy = labely;
+    unsigned int condition;
+
+    for (int a = -1; a <= 1; a++) { // TODO: create an array of coordinates with
+                                    // the preprocessor and avoid the case a=b=0
+      for (int b = -1; b <= 1; b++) {
+        tmpa = read_imagef(inputImage1, sampler, (int2)(labelx+a, labely+b));
+        condition = (tmpa.w > 0) &&
+                    ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy)));
+        maxx = (condition * tmpa.x) + ((!condition) * maxx);
+        maxy = (condition * tmpa.y) + ((!condition) * maxy);
+        tmpa = read_imagef(inputImage1, sampler, (int2)(x + a, y + b));
+        condition = (tmpa.w > 0) &&
+                    ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy)));
+        maxx = (condition * tmpa.x) + ((!condition) * maxx);
+        maxy = (condition * tmpa.y) + ((!condition) * maxy);
+      }
+    }
+    
+    write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
+
+    if ((maxx != labelx) || (maxy != labely)) {
+      flag[0] = 1;
     }
   }
-
-  write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
-  // TODO: optimize by assuming input and output are copies of each other
-  // (requires change in initialization?)
-}
-
-__kernel void iterateCCLNew(__read_only image2d_t inputImage1,
-                         __write_only image2d_t outImage1) {
-  int2 gid = (int2)(get_global_id(0), get_global_id(1));
-  int x = gid.x;
-  int y = gid.y;
-
-  float4 input1 = read_imagef(inputImage1, sampler, gid);
-
-  float currentx = input1.x;
-  float currenty = input1.y;
-  float orig = input1.w; // original image (see the initialization kernel)
-
-  float4 parent = read_imagef(inputImage1, sampler,
-                              (int2)(currentx, currenty)); // pointer jumping
-  float labelx = parent.x;
-  float labely = parent.y;
-  float4 tmpa;
-  float4 tmpb;
-  float maxx = labelx;
-  float maxy = labely;
-  for (int a = -1; a <= 1; a++) {
-    for (int b = -1; b <= 1; b++) {
-      tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
-      unsigned int conditiona =
-          ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy))) &&
-          (tmpa.w > 0) && (orig > 0);      
-      maxx = (conditiona * tmpa.x) + ((!conditiona) * maxx);
-      maxy = (conditiona * tmpa.y) + ((!conditiona) * maxy);
-    }
-  }
-  // for (int a = -1; a <= 1; a++) {
-  //   for (int b = -1; b <= 1; b++) {
-  //     tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
-  //     tmpb = read_imagef(inputImage1, sampler, (int2)(x + a,y+b));
-  //     unsigned int conditionb =
-  //         ((tmpb.x > maxx) || ((tmpb.x == maxx) && (tmpb.y > maxy))) &&
-  //         (tmpb.w > 0) && (orig > 0);
-  //     maxx = conditionb * tmpb.x + !conditionb * maxx;
-  //     maxy = conditionb * tmpb.y + !conditionb * maxy;   
-  //   }
-  // }
-
-  write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
-  // TODO: optimize by assuming input and output are copies of each other
-  // (requires change in initialization?)
 }
 
 __kernel void iterateCCL3D( //__read_only image3d_t image,
@@ -499,7 +468,7 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   if (toFlag) {
     flag[0] = 1;
     write_imagef(outImage1, (int2)(currentx, currenty), max);
-  }  
+  }
 }
 
 /*__kernel void reconnectCCL3D(__read_only image3d_t image,
