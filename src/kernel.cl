@@ -376,7 +376,7 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
         maxy = (condition * tmpa.y) + ((!condition) * maxy);
       }
     }
-    
+
     write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
 
     if ((maxx != labelx) || (maxy != labely)) {
