@@ -466,46 +466,6 @@ __kernel void resetFlag(__global char flag[1]) { flag[0] = 0; }
 __kernel void reconnectCCL(__read_only image2d_t inputImage1,
                            __write_only image2d_t outImage1,
                            __global char flag[1]) {
-  int2 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
-  int x = gid.x;
-  int y = gid.y;
-  int z = gid.z;
-
-  float4 input1 = read_imagef(inputImage1, sampler, gid);
-
-  float currentx = input1.x;
-  float currenty = input1.y;
-  float currentz = input1.z;
-  float orig =
-      input1.w; // original boolean image (see the initialization kernel)
-
-  float4 max = (float4)(currentx, currenty, currentz, orig);
-
-  unsigned int toFlag = 0;
-
-  if (orig > 0) {
-    for (int a = -1; a <= 1; a++)
-      for (int b = -1; b <= 1; b++) {
-        float4 tmpb = read_imagef(inputImage1, sampler, (int2)(x + a, y + b));
-        unsigned int tmpcondition =
-            ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y)) &&
-            (tmpb.w > 0);
-        max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
-                       tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
-                       orig);
-        toFlag = toFlag || tmpcondition;
-      }
-  }
-
-  if (toFlag) {
-    flag[0] = 1;
-    write_imagef(outImage1, (int4)(currentx, currenty, currentz, 0), max);
-  }  
-}
-
-__kernel void reconnectCCL3D(__read_only image2d_t inputImage1,
-                           __write_only image2d_t outImage1,
-                           __global char flag[1]) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
@@ -538,5 +498,48 @@ __kernel void reconnectCCL3D(__read_only image2d_t inputImage1,
   if (toFlag) {
     flag[0] = 1;
     write_imagef(outImage1, (int2)(currentx, currenty), max);
+  }  
+}
+
+__kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
+                           __write_only image3d_t outImage1,
+                           __global char flag[1]) {
+  int4 gid = (int4)(get_global_id(0), get_global_id(1),get_global_id(2), 0);
+  int x = gid.x;
+  int y = gid.y;
+  int z = gid.z;
+
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+
+  float currentx = input1.x;
+  float currenty = input1.y;
+  float currentz = input1.z;
+  float orig =
+      input1.w; // original boolean image (see the initialization kernel)
+
+  float4 max = (float4)(currentx, currenty, currentz, orig);
+
+  unsigned int toFlag = 0;
+
+  if (orig > 0) {
+    for (int a = -1; a <= 1; a++)
+      for (int b = -1; b <= 1; b++) {
+        for (int c = -1; c <= 1; c++) {
+          float4 tmpb = read_imagef(inputImage1, sampler, (int4)(x + a, y + b, z + c, 0));
+          unsigned int tmpcondition =
+              ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y) || 
+              (tmpb.x == max.x && tmpb.y == max.y && tmpb.z > max.z)) &&
+              (tmpb.w > 0);
+          max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
+                         tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
+                         orig);
+          toFlag = toFlag || tmpcondition;
+        }
+      }
+  }
+
+  if (toFlag) {
+    flag[0] = 1;
+    write_imagef(outImage1, (int4)(currentx, currenty, currentz, 0), max);
   }  
 }
