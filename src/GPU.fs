@@ -72,7 +72,7 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
         member _.Get () =
             let dest = Array.zeroCreate length
             use ptr = fixed dest
-            let ptr' = NativePtr.toVoidPtr ptr
+            let ptr' = NativePtr.toVoidPtr ptr            
             checkErr <| API.EnqueueReadBuffer(queue.Pointer,dataPointer,true,0un,unativeint length,ptr',0ul,nullPtr,nullPtr)
             dest
 
@@ -182,7 +182,10 @@ and GPU(kernelsFilename : string) =
             checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
-        let res = API.BuildProgram(prg,0ul,nullPtr,bNullPtr,noNotify,vNullPtr)     
+        // let options = "--cl-std=CL2.0"
+        // let o' = fixed options 
+        // let o'' : nativeptr<byte> = NativePtr.ofNativeInt (NativePtr.toNativeInt o')      
+        let res = API.BuildProgram(prg,0ul,nullPtr,"-cl-std=CL2.0",noNotify,vNullPtr)   
         if res = int CLEnum.BuildProgramFailure then        
             let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]

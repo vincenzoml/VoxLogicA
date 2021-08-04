@@ -2,8 +2,6 @@ load img = "test3.png"
 
 let thr(x) = (1 .<= x) 
 let ccthr(x) = lcc(near(thr(x)))
-let b(x) = ccthr(ccthr(x))
-let c(x) = b(b(x))
 
-save "output/lcc.png" b(c(c(c(c(intensity(img))))))
+save "output/lcc.png" thr(intensity(img))
 

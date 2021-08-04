@@ -1,4 +1,7 @@
 #pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
+// #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics: enable
+// #pragma OPENCL EXTENSION cl_khr_global_int32_extended_atomics: enable
 
 const sampler_t sampler =
     CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
@@ -53,7 +56,11 @@ __kernel void rgbComps(__read_only IMG_T inputImage1,
   float4 pix2 = (float4)read_imagef(inputImage2, gid);
   float4 pix3 = (float4)read_imagef(inputImage3, gid);
 
-  write_imagef(outImage, gid, (float4)(pix1.x, pix2.y, pix3.z, 255)); // TODO: why 255? What if the image is 16bit? Float32? This primitive needs a value for alpha
+  write_imagef(
+      outImage, gid,
+      (float4)(pix1.x, pix2.y, pix3.z,
+               255)); // TODO: why 255? What if the image is 16bit? Float32?
+                      // This primitive needs a value for alpha
 }
 
 __kernel void rgbaComps(__read_only IMG_T inputImage1,
@@ -331,7 +338,8 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
   int4 size = get_image_dim(inputImage);
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
-  write_imagef(outputImage, gid, (float4)(ui4.x*x, ui4.y*y, ui4.z*z, ui4.x));
+  write_imagef(outputImage, gid,
+               (float4)(ui4.x * x, ui4.y * y, ui4.z * z, ui4.x));
 }
 
 __kernel void iterateCCL(__read_only image2d_t inputImage1,
@@ -370,7 +378,7 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
 }
 
 __kernel void iterateCCLNew(__read_only image2d_t inputImage1,
-                         __write_only image2d_t outImage1) {
+                            __write_only image2d_t outImage1) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
@@ -394,20 +402,20 @@ __kernel void iterateCCLNew(__read_only image2d_t inputImage1,
       tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
       unsigned int conditiona =
           ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy))) &&
-          (tmpa.w > 0) && (orig > 0);      
+          (tmpa.w > 0) && (orig > 0);
       maxx = (conditiona * tmpa.x) + ((!conditiona) * maxx);
       maxy = (conditiona * tmpa.y) + ((!conditiona) * maxy);
     }
   }
   // for (int a = -1; a <= 1; a++) {
   //   for (int b = -1; b <= 1; b++) {
-  //     tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
-  //     tmpb = read_imagef(inputImage1, sampler, (int2)(x + a,y+b));
+  //     tmpa = read_imagef(inputImage1, sampler, (int2)(labelx + a, labely +
+  //     b)); tmpb = read_imagef(inputImage1, sampler, (int2)(x + a,y+b));
   //     unsigned int conditionb =
   //         ((tmpb.x > maxx) || ((tmpb.x == maxx) && (tmpb.y > maxy))) &&
   //         (tmpb.w > 0) && (orig > 0);
   //     maxx = conditionb * tmpb.x + !conditionb * maxx;
-  //     maxy = conditionb * tmpb.y + !conditionb * maxy;   
+  //     maxy = conditionb * tmpb.y + !conditionb * maxy;
   //   }
   // }
 
@@ -447,11 +455,12 @@ __kernel void iterateCCL3D( //__read_only image3d_t image,
   for (int a = -1; a <= 1; a++) {
     for (int b = -1; b <= 1; b++) {
       for (int c = -1; c <= 1; c++) {
-        tmpa = read_imagef(inputImage1, sampler, (int4)(labelx + a, labely + b, labelz + c, 0));
+        tmpa = read_imagef(inputImage1, sampler,
+                           (int4)(labelx + a, labely + b, labelz + c, 0));
         unsigned int conditiona =
-            ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy)) || ((tmpa.x == maxx) && (tmpa.y == maxy) 
-            && (tmpa.z > maxz))) &&
-            (tmpa.w > 0) && (orig > 0);      
+            ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy)) ||
+             ((tmpa.x == maxx) && (tmpa.y == maxy) && (tmpa.z > maxz))) &&
+            (tmpa.w > 0) && (orig > 0);
         maxx = (conditiona * tmpa.x) + ((!conditiona) * maxx);
         maxy = (conditiona * tmpa.y) + ((!conditiona) * maxy);
         maxz = (conditiona * tmpa.z) + ((!conditiona) * maxz);
@@ -459,6 +468,26 @@ __kernel void iterateCCL3D( //__read_only image3d_t image,
     }
   }
   write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
+}
+
+__kernel void initTestAtomicWriteImage(__write_only IMG_T output) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  int2 size = get_image_dim(output);
+
+  int pos = size.y * gid.y + gid.x;
+
+  float4 res = (float4)(0, 0, 0, 0);
+
+  if (gid.y == 0) {
+    if (gid.x %4 == 0) res = (float4)(0,0,0,255);
+    else if (gid.x != 1 && gid.x % 4 == 1) res = (float4)(pos,pos+1,pos+2,255);
+  }
+
+  write_imagef(output,gid,res);
+}
+
+__kernel void count(__global uint *count, __global __read_write uint *res) {
+  atomic_inc(count);
 }
 
 __kernel void resetFlag(__global char flag[1]) { flag[0] = 0; }
@@ -480,14 +509,14 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   float4 max = (float4)(currentx, currenty, 0.0, orig);
 
   unsigned int toFlag = 0;
-
-  if (orig > 0) {
+  
+  if (orig > 0) {        
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         float4 tmpb = read_imagef(inputImage1, sampler, (int2)(x + a, y + b));
         unsigned int tmpcondition =
             ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y)) &&
-            (tmpb.w > 0);
+            (tmpb.w > 0);        
         max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
                        tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
                        orig);
@@ -498,13 +527,13 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   if (toFlag) {
     flag[0] = 1;
     write_imagef(outImage1, (int2)(currentx, currenty), max);
-  }  
+  }
 }
 
 __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
-                           __write_only image3d_t outImage1,
-                           __global char flag[1]) {
-  int4 gid = (int4)(get_global_id(0), get_global_id(1),get_global_id(2), 0);
+                             __write_only image3d_t outImage1,
+                             __global char flag[1]) {
+  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
   int x = gid.x;
   int y = gid.y;
   int z = gid.z;
@@ -525,10 +554,11 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         for (int c = -1; c <= 1; c++) {
-          float4 tmpb = read_imagef(inputImage1, sampler, (int4)(x + a, y + b, z + c, 0));
+          float4 tmpb =
+              read_imagef(inputImage1, sampler, (int4)(x + a, y + b, z + c, 0));
           unsigned int tmpcondition =
-              ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y) || 
-              (tmpb.x == max.x && tmpb.y == max.y && tmpb.z > max.z)) &&
+              ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y) ||
+               (tmpb.x == max.x && tmpb.y == max.y && tmpb.z > max.z)) &&
               (tmpb.w > 0);
           max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
                          tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
@@ -541,5 +571,5 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
   if (toFlag) {
     flag[0] = 1;
     write_imagef(outImage1, (int4)(currentx, currenty, currentz, 0), max);
-  }  
+  }
 }

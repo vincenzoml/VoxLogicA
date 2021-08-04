@@ -22,6 +22,7 @@ exception NoModelLoadedException with
 open Hopac
 open VoxLogicA.GPU
 open SITKUtil
+open itk.simple
 
 type GPUModelValue =
     { gVal: GPUValue<VoxImage>
@@ -307,13 +308,53 @@ type GPUModel() =
 
         member __.Volume img =
             job {
-                gpu.Wait img.gEvt
+                let oimg = gpu.NewImageOnDevice(getBaseImg(),4,Float32)                
+                let oimg' = gpu.NewImageOnDevice(getBaseImg(),4,Float32)       
+                let sz = getBaseImg().Size         
+                let evt = gpu.Run("initTestAtomicWriteImage",[||],seq {oimg},sz,None)
+                let mutable flag: GPUValue<array<uint8>> = gpu.CopyArrayToDevice([| 0uy |])                
+                // gpu.Wait([|evt|])
+                // oimg.Get().Save("testAtomicWriteImage.png")
+                let evt' = gpu.Run("reconnectCCL",[|evt|],seq { oimg :> KernelArg; oimg' :> KernelArg; flag :> KernelArg },sz,None)
+                gpu.Wait([|evt'|])                 
+                let im = oimg.Get()
+                let im' = oimg'.Get() //. Save("output/testAtomicWriteImage.png")
+                im.GetBufferAsFloat(fun v -> 
+                    im'.GetBufferAsFloat(fun v' ->
+                    for i = 0 to 1 do
+                        printfn "oimg[%d]=%f     oimg'[%d]=%f" i (v.Get i) i (v'.Get i)                        
+                ))
+                failwith "ciao"                
+                ErrorMsg.Logger.Debug("volume started")
+                let bimg = getBaseImg();
+                let cnt: GPUValue<array<_>> = gpu.CopyArrayToDevice([|123|])
+                let res = gpu.NewArrayOnDevice(1)
+                
+                let evt =
+                    gpu.Run(
+                        "count",
+                        img.gEvt,
+                        seq {
+                            //img.gVal :> KernelArg
+                            cnt :> KernelArg;
+                            res :> KernelArg                          
+                        },
+                        bimg.Size,
+                        None
+                    )
 
-                let cpuImg = img.gVal.Get()
+                gpu.Wait([|evt|])
+                ErrorMsg.Logger.Debug("volume terminated")
+                let v = res.Get().[0]
+                printfn "****** %d %A %A" v bimg.Size (img.gVal.Get().BufferType)
+                return float <| v
+                // gpu.Wait img.gEvt
 
-                let result = VoxImage.Volume cpuImg
+                // let cpuImg = img.gVal.Get()
 
-                return result
+                // let result = VoxImage.Volume cpuImg
+
+                // return result
             }
 
         //member __.MaxVol img =
