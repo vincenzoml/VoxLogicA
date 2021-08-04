@@ -478,7 +478,7 @@ __kernel void initTestAtomicWriteImage(__write_only IMG_T output) {
 
   float4 res = (float4)(0, 0, 0, 0);
 
-  if (gid.y == 0) {
+  if (gid.y %4 == 0) {
     if (gid.x %4 == 0) res = (float4)(0,0,0,255);
     else if (gid.x != 1 && gid.x % 4 == 1) res = (float4)(pos,pos+1,pos+2,255);
   }

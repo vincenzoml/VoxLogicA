@@ -1,0 +1,5 @@
+load img = "test3.png"
+
+
+print "volume" volume(1 .<= intensity(img))
+
