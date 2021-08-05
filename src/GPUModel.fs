@@ -23,6 +23,7 @@ open Hopac
 open VoxLogicA.GPU
 open SITKUtil
 open itk.simple
+open GPU
 
 type GPUModelValue =
     { gVal: GPUValue<VoxImage>
@@ -311,19 +312,19 @@ type GPUModel() =
                 let oimg = gpu.NewImageOnDevice(getBaseImg(),4,Float32)                
                 let oimg' = gpu.NewImageOnDevice(getBaseImg(),4,Float32)       
                 let sz = getBaseImg().Size         
-                let evt = gpu.Run("initTestAtomicWriteImage",[||],seq {oimg},sz,None)
-                let mutable flag: GPUValue<array<uint8>> = gpu.CopyArrayToDevice([| 0uy |])                
-                // gpu.Wait([|evt|])
-                // oimg.Get().Save("testAtomicWriteImage.png")
-                let evt' = gpu.Run("reconnectCCL",[|evt|],seq { oimg :> KernelArg; oimg' :> KernelArg; flag :> KernelArg },sz,None)
-                gpu.Wait([|evt'|])                 
-                let im = oimg.Get()
-                let im' = oimg'.Get() //. Save("output/testAtomicWriteImage.png")
-                im.GetBufferAsFloat(fun v -> 
-                    im'.GetBufferAsFloat(fun v' ->
-                    for i = 0 to 1 do
-                        printfn "oimg[%d]=%f     oimg'[%d]=%f" i (v.Get i) i (v'.Get i)                        
-                ))
+                let flag: GPUValue<array<uint8>> = gpu.CopyArrayToDevice([| 0uy |])                
+                let evt = gpu.Run("initTestAtomicWriteImage",[||],seq {oimg},sz,None)                  
+                gpu.Wait[|evt|]
+                while true do                      
+                    // gpu.Wait([|evt|])
+                    // oimg.Get().Save("testAtomicWriteImage.png")
+                    let evt' = gpu.Run("reconnectCCL",[||],seq { oimg :> KernelArg; oimg' :> KernelArg; flag :> KernelArg },sz,None)
+                    let evt'' = gpu.Run("testDiffXY",[|evt'|],seq {oimg' :> KernelArg; flag :> KernelArg},[|1|],None) 
+                    gpu.Wait [|evt''|]
+
+                    printf "."
+                    if flag.Get().[0] > 0uy then failwith (sprintf "ALARM ALARM ALARM ALARM")
+                    
                 failwith "ciao"                
                 ErrorMsg.Logger.Debug("volume started")
                 let bimg = getBaseImg();

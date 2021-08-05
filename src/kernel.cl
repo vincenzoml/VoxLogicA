@@ -486,6 +486,11 @@ __kernel void initTestAtomicWriteImage(__write_only IMG_T output) {
   write_imagef(output,gid,res);
 }
 
+__kernel void testDiffXY(__read_only IMG_T input,__global char output[1]) {
+  float4 v = read_imagef(input,(int2)(0,0));
+  output[0] = v.y-v.x != 1;  
+}
+
 __kernel void count(__global uint *count, __global __read_write uint *res) {
   atomic_inc(count);
 }
