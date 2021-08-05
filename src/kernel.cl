@@ -3,7 +3,7 @@
 const sampler_t sampler =
     CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
-#define DIM 2
+#define DIM 3
 #if DIM == 3
 
 #define IMG_T image3d_t
@@ -331,7 +331,7 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
   int4 size = get_image_dim(inputImage);
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
-  write_imagef(outputImage, gid, (float4)(ui4.x*x, ui4.y*y, ui4.z*z, ui4.x));
+  write_imagef(outputImage, gid, (float4)(ui4.x*x, ui4.x*y, ui4.x*z, ui4.x));
 }
 
 __kernel void iterateCCL(__read_only image2d_t inputImage1,
@@ -531,7 +531,8 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
               (tmpb.x == max.x && tmpb.y == max.y && tmpb.z > max.z)) &&
               (tmpb.w > 0);
           max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
-                         tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
+                         tmpcondition * tmpb.y + (!tmpcondition * max.y), 
+                         tmpcondition * tmpb.z + (!tmpcondition * max.z),
                          orig);
           toFlag = toFlag || tmpcondition;
         }

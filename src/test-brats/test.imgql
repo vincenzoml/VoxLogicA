@@ -1,10 +1,10 @@
-load img = "test3.png"
+load img = "BraTS19_2013_10_1_flair.nii.gz"
 
-let thr(x) = (1 .<= intensity(x)) 
+let thr(x) = (500 .<= intensity(x)) 
 let ccthr(x) = lcc(near(thr(x)))
 let b(x) = ccthr(ccthr(x))
 let c(x) = b(b(x))
 
 //save "output/lcc.png" b(c(c(c(c(img)))))
-save "output/lcc.png" lcc(thr(img))
+save "output/lcc.nii.gz" lcc(thr(img))
 

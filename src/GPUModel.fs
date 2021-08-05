@@ -358,7 +358,7 @@ type GPUModel() =
 
                 let evt0 =
                     gpu.Run(
-                        "initCCL", //FIX THIS (3D)
+                        "initCCL3D", //FIX THIS (3D)
                         img.gEvt,
                         seq {
                             img.gVal :> KernelArg
@@ -368,8 +368,8 @@ type GPUModel() =
                         None
                     )
 
-                // gpu.Wait([|evt0|])
-                // tmp.Get().Save("output/init.png")
+                //gpu.Wait([|evt0|])
+                //tmp.Get().Save("output/init.nii.gz")
 
                 let rec iterate n iterations evt =
                     if n >= iterations then
@@ -377,7 +377,7 @@ type GPUModel() =
                     else
                         let evt' =
                             gpu.Run(
-                                "iterateCCL", //FIX THIS (3D)
+                                "iterateCCL3D", //FIX THIS (3D)
                                 [| evt |],
                                 seq {
                                     tmp :> KernelArg
@@ -387,8 +387,8 @@ type GPUModel() =
                                 None
                             )
 
-                        // gpu.Wait([|evt'|])
-                        // output.Get().Save(sprintf "output/iteration-%02d.png" n)
+                        //gpu.Wait([|evt'|])
+                        //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
 
                         swap ()
                         iterate (n + 1) iterations evt'
@@ -408,7 +408,7 @@ type GPUModel() =
 
                     let evt2 =
                         gpu.Run(
-                            "reconnectCCL", //FIX THIS (3D)
+                            "reconnectCCL3D", //FIX THIS (3D)
                             [| evt1 |],
                             seq {
                                 tmp :> KernelArg
