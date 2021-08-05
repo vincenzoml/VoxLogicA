@@ -173,27 +173,25 @@ and GPU(kernelsFilename : string) =
         let prg = checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))                
         let res = API.CompileProgram(prg,0ul,nullPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) 
         if res = int CLEnum.CompileProgramFailure then        
-            let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
+            let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
             use lenPtr = fixed len                        
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
             let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
-            raise <| GPUCompileException error
-        // let options = "--cl-std=CL2.0"
-        // let o' = fixed options 
-        // let o'' : nativeptr<byte> = NativePtr.ofNativeInt (NativePtr.toNativeInt o')      
+            raise <| GPUCompileException error 
+        ErrorMsg.Logger.Debug "Building kernels"
         let res = API.BuildProgram(prg,0ul,nullPtr,"-cl-std=CL2.0",noNotify,vNullPtr)   
         if res = int CLEnum.BuildProgramFailure then        
-            let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
+            let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
             use lenPtr = fixed len                        
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
             let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr))
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
         checkErr res 
@@ -280,7 +278,7 @@ and GPU(kernelsFilename : string) =
                         API.CreateImage(
                                 context,
                                 //CLEnum.MemUseHostPtr,
-                                enum<CLEnum>(32), 
+                                enum<CLEnum>(32) ||| CLEnum.MemReadWrite, 
                                 // 32 = UseHostPointer
                                 // change the numeric constant to a symbolic one once https://github.com/dotnet/Silk.NET/issues/428 makes it to release (10th of April?)
                                 imgFormatPtr,

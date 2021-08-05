@@ -478,17 +478,27 @@ __kernel void initTestAtomicWriteImage(__write_only IMG_T output) {
 
   float4 res = (float4)(0, 0, 0, 0);
 
-  if (gid.y %4 == 0) {
-    if (gid.x %4 == 0) res = (float4)(0,0,0,255);
-    else if (gid.x != 1 && gid.x % 4 == 1) res = (float4)(pos,pos+1,pos+2,255);
+  if (gid.y % 4 == 0) {
+    if (gid.x % 4 == 0)
+      res = (float4)(0, 0, 0, 255);
+    else if (gid.x != 1 && gid.x % 4 == 1)
+      res = (float4)(pos, pos + 1, pos + 2, 255);
   }
 
-  write_imagef(output,gid,res);
+  write_imagef(output, gid, res);
 }
 
-__kernel void testDiffXY(__read_only IMG_T input,__global char output[1]) {
-  float4 v = read_imagef(input,(int2)(0,0));
-  output[0] = v.y-v.x != 1;  
+__kernel void testDiffXY(__read_only IMG_T input, __global char output[1]) {
+  float4 v = read_imagef(input, (int2)(0, 0));
+  output[0] = v.y - v.x != 1;
+}
+
+__kernel void testAtomicWriteImage2(__read_write IMG_T output) {
+  int pos = get_global_id(0);
+  int size = get_global_size(0);
+  int num = pos % 131;
+  int cond = pos % (size / 4) == 0;
+  write_imagef(output, (int2)(0,0), (float4)(num, num+1, 0, 255));  
 }
 
 __kernel void count(__global uint *count, __global __read_write uint *res) {
@@ -514,14 +524,14 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   float4 max = (float4)(currentx, currenty, 0.0, orig);
 
   unsigned int toFlag = 0;
-  
-  if (orig > 0) {        
+
+  if (orig > 0) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         float4 tmpb = read_imagef(inputImage1, sampler, (int2)(x + a, y + b));
         unsigned int tmpcondition =
             ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y)) &&
-            (tmpb.w > 0);        
+            (tmpb.w > 0);
         max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
                        tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
                        orig);
