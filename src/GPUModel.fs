@@ -358,7 +358,7 @@ type GPUModel() =
 
                 let evt0 =
                     gpu.Run(
-                        "initCCL",
+                        "initCCL", //FIX THIS (3D)
                         img.gEvt,
                         seq {
                             img.gVal :> KernelArg
@@ -377,7 +377,7 @@ type GPUModel() =
                     else
                         let evt' =
                             gpu.Run(
-                                "iterateCCL",
+                                "iterateCCL", //FIX THIS (3D)
                                 [| evt |],
                                 seq {
                                     tmp :> KernelArg
@@ -408,7 +408,7 @@ type GPUModel() =
 
                     let evt2 =
                         gpu.Run(
-                            "reconnectCCL",
+                            "reconnectCCL", //FIX THIS (3D)
                             [| evt1 |],
                             seq {
                                 tmp :> KernelArg

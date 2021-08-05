@@ -71,14 +71,14 @@ __kernel void rgbaComps(__read_only IMG_T inputImage1,
   write_imagef(outImage, gid, (float4)(pix1.x, pix2.y, pix3.z, pix4.w));
 }
 
-__kernel void border(__write_only IMG_T outputImage) {
+__kernel void border(__write_only IMG_T outputImage) { //FIX THIS
   INIT_GID(gid)
 
   write_imageui(outputImage, gid, 1);
 }
 
 __kernel void dilate(__read_only IMG_T inputImage,
-                     __write_only IMG_T outputImage) {
+                     __write_only IMG_T outputImage) { //FIX THIS
   INIT_GID(gid)
 
   write_imageui(outputImage, gid, 1);
