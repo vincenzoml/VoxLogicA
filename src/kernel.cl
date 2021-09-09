@@ -71,24 +71,109 @@ __kernel void rgbaComps(__read_only IMG_T inputImage1,
   write_imagef(outImage, gid, (float4)(pix1.x, pix2.y, pix3.z, pix4.w));
 }
 
-__kernel void border(__write_only IMG_T outputImage) { //FIX THIS
-  INIT_GID(gid)
+__kernel void border(__write_only image2d_t outputImage) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  int2 dim = (int2)(get_global_size(0), get_global_size(1));
 
-  write_imageui(outputImage, gid, 1);
+  int condition = (gid.x == 0 || gid.x == dim.x - 1) || (gid.y == 0 || gid.y == dim.y - 1);
+
+  write_imageui(outputImage, gid, condition);
 }
 
-__kernel void dilate(__read_only IMG_T inputImage,
-                     __write_only IMG_T outputImage) { //FIX THIS
-  INIT_GID(gid)
+__kernel void border3D(__write_only image3d_t outputImage) {
+  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
+  int4 dim = (int4)(get_global_size(0), get_global_size(1), get_global_size(2), 0);
 
-  write_imageui(outputImage, gid, 1);
+  int condition = (gid.x == 0 || gid.x == dim.x - 1) || (gid.y == 0 || gid.y == dim.y - 1)
+                  || (gid.z == 0 || gid.z == dim.z -1);
+
+  write_imageui(outputImage, gid, condition);
 }
 
-__kernel void erode(__read_only IMG_T inputImage,
-                    __write_only IMG_T outputImage) {
-  INIT_GID(gid)
+__kernel void dilate(__read_only image2d_t inputImage,
+                     __write_only image2d_t outputImage) { //NEAR
+  int x = get_global_id(0);
+  int y = get_global_id(1);
+  int2 coord = (int2)(x, y);
 
-  write_imageui(outputImage, gid, 1);
+  int found = 0;
+  int2 newcoord;
+  uint4 ui4;
+  for (int a = -1; a <= 1; a++) {
+    for (int b = -1; b <= 1; b++) {
+      newcoord = (int2)(x + a, y + b);
+      ui4 = read_imageui(inputImage, sampler, newcoord);
+      found = found + (ui4.x > 0);
+    }
+  }
+
+  write_imageui(outputImage, coord, found > 0);
+}
+
+__kernel void dilate3D(__read_only image3d_t inputImage,
+                      __write_only image3d_t outputImage) { //NEAR
+  int x = get_global_id(0);
+  int y = get_global_id(1);
+  int z = get_global_id(2);
+  int4 coord = (int4)(x, y, z, 0);
+
+  int found = 0;
+  int4 newcoord;
+  uint4 ui4;
+  for (int a = -1; a <= 1; a++) {
+    for (int b = -1; b <= 1; b++) {
+      for (int c = -1; c <= 1; c++) {
+        newcoord = (int4)(x + a, y + b, z + c, 0);
+        ui4 = read_imageui(inputImage, sampler, newcoord);
+        found = found + (ui4.x > 0);
+      }
+    }
+  }
+
+  write_imageui(outputImage, coord, found > 0);
+}
+
+__kernel void erode(__read_only image2d_t inputImage,
+                    __write_only image2d_t outputImage) {
+  int x = get_global_id(0);
+  int y = get_global_id(1);
+  int2 coord = (int2)(x, y);
+
+  int found = 0;
+  int2 newcoord;
+  uint4 ui4;
+  for (int a = -1; a <= 1; a++) {
+    for (int b = -1; b <= 1; b++) {
+      newcoord = (int2)(x + a, y + b);
+      ui4 = read_imageui(inputImage, sampler, newcoord);
+      found = found || (ui4.x == 0);
+    }
+  }
+
+  write_imageui(outputImage, coord, !found);
+}
+
+__kernel void erode3D(__read_only image3d_t inputImage,
+                     __write_only image3d_t outputImage) {
+  int x = get_global_id(0);
+  int y = get_global_id(1);
+  int z = get_global_id(2);
+  int4 coord = (int4)(x, y, z, 0);
+
+  int found = 0;
+  int4 newcoord;
+  uint4 ui4;
+  for (int a = -1; a <= 1; a++) {
+    for (int b = -1; b <= 1; b++) {
+      for (int c = -1; c <= 1; c++) {
+        newcoord = (int4)(x + a, y + b, z + c, 0);
+        ui4 = read_imageui(inputImage, sampler, newcoord);
+        found = found || (ui4.x == 0);
+      }
+    }
+  }
+
+  write_imageui(outputImage, coord, !found);
 }
 
 __kernel void booleanImg(__write_only IMG_T outputImage, float val) {
