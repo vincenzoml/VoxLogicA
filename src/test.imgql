@@ -1,10 +1,15 @@
-// load x = "three_coloured_items_RGBA.png"
+load img = "Brats17_2013_17_1_flair.nii.gz"
 
-load x = "Brats17_2013_17_1_flair.nii.gz"
+let thr(x) = (200 .<= intensity(x))
+let phi(x) = (900 .<= intensity(x))
 
-let in = intensity(x)
-let p = percentiles(in,tt,0.5)
-save "in.nii.gz" in
-save "tmp.nii.gz" in >=. 10
-save "p.nii.gz" p
-save "out.nii.gz" p >=. 0.5
+//let ccthr(x) = lcc(near(thr(x)))
+//let b(x) = ccthr(ccthr(x))
+//let c(x) = b(b(x))
+let t = thr(img)
+let p = phi(img)
+
+//save "output/lcc.png" b(c(c(c(c(img)))))
+//save "output/thr.nii.gz" thr(img)
+//save "output/phi.nii.gz" phi(img)
+save "output/through.nii.gz" through(t, p)

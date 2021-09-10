@@ -594,8 +594,142 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.Through img img2 =
-            job { return (failwith "through: stub": GPUModelValue) }
+        member this.Through img img2 =
+            let lcc img =
+                    let bimg = getBaseImg ()
+
+                    let mutable flag: GPUValue<array<uint8>> = gpu.CopyArrayToDevice([| 0uy |])
+                    let mutable output = gpu.NewImageOnDevice(bimg, 4, Float32)
+                    let mutable tmp = gpu.NewImageOnDevice(bimg, 4, Float32)
+
+                    let swap () =
+                        let temp = tmp
+                        tmp <- output
+                        output <- temp
+
+                    let evt0 =
+                        gpu.Run(
+                            "initCCL3D", //FIX THIS (3D)
+                            img.gEvt,
+                            seq {
+                                img.gVal :> KernelArg
+                                tmp :> KernelArg
+                            },
+                            bimg.Size,
+                            None
+                        )
+
+                    //gpu.Wait([|evt0|])
+                    //tmp.Get().Save("output/init.nii.gz")
+
+                    let rec iterate n iterations evt =
+                        if n >= iterations then
+                            evt
+                        else
+                            let evt' =
+                                gpu.Run(
+                                    "iterateCCL3D", //FIX THIS (3D)
+                                    [| evt |],
+                                    seq {
+                                        tmp :> KernelArg
+                                        output :> KernelArg
+                                    },
+                                    bimg.Size,
+                                    None
+                                )
+
+                            //gpu.Wait([|evt'|])
+                            //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
+
+                            swap ()
+                            iterate (n + 1) iterations evt'
+
+                    let mutable terminated = false
+
+                    let mutable whileEvt = evt0
+
+                    let mutable nsteps = 0
+                    let mutable nrecs = 0
+
+                    while not terminated do
+
+                        let k = 8
+
+                        let evt1 = iterate 0 k whileEvt
+
+                        let evt2 =
+                            gpu.Run(
+                                "reconnectCCL3D", //FIX THIS (3D)
+                                [| evt1 |],
+                                seq {
+                                    tmp :> KernelArg
+                                    output :> KernelArg
+                                    flag :> KernelArg
+                                },
+                                bimg.Size,
+                                None
+                            )
+
+                        nsteps <- nsteps + k
+                        nrecs <- nrecs + 1
+
+                        gpu.Wait([| evt2 |]) // DO NOT REMOVE THIS
+
+                        if flag.Get().[0] > 0uy then
+                            swap ()
+                            whileEvt <- gpu.Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+                        else
+                            // ErrorMsg.Logger.Debug(
+                            //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
+                            // )
+                            terminated <- true
+
+                        // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
+
+                    { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
+
+            job { 
+                let baseImg = getBaseImg ()
+                let tmp = gpu.NewImageOnDevice(baseImg, 1, Float32)
+                let output = gpu.NewImageOnDevice(baseImg, 1, UInt8)
+
+                let tmpResult = lcc img2
+                let lccImg = tmpResult.gVal
+                let tmpEvents = Seq.distinct (Array.append img.gEvt tmpResult.gEvt)
+
+                let newEvents = Seq.toArray tmpEvents
+
+                let event =
+                    gpu.Run(
+                        "initThrough3D",
+                        newEvents,
+                        seq {
+                            img.gVal
+                            lccImg
+                            tmp
+                        },
+                        baseImg.Size,
+                        None
+                    )
+                gpu.Wait([|event|])
+                tmp.Get().Save("output/initThrough.nii.gz")
+
+                let resultEvent = 
+                    gpu.Run(
+                        "finalizeThrough3D",
+                        [| event |],
+                        seq {
+                            tmp
+                            lccImg
+                            output
+                        },
+                        baseImg.Size,
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| resultEvent |] }
+
+            }
 
         member __.Interior imgIn =
             job {

@@ -404,7 +404,7 @@ __kernel void initCCL(__read_only image2d_t inputImage,
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
   write_imagef(outputImage, gid,
-               (float4)(ui4.x * x, ui4.x * y, 0, ui4.x * 65535));
+               (float4)(ui4.x * x, ui4.x * y, 0, ui4.x));
 }
 
 __kernel void initCCL3D(__read_only image3d_t inputImage,
@@ -628,4 +628,67 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
     flag[0] = 1;
     write_imagef(outImage1, (int4)(currentx, currenty, currentz, 0), max);
   }  
+}
+
+/********************* THROUGH *********************/
+
+//kernel 1: prende output di LCC, img e immagine temporanea (output) 
+//e scrive in [x, y, (z)] coord della componente connessa
+// il valore di phi1 (img in Through)
+__kernel void initThrough(__read_only image2d_t inputImage1, //primo parametro della primitiva Through
+                          __read_only image2d_t inputImage2, //output di LCC(img2)
+                          __write_only image2d_t tempOutput) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  int x = gid.x;
+  int y = gid.y;
+
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+  float4 input2 = read_imagef(inputImage2, sampler, gid);
+
+  write_imagef(tempOutput, (int2)(input2.x, input2.y), input1.x);
+}
+
+__kernel void initThrough3D(__read_only image3d_t inputImage1, //primo parametro della primitiva Through
+                            __read_only image3d_t inputImage2, //output di LCC(img2)
+                            __write_only image3d_t tempOutput) {
+  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
+  int x = gid.x;
+  int y = gid.y;
+
+  uint4 input1 = read_imageui(inputImage1, sampler, gid);
+  float4 input2 = read_imagef(inputImage2, sampler, gid);
+
+  write_imagef(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), input1.x*65535);
+}
+
+//kernel 2: prende output di LCC e immagine temporanea e scrive 
+//in ogni pixel dove phi2 è vera il valore di tmp all'indice dato
+//dalla label di output LCC in quel pixel
+__kernel void finalizeThrough(__read_only image2d_t inputImage1, //immagine temporanea
+                              __read_only image2d_t inputImage2, //output di LCC(img2)
+                              __write_only image2d_t outputImage) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  int x = gid.x;
+  int y = gid.y;
+
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+  float4 input2 = read_imagef(inputImage2, sampler, gid);
+  int condition = input2.w > 0; //l'immagine originale non è nera nel punto considerato (vedi initLCC)
+
+  //l'output è una immagine booleana
+  write_imagef(outputImage, (int2)(input2.x, input2.y), condition*input1.x);
+}
+
+__kernel void finalizeThrough3D(__read_only image3d_t inputImage1, //primo parametro della primitiva Through
+                                __read_only image3d_t inputImage2, //output di LCC(img2)
+                                __write_only image3d_t tempOutput) {
+  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
+  int x = gid.x;
+  int y = gid.y;
+
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+  float4 input2 = read_imagef(inputImage2, sampler, gid);
+  int condition = input2.w > 0;
+
+  write_imagef(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), condition*input1.x);
 }
