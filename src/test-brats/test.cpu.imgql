@@ -8,7 +8,7 @@ let thr1(x) = (500 .<= intensity(img))
 let i = lcc(thr1(img))
 
 let L(x) = lcc(x)
-let T(x) = (intensity(x) >. 0)
+let T(x) = (x >. 0)
 let C(x) = L T x
 let D(x) = C C C C x
 
