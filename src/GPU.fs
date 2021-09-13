@@ -325,7 +325,7 @@ and GPU(kernelsFilename : string) =
         GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
-        // printfn "starting run of %A" kernelName  
+        printfn "starting run of %A" kernelName  
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         let mutable dimIdx = 0
@@ -336,12 +336,12 @@ and GPU(kernelsFilename : string) =
             | Buffer d -> 
                 use a' = fixed [| d.DataPointer |] 
                 let a = NativePtr.toVoidPtr a'
-                // printfn "name,idx,val: %A %A %A" kernelName idx a'
+                printfn "name,idx,val: %A %A %A" kernelName idx a'
                 checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
             | Float f -> 
                 use a' = fixed [| f |]
                 let a = NativePtr.toVoidPtr a'
-                // printfn "name,idx,val: %A %A %A" kernelName idx a'
+                printfn "name,idx,val: %A %A %A" kernelName idx a'
                 checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
@@ -351,7 +351,7 @@ and GPU(kernelsFilename : string) =
         let fn (localWorkSize' : nativeptr<unativeint>) = 
             checkErr <|                 
                 API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
-        // printfn "TODO: remove this.Finish()"
+        printfn "TODO: remove this.Finish()"
         this.Finish()        
         match oLocalWorkSize with
         | None -> fn uNullPtr
