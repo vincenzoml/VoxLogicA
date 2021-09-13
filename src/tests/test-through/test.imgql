@@ -1,4 +1,4 @@
 load img = "Brats17_2013_17_1_flair.nii.gz"
 
-save "a.nii.gz" 0 .<= img
-save "b.nii.gz" 100 .<= img
+save "a.nii.gz" 0 .<= intensity(img)
+save "b.nii.gz" 100 .<= intensity(img)
