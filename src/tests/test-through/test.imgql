@@ -8,5 +8,5 @@ let b(x) = a(x) & x
 
 // save "output/in.nii.gz" img
 save "output/phi1.nii.gz" phi1 & a(tt)
-save "output/phi2.nii.gz" phi2 & b(a(tt))
+save "output/phi2.nii.gz" b(a(tt))
 // save "output/through.nii.gz" through(phi1, phi2)
