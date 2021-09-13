@@ -7,5 +7,5 @@ let R(x) = I I F x
 let S(x) = R R R R x
 let Q(x) = S S x
 
-save "output/through.nii.gz" Q a
+save "output/through.nii.gz" F a
 
