@@ -191,7 +191,7 @@ __kernel void logand(__read_only IMG_T inputImage1,
   uint4 value1 = (uint4)read_imageui(inputImage1, sampler, gid);
   uint4 value2 = (uint4)read_imageui(inputImage2, sampler, gid);
 
-  write_imageui(outImage, gid, ((value1.x != 0) && (value2.x != 0)));
+  write_imageui(outImage, gid, ((value1.x > 0) && (value2.x > 0)));
 }
 
 __kernel void logor(__read_only IMG_T inputImage1,
