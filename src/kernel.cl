@@ -675,7 +675,8 @@ __kernel void finalizeThrough(__read_only image2d_t inputImage1, //immagine temp
   int condition = input2.w > 0; //l'immagine originale non è nera nel punto considerato (vedi initLCC)
 
   //l'output è una immagine booleana
-  write_imagef(outputImage, (int2)(input2.x, input2.y), condition*input1.x);
+  if(condition)
+    write_imagef(outputImage, (int2)(input2.x, input2.y), 1);
 }
 
 __kernel void finalizeThrough3D(__read_only image3d_t inputImage1, //immagine temporanea
