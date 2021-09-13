@@ -81,7 +81,7 @@ type GPUModel() =
         | _ -> false
 
     override __.Save filename v =
-        ErrorMsg.Logger.Debug (sprintf "about to save: %A" filename)
+        ErrorMsg.Logger.Debug(sprintf "about to save: %A" filename)
         let gmv = (v :?> GPUModelValue)
         gpu.Wait <| gmv.gEvt
         let img = gmv.gVal.Get()
@@ -432,8 +432,8 @@ type GPUModel() =
                         //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
                         // )
                         terminated <- true
-                    
-                    // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
+
+                // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
                 return { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
             }
@@ -698,6 +698,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img, 1, UInt8)
+
                 let event =
                     gpu.Run(
                         "leq",
@@ -1029,9 +1030,32 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-// interface IStatisticalModel<VoxImage> with
-//     member __.CrossCorrelation rho a b fb m1 m2 k = VoxImage.Crosscorrelation rho a b fb m1 m2 k
+    interface IStatisticalModel<GPUModelValue> with
+        member __.CrossCorrelation rho a b fb m1 m2 k =
+            job {
+                let img = getBaseImg ()
+                let output = gpu.NewImageOnDevice(img, 1, Float32)
 
+                let tmpEvents =
+                    Seq.distinct (Array.append imgIn.gEvt maskImg.gEvt)
+
+                let newEvents = Seq.toArray tmpEvents
+
+                let event =
+                    gpu.Run(
+                        "mask",
+                        newEvents,
+                        seq {
+                            imgIn.gVal
+                            maskImg.gVal
+                            output
+                        },
+                        img.Size,
+                        None
+                    )
+
+                return { gVal = output; gEvt = [| event |] }
+            }
 // // IMAGING
 // [<OperatorAttribute("otsu",[|"valuation(number)";"valuation(bool)";"number"|],"valuation(bool)","otsu threshold (image, mask,number of bins)")>]
 // member __.Otsu (img : VoxImage, mask : VoxImage, nbins : float) = job { return VoxImage.Otsu(img,mask,nbins) }
