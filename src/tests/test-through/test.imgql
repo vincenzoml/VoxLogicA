@@ -1,9 +1,9 @@
 load img = "Brats17_2013_17_1_flair.nii.gz"
 
-let phi1 = (900 .<= intensity(img))
+let phi1 = tt // (900 .<= intensity(img))
 let phi2 = (500 .<= intensity(img))
 
 // save "output/in.nii.gz" img
-//save "output/phi1.nii.gz" phi1
+save "output/phi1.nii.gz" phi1
 save "output/phi2.nii.gz" phi2
 // save "output/through.nii.gz" through(phi1, phi2)
