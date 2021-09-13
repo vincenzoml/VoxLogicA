@@ -1,7 +1,4 @@
 load img = "Brats17_2013_17_1_flair.nii.gz"
 
-save "output/phi2.nii.gz" intensity(img) + constant(0) + constant(0) + constant(0) + constant(0)
-save "output/phi1.nii.gz" intensity(img) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) 
-
-
-// save "output/through.nii.gz" through(phi1, phi2)
+save "a.nii.gz" 0 .<= img
+save "b.nii.gz" 100 .<= img
