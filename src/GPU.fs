@@ -324,7 +324,8 @@ and GPU(kernelsFilename : string) =
 
         GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         
-    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =    
+    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
+        printf "starting run of %A" kernelName  
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         let mutable dimIdx = 0
@@ -335,10 +336,12 @@ and GPU(kernelsFilename : string) =
             | Buffer d -> 
                 use a' = fixed [| d.DataPointer |] 
                 let a = NativePtr.toVoidPtr a'
+                printfn "name,idx,val: %A %A %A" kernelName idx a
                 checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
             | Float f -> 
                 use a' = fixed [| f |]
                 let a = NativePtr.toVoidPtr a'
+                printfn "name,idx,val: %A %A %A" kernelName idx a
                 checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
@@ -346,8 +349,9 @@ and GPU(kernelsFilename : string) =
         use events'' = fixed events
         let events' = if events.Length > 0 then events'' else nullPtr
         let fn (localWorkSize' : nativeptr<unativeint>) = 
-            checkErr <| 
-            API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')
+            checkErr <|                 
+                API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
+        printf "TODO: remove this.Finish()"
         this.Finish()        
         match oLocalWorkSize with
         | None -> fn uNullPtr
@@ -355,9 +359,10 @@ and GPU(kernelsFilename : string) =
             assert (globalWorkSize.Length = localWorkSize.Length)
             use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
             fn localWorkSize'            
+        printf "finalised run of %A" kernelName
         { EventPointer = event.[0] }
 
-    member this.Run(kernelName : string, events : array<Event>, variadic : seq<GPUValue<_>>, globalWorkSize : array<int>, localWorkSize : Option<array<int>>) = this.Run(kernelName,events, Seq.map (fun x -> x :> KernelArg) variadic, globalWorkSize,localWorkSize)
+    // member this.Run(kernelName : string, events : array<Event>, variadic : seq<GPUValue<_>>, globalWorkSize : array<int>, localWorkSize : Option<array<int>>) = this.Run(kernelName,events, Seq.map (fun x -> x :> KernelArg) variadic, globalWorkSize,localWorkSize)
 
     // member this.Run(kernelName,events,argument,globalWorkSize,localWorkSize) = this.Run(kernelName,events,seq {argument :> KernelArg}, None, globalWorkSize,localWorkSize)
 
