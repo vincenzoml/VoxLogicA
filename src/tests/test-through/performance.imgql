@@ -1,0 +1,8 @@
+load img = "Brats17_2013_17_1_flair.nii.gz"
+
+let x = 900 .<= intensity(img)
+
+save "output/in.nii.gz" img
+save "output/x.nii.gz" x
+save "output/through.nii.gz" through(tt,x)
+
