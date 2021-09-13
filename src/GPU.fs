@@ -336,12 +336,12 @@ and GPU(kernelsFilename : string) =
             | Buffer d -> 
                 use a' = fixed [| d.DataPointer |] 
                 let a = NativePtr.toVoidPtr a'
-                // printfn "name,idx,val: %A %A %A" kernelName idx a
+                printfn "name,idx,val: %A %A %A" kernelName idx a'
                 checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
             | Float f -> 
                 use a' = fixed [| f |]
                 let a = NativePtr.toVoidPtr a'
-                // printfn "name,idx,val: %A %A %A" kernelName idx a
+                printfn "name,idx,val: %A %A %A" kernelName idx a'
                 checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
         use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
         let event = [|0n|]
