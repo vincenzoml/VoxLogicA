@@ -325,7 +325,7 @@ and GPU(kernelsFilename : string) =
         GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
-        printf "starting run of %A" kernelName  
+        printfn "starting run of %A" kernelName  
         let kernel = kernels.[kernelName].Pointer
         let args' = Seq.zip (Seq.initInfinite id) args
         let mutable dimIdx = 0
@@ -351,7 +351,7 @@ and GPU(kernelsFilename : string) =
         let fn (localWorkSize' : nativeptr<unativeint>) = 
             checkErr <|                 
                 API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
-        printf "TODO: remove this.Finish()"
+        printfn "TODO: remove this.Finish()"
         this.Finish()        
         match oLocalWorkSize with
         | None -> fn uNullPtr
