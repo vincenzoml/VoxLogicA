@@ -687,5 +687,5 @@ __kernel void finalizeThrough3D(__read_only image3d_t inputImage1, //immagine te
   float4 input2 = read_imagef(inputImage2, sampler, gid);
   uint4 input1 = read_imageui(inputImage1, sampler, (int4)(input2.x, input2.y, input2.z, 0));
 
-  write_imageui(tempOutput, gid, input1.x);
+  write_imageui(tempOutput, gid, input1.x > 0);
 }

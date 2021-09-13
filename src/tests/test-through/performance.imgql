@@ -1,8 +1,9 @@
 load img = "Brats17_2013_17_1_flair.nii.gz"
 
-let x = 900 .<= intensity(img)
+let a = 900 .<= intensity(img)
+let I(x) = through(x,x)
+let R(x) = I I I I x
+let S(x) = R R R R x
 
-save "output/in.nii.gz" img
-save "output/x.nii.gz" x
-save "output/through.nii.gz" through(tt,x)
+save "output/through.nii.gz" S a
 
