@@ -226,7 +226,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
             | [] -> List.rev jobs
 
         job {
-            ErrorMsg.Logger.Debug "Parsing input..."
+            ErrorMsg.Logger.Debug <| sprintf "Parsing input %d ..." filename
             let p = parseProgram filename s
             ErrorMsg.Logger.Debug "Preparing computation..."
 
