@@ -1029,8 +1029,8 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-// interface IStatisticalModel<VoxImage> with
-//     member __.CrossCorrelation rho a b fb m1 m2 k = VoxImage.Crosscorrelation rho a b fb m1 m2 k
+    // interface IStatisticalModel<GPUModelValue> with
+    //     member __.CrossCorrelation rho a b fb m1 m2 k = VoxImage.Crosscorrelation rho a b fb m1 m2 k
 
 // // IMAGING
 // [<OperatorAttribute("otsu",[|"valuation(number)";"valuation(bool)";"number"|],"valuation(bool)","otsu threshold (image, mask,number of bins)")>]

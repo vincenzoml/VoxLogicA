@@ -629,3 +629,11 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
     write_imagef(outImage1, (int4)(currentx, currenty, currentz, 0), max);
   }  
 }
+
+__kernel void crossCorrelation(__read_only image3d_t inputImage,__write_only image3d_t outImage) { // ,__global char flag[1])
+  INIT_GID(gid)
+
+  float4 value = read_imagef(inputImage, sampler, gid);
+  
+  write_imagef(outImage, gid, value);
+}
