@@ -657,7 +657,7 @@ __kernel void initThrough3D(__read_only image3d_t inputImage1, //primo parametro
   float4 input2 = read_imagef(inputImage2, sampler, gid);
 
   if(input1.x > 0)
-    write_imagef(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), 1);
+    write_imageui(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), 1);
 }
 
 //kernel 2: prende output di LCC e immagine temporanea e scrive 
@@ -682,12 +682,9 @@ __kernel void finalizeThrough3D(__read_only image3d_t inputImage1, //immagine te
                                 __read_only image3d_t inputImage2, //output di LCC(img2)
                                 __write_only image3d_t tempOutput) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
-  int x = gid.x;
-  int y = gid.y;
 
   float4 input2 = read_imagef(inputImage2, sampler, gid);
-  float4 input1 = read_imagef(inputImage1, sampler, (int4)(input2.x, input2.y, input2.z, 0));
-  int condition = input2.w > 0;
+  uint4 input1 = read_imageui(inputImage1, sampler, (int4)(input2.x, input2.y, input2.z, 0));
 
-  write_imagef(tempOutput, gid, condition*input1.x);
+  write_imageui(tempOutput, gid, input1.x);
 }

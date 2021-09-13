@@ -690,7 +690,7 @@ type GPUModel() =
 
             job { 
                 let baseImg = getBaseImg ()
-                let tmp = gpu.NewImageOnDevice(baseImg, 1, Float32)
+                let tmp = gpu.NewImageOnDevice(baseImg, 1, UInt8)
                 let output = gpu.NewImageOnDevice(baseImg, 1, UInt8)
 
                 let tmpResult = lcc img2
