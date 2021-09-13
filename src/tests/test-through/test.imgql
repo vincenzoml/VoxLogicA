@@ -1,14 +1,26 @@
 load img = "Brats17_2013_17_1_flair.nii.gz"
 
-let phi2 = (500 .<= intensity(img))
-let phi1 = (900 .<= intensity(img))
+save "output/phi1.nii.gz" intensity(img)  
+save "output/phi2.nii.gz" intensity(img)  
+save "output/phi3.nii.gz" intensity(img)  
+save "output/phi4.nii.gz" intensity(img)  
+save "output/phi5.nii.gz" intensity(img)  
+save "output/phi6.nii.gz" intensity(img)  
+save "output/phi7.nii.gz" intensity(img)  
+save "output/phi8.nii.gz" intensity(img)  
+save "output/phi9.nii.gz" intensity(img)  
+save "output/phi10.nii.gz" intensity(img)  
+save "output/phi11.nii.gz" intensity(img)  
+save "output/phi12.nii.gz" intensity(img)  
+save "output/phi13.nii.gz" intensity(img)  
+save "output/phi14.nii.gz" intensity(img)  
+save "output/phi15.nii.gz" intensity(img)  
+save "output/phi16.nii.gz" intensity(img)  
+save "output/phi17.nii.gz" intensity(img)  
+save "output/phi18.nii.gz" intensity(img)  
+save "output/phi19.nii.gz" intensity(img)  
+save "output/phi20.nii.gz" intensity(img)  
 
-let a(x) = tt
-let b(x) = tt
-
-// save "output/in.nii.gz" img
-save "output/phi2.nii.gz" intensity(img) + constant(0) + constant(0) + constant(0) + constant(0)
-save "output/phi1.nii.gz" intensity(img) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) 
 
 
 // save "output/through.nii.gz" through(phi1, phi2)
