@@ -7,8 +7,8 @@ let a(x) = tt
 let b(x) = tt
 
 // save "output/in.nii.gz" img
-save "output/phi2.nii.gz" intensity(img) + constant(0)
-save "output/phi1.nii.gz" intensity(img) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) 
+save "output/phi2.nii.gz" intensity(img) + constant(0) + constant(0) + constant(0) + constant(0)
+save "output/phi1.nii.gz" intensity(img) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) + constant(1) - constant(1) 
 
 
 // save "output/through.nii.gz" through(phi1, phi2)
