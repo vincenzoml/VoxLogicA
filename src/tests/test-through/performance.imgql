@@ -8,4 +8,4 @@ let S(x) = R R R R x
 let Q(x) = S S x
 
 save "output/a.nii.gz" a
-save "output/na.nii.gz" (N a)
+save "output/na.nii.gz" tt & a
