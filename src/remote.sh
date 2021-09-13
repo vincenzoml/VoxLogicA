@@ -1,3 +1,8 @@
 #!/bin/bash
 
-ssh $1 "cd $2 && git pull && make && cd tests/$3 && ../../bin/release/net5.0/linux-x64/VoxLogicA $4.imgql" && rsync -av pc-ciancia.isti.cnr.it:$2/tests/$3/output .
+echo "host: " $1
+echo "repo: " $2
+echo "test: " $3
+echo "script: " $4
+
+ssh $1 "cd $2/src && git pull && make && cd tests/$3 && ../../bin/release/net5.0/linux-x64/VoxLogicA $4.imgql" && rsync -av pc-ciancia.isti.cnr.it:$2/tests/$3/output .
