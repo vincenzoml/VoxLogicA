@@ -352,7 +352,7 @@ and GPU(kernelsFilename : string) =
             let fn (localWorkSize' : nativeptr<unativeint>) = 
                 checkErr <|                 
                     API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
-            this.Finish()        
+            //this.Finish()        
             match oLocalWorkSize with
             | None -> fn uNullPtr
             | Some localWorkSize ->

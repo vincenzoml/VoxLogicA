@@ -191,7 +191,7 @@ __kernel void logand(__read_only IMG_T inputImage1,
   uint4 value1 = (uint4)read_imageui(inputImage1, sampler, gid);
   uint4 value2 = (uint4)read_imageui(inputImage2, sampler, gid);
 
-  write_imageui(outImage, gid, ((value1.x != 0) && (value2.x != 0)));
+  write_imageui(outImage, gid, ((value1.x > 0) && (value2.x > 0)));
 }
 
 __kernel void logor(__read_only IMG_T inputImage1,
@@ -675,7 +675,8 @@ __kernel void finalizeThrough(__read_only image2d_t inputImage1, //immagine temp
   int condition = input2.w > 0; //l'immagine originale non è nera nel punto considerato (vedi initLCC)
 
   //l'output è una immagine booleana
-  write_imagef(outputImage, (int2)(input2.x, input2.y), condition*input1.x);
+  if(condition)
+    write_imagef(outputImage, (int2)(input2.x, input2.y), 1);
 }
 
 __kernel void finalizeThrough3D(__read_only image3d_t inputImage1, //immagine temporanea
@@ -686,5 +687,5 @@ __kernel void finalizeThrough3D(__read_only image3d_t inputImage1, //immagine te
   float4 input2 = read_imagef(inputImage2, sampler, gid);
   uint4 input1 = read_imageui(inputImage1, sampler, (int4)(input2.x, input2.y, input2.z, 0));
 
-  write_imageui(tempOutput, gid, input1.x);
+  write_imageui(tempOutput, gid, input1.x > 0);
 }

@@ -711,8 +711,6 @@ type GPUModel() =
                         baseImg.Size,
                         None
                     )
-                gpu.Wait([|event|])
-                tmp.Get().Save("output/initThrough.nii.gz")
 
                 let resultEvent = 
                     gpu.Run(
