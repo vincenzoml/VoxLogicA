@@ -7,5 +7,9 @@ let R(x) = I I F F F F F F F F F x
 let S(x) = R R R R F F F x
 let Q(x) = S S R F x
 
-save "output/a.nii.gz" Q a
+let right = I F F F F F F F F F R R F F F S R F a
+let wrong = I right
+
+save "output/right.nii.gz" right
+save "output/wrong.nii.gz" wrong
 
