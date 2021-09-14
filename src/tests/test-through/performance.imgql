@@ -9,7 +9,7 @@ let Q(x) = S S R F x
 
 // let right = I F F F F F F F F F R R F F F S R F a
 // let wrong = I right
-let right =  F F F F F F F F F R F F F S R F a
+let right =  F F F F F F F F R F F F S R F a
 let wrong = through(right,right)
 
 save "output/right.nii.gz" right
