@@ -1,7 +1,7 @@
 load img = "Brats17_2013_17_1_flair.nii.gz"
 
 let a = 900 .<= intensity(img)
-let I(x) = through(x,x | x)
+let I(x) = through(x,N x & x)
 let F(x) = (N x) & x & x
 let R(x) = I I F F F F x
 let S(x) = R R R R x
