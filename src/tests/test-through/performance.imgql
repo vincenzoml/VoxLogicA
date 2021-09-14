@@ -7,8 +7,10 @@ let R(x) = I I F F F F F F F F F x
 let S(x) = R R R R F F F x
 let Q(x) = S S R F x
 
-let right = I F F F F F F F F F R R F F F S R F a
-let wrong = I right
+// let right = I F F F F F F F F F R R F F F S R F a
+// let wrong = I right
+let right =  F F F F F F F F F R F F F S R F a
+let wrong = through(right,right)
 
 save "output/right.nii.gz" right
 save "output/wrong.nii.gz" wrong
