@@ -1,6 +1,5 @@
 load img = "right.nii.gz"
 let r = intensity(img) >. 0 
 
-save "output/right.nii.gz" r
 save "output/wrong.nii.gz" through(r,r)
 
