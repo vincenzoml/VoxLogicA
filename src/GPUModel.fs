@@ -581,7 +581,7 @@ type GPUModel() =
 
                 let event =
                     gpu.Run(
-                        "dilate",
+                        "dilate3D",
                         imgIn.gEvt,
                         seq {
                             imgIn.gVal

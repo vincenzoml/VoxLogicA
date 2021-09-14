@@ -125,9 +125,6 @@ __kernel void dilate3D(__read_only image3d_t inputImage,
       for (int c = -1; c <= 1; c++) {
         newcoord = (int4)(x + a, y + b, z + c, 0);
         ui4 = read_imageui(inputImage, sampler, newcoord);
-        if (ui4.x > 0) {
-          printf("Found: %d %d %d",newcoord.x,newcoord.y,newcoord.z);
-        }
         found = found + (ui4.x > 0);
       }
     }
