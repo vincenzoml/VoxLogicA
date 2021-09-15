@@ -13,7 +13,7 @@ let Q(x) = S S R F x
 let right =  F F F F F F F F R F F F S R F a
 let wrong = through(right,right)
 
-save "output/lcc.nii.gz" lcc(img)
+save "output/lcc.nii.gz" lcc(a)
 save "output/right.nii.gz" right
 save "output/wrong.nii.gz" wrong
 
