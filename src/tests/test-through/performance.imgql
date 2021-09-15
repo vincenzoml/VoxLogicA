@@ -1,4 +1,5 @@
-load img = "Brats17_2013_17_1_flair.nii.gz"
+load img = "right.nii.gz"
+let r = intensity(img) >. 0 
 
 let a = 900 .<= intensity(img)
 let F(x) = (N x) & (x | (!x))
