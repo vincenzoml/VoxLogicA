@@ -591,7 +591,8 @@ __kernel void initThrough(__read_only image2d_t inputImage1, //primo parametro d
   float4 input1 = read_imagef(inputImage1, sampler, gid);
   float4 input2 = read_imagef(inputImage2, sampler, gid);
 
-  write_imagef(tempOutput, (int2)(input2.x, input2.y), input1.x);
+  if(input1.x > 0)
+    write_imageui(tempOutput, (int2)(input2.x, input2.y), 1);
 }
 
 __kernel void initThrough3D(__read_only image3d_t inputImage1, //primo parametro della primitiva Through
@@ -616,13 +617,12 @@ __kernel void finalizeThrough(__read_only image2d_t inputImage1, //immagine temp
   int x = gid.x;
   int y = gid.y;
 
-  float4 input1 = read_imagef(inputImage1, sampler, gid);
   float4 input2 = read_imagef(inputImage2, sampler, gid);
-  int condition = input2.w > 0; //l'immagine originale non è nera nel punto considerato (vedi initLCC)
+  uint4 input1 = read_imageui(inputImage1, sampler, (int2)(input2.x, input2.y));
 
   //l'output è una immagine booleana
-  if(condition)
-    write_imagef(outputImage, (int2)(input2.x, input2.y), 1);
+
+  write_imagef(outputImage, gid, input1.x > 0);
 }
 
 __kernel void finalizeThrough3D(__read_only image3d_t inputImage1, //immagine temporanea
