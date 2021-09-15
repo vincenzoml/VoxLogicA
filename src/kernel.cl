@@ -28,12 +28,9 @@ __kernel void intensity(__read_only IMG_T inputImage,
   float4 newf4 =
       (float4)(f4.x * 0.2126 + f4.y * 0.7152 + f4.z * 0.0722, 0, 0, 0);
 
-  if(gid.x == 0 && gid.y == 0 && gid.z == 0) {
-    float4 prova = (float4)read_imagef(inputImage, sampler, (int4)(-1, -1, -1, 0));
-    printf("\n******\n%d, %d, %d, %d\n******\n", prova.x, prova.y, prova.z, prova.w);
-  }
-
   write_imagef(outImage, gid, newf4);
+  //float4 f4 = (float4)read_imagef(inputImage, sampler, (int4)(-1, -1, -1, 0));
+  //write_imagef(outImage, gid, f4);
 }
 
 __kernel void getComponent(__read_only IMG_T inputImage,

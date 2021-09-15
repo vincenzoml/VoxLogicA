@@ -146,6 +146,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu.NewImageOnDevice(img, 1, Float32)
 
+                printfn "starting intensity"
                 if img.NComponents > 1 then
                     let event =
                         gpu.Run(
