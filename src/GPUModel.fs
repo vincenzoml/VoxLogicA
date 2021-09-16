@@ -135,7 +135,7 @@ type GPUModel() =
                 let output = gpu.NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu.Run("border", [||], seq { output }, img.Size, None)
+                    gpu.Run("border3D", [||], seq { output }, img.Size, None)
 
                 return { gVal = output; gEvt = [| event |] }
             }

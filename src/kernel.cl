@@ -86,8 +86,8 @@ __kernel void border3D(__write_only image3d_t outputImage) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
   int4 dim = (int4)(get_global_size(0), get_global_size(1), get_global_size(2), 0);
 
-  int condition = (gid.x == 0 || gid.x == dim.x - 1) || (gid.y == 0 || gid.y == dim.y - 1)
-                  || (gid.z == 0 || gid.z == dim.z -1);
+  int condition = (gid.x == 0 || gid.x == (dim.x - 1)) || (gid.y == 0 || gid.y == (dim.y - 1))
+                  || (gid.z == 0 || gid.z == (dim.z -1));
 
   write_imageui(outputImage, gid, condition);
 }
