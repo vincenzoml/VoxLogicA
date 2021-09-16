@@ -1,19 +1,22 @@
 load img = "right.nii.gz"
 let r = intensity(img) >. 0 
 
-let a = 900 .<= intensity(img)
-let F(x) = (N x) & (x | (!x))
-let I(x) = through(x,F x)
-let R(x) = I I F F F F F F F F F x
-let S(x) = R R R R F F F x
-let Q(x) = S S R F x
+//let a = 900 .<= intensity(img)
+//let F(x) = (N x) & (x | (!x))
+//let I(x) = through(x,F x)
+//let R(x) = I I F F F F F F F F F x
+//let S(x) = R R R R F F F x
+//let Q(x) = S S R F x
 
 // let right = I F F F F F F F F F R R F F F S R F a
 // let wrong = I right
-let right =  F F F F F F F F R F F F S R F a
-let wrong = through(right,right)
+//let right =  F F F F F F F F R F F F S R F a
+//let wrong = through(right,right)
 
-save "output/lcc.nii.gz" lcc(a)
-save "output/right.nii.gz" right
-save "output/wrong.nii.gz" wrong
+let b = border(r)
+save "output/throughb.nii.gz" through(b,b)
+//save "output/int.nii.gz" intensity(img)
+//save "output/lcc.nii.gz" lcc(a)
+//save "output/right.nii.gz" right
+//save "output/wrong.nii.gz" wrong
 

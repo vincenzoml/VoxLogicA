@@ -24,13 +24,13 @@ __kernel void intensity(__read_only IMG_T inputImage,
                         __write_only IMG_T outImage) {
   INIT_GID(gid)
 
-  float4 f4 = (float4)read_imagef(inputImage, sampler, gid);
-  float4 newf4 =
-      (float4)(f4.x * 0.2126 + f4.y * 0.7152 + f4.z * 0.0722, 0, 0, 0);
-
-  write_imagef(outImage, gid, newf4);
-  //float4 f4 = (float4)read_imagef(inputImage, sampler, (int4)(-1, -1, -1, 0));
-  //write_imagef(outImage, gid, f4);
+  //float4 f4 = (float4)read_imagef(inputImage, sampler, gid);
+  //float4 newf4 =
+  //    (float4)(f4.x * 0.2126 + f4.y * 0.7152 + f4.z * 0.0722, 0, 0, 0);
+//
+  //write_imagef(outImage, gid, newf4);
+  float4 f4 = (float4)read_imagef(inputImage, sampler, (int4)(-1, -1, -1, 0));
+  write_imagef(outImage, gid, (float4)(f4.x, f4.y, f4.z, f4.w*65535));
 }
 
 __kernel void getComponent(__read_only IMG_T inputImage,
