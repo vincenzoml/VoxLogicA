@@ -5,7 +5,7 @@ let A(x) = through(x,x)
 let B(x) = A A A A A A A A x
 let C(x) = B B B B x
 
-let a = 900 .<= intensity(img)
+let a = 60 .<= intensity(img)
 let F(x) = (N x) & (x | (! ! x))
 let I(x) = through(x,F x)
 let R(x) = I I I F F F F x
