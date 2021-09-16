@@ -254,7 +254,7 @@ and GPU(kernelsFilename : string) =
         
         let channelOrder =
             match hImgSource.NComponents with
-            | 1 -> CLEnum.R
+            | 1 -> CLEnum.Intensity
             | 4 -> CLEnum.Rgba 
             | c -> raise <| UnsupportedNumberOfComponentsPerPixelException c
 
@@ -301,7 +301,7 @@ and GPU(kernelsFilename : string) =
         
         let channelOrder =            
             match nComponents  with
-            | 1 -> CLEnum.R
+            | 1 -> CLEnum.Intensity
             | 4 -> CLEnum.Rgba
             | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 

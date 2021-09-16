@@ -20,3 +20,8 @@ save "output/throughb.nii.gz" through(b,b)
 //save "output/right.nii.gz" right
 //save "output/wrong.nii.gz" wrong
 
+//save "output/wrong.nii.gz" through(r,r)
+//save "output/tt.nii.gz" tt
+//save "output/r.nii.gz" r
+
+
