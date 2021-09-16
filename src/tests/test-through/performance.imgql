@@ -2,3 +2,4 @@ load img = "right.nii.gz"
 let r = intensity(img) >. 0 
 
 save "output/through.nii.gz" through(r,r)
+save "output/throughb.nii.gz" through(border,border)
