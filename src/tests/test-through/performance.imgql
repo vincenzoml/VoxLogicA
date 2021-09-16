@@ -1,9 +1,4 @@
 load img = "right.nii.gz"
 let r = intensity(img) >. 0 
 
-save "output/b.nii.gz" border
-save "output/throughb.nii.gz" through(border,border)
-
-
-save "output/notb.nii.gz" !border
-save "output/throughnotb.nii.gz" through(!border,!border)
+save "output/through.nii.gz" through(r,r)
