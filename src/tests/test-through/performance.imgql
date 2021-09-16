@@ -13,7 +13,7 @@ let r = intensity(img) >. 0
 //let right =  F F F F F F F F R F F F S R F a
 //let wrong = through(right,right)
 
-save "output/throughb.nii.gz" through(border,border)
+save "output/throughb.nii.gz" through(!border,!border)
 //save "output/int.nii.gz" intensity(img)
 //save "output/lcc.nii.gz" lcc(a)
 //save "output/right.nii.gz" right
