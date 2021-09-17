@@ -119,7 +119,7 @@ type Kernel =
     {   Name : string
         Pointer : Pointer     }    
 
-and GPU(kernelsFilename : string) =
+and GPU(kernelsFilename : string, dimension : int) =
     let mutex = ref ()
 
     let mutable dimensionIndex = 0
@@ -166,8 +166,10 @@ and GPU(kernelsFilename : string) =
         checkErrPtr (fun errPtr -> (devices.[0],API.CreateContext(nullPtr,1ul,devicesPtr,noNotify,vNullPtr,errPtr)))   // TODO: always selects first device              
 
     let source = 
+        let defineString = "#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable\n #define DIM " + (string dimension) + "\n"
         use streamReader = new System.IO.StreamReader(kernelsFilename)
-        let res = streamReader.ReadToEnd()
+        let kernels = streamReader.ReadToEnd()
+        let res = defineString + kernels
         streamReader.Close()
         res
 
@@ -301,7 +303,7 @@ and GPU(kernelsFilename : string) =
         
         let channelOrder =            
             match nComponents  with
-            | 1 -> CLEnum.Intensity
+            | 1 -> CLEnum.R
             | 4 -> CLEnum.Rgba
             | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 

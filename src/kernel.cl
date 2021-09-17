@@ -1,9 +1,3 @@
-#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable
-
-const sampler_t sampler =
-    CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
-
-#define DIM 3
 #if DIM == 3
 
 #define IMG_T image3d_t
@@ -19,6 +13,9 @@ const sampler_t sampler =
   GID_T gid;                                                                   \
   gid = (GID_T)(get_global_id(0), get_global_id(1));
 #endif
+
+const sampler_t sampler =
+    CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
 
 __kernel void intensity(__read_only IMG_T inputImage,
                         __write_only IMG_T outImage) {

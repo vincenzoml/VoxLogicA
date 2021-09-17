@@ -2,5 +2,4 @@ load img = "test5.png"
 
 let thr(x) = (1 .<= x) 
 
-save "output/lcc.png" lcc(thr(intensity(img)))
-
+save "output/lcc.png" thr(intensity(img))
