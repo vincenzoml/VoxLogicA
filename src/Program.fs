@@ -39,7 +39,12 @@ let main (argv: string array) =
     let version = name.Version
 
     let informationalVersion =
-        ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
+        ((Assembly
+            .GetEntryAssembly()
+            .GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0])
+        :?> AssemblyInformationalVersionAttribute)
+            .InformationalVersion
+
     let cmdLineParser =
         ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
 
@@ -47,29 +52,56 @@ let main (argv: string array) =
     ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
     let model = SITKModel() :> IModel
     let checker = ModelChecker model
-    let finish = 
-        if Option.isSome (parsed.TryGetResult JSon) then 
+
+    let finish =
+        if Option.isSome (parsed.TryGetResult JSon) then
             let readLog = ErrorMsg.Logger.LogToMemory()
+
             fun oExn ->
-                let (print,save) = ErrorMsg.Report.Get()
-                let log = readLog()
-                let json = JSonOutput.Root(                                
-                            print = List.toArray (List.map (fun (name,typ,res) -> JSonOutput.Print(name = name, typ = typ, value = res)) print),
-                            layers = List.toArray (List.map (fun (name,typ,info,path) -> JSonOutput.Layer(name = name, typ = typ, info = info, path = path)) save), // 
-                            error = FSharp.Data.JsonValue.String (match oExn with None -> "" | Some exn -> exn.ToString()),  
-                            log = FSharp.Data.JsonValue.String log)
-                printf "%s" <| json.ToString()                 
-        else 
-            ErrorMsg.Logger.LogToStdout ()
+                let (print, save) = ErrorMsg.Report.Get()
+                let log = readLog ()
+
+                let json =
+                    JSonOutput.Root(
+                        print =
+                            List.toArray (
+                                List.map
+                                    (fun (name, typ, res) -> JSonOutput.Print(name = name, vltype = typ, value = res))
+                                    print
+                            ),
+                        layers =
+                            List.toArray (
+                                List.map
+                                    (fun (name, vltype, min, max, path : string) ->
+                                        let fname = System.IO.Path.GetFileName path
+                                        let ext = System.IO.Path.GetExtension path
+                                        JSonOutput.Layer(vltype = vltype, min = min, max = max, name = fname, extension = ext))
+                                    save
+                            ), //
+                        error =
+                            FSharp.Data.JsonValue.String(
+                                match oExn with
+                                | None -> ""
+                                | Some exn -> exn.ToString()
+                            ),
+                        log = FSharp.Data.JsonValue.String log
+                    )
+
+                printf "%s" <| json.ToString()
+        else
+            ErrorMsg.Logger.LogToStdout()
             ignore
+
     if version.Revision <> 0 then
-        ErrorMsg.Logger.Warning
-            (sprintf
+        ErrorMsg.Logger.Warning(
+            sprintf
                 "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d."
-                 name.Name
-                 version.Major
-                 version.Minor
-                 version.Build)
+                name.Name
+                version.Major
+                version.Minor
+                version.Build
+        )
+
     try
         if parsed.Contains Ops then
             Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
@@ -77,7 +109,7 @@ let main (argv: string array) =
         // if sequential
         // then
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
-        //     proc.ProcessorAffinity <- nativeint 0x1                
+        //     proc.ProcessorAffinity <- nativeint 0x1
 
 
         let run filename =
@@ -88,14 +120,15 @@ let main (argv: string array) =
         | None, false ->
             printfn "%s\n" (cmdLineParser.PrintUsage())
             0
-        | Some filename, _ ->            
+        | Some filename, _ ->
             run filename
             finish None
             0
         | None, true ->
             run "test.imgql"
             0
-    with e ->
+    with
+    | e ->
         ErrorMsg.Logger.DebugExn e
         ErrorMsg.Logger.Failure "exiting."
         finish (Some e)

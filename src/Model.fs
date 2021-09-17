@@ -20,5 +20,5 @@ namespace VoxLogicA
 type IModel() =
     inherit Coreops()
     abstract member Load : string -> obj
-    abstract member Save : string -> obj -> JSonOutput.Info
+    abstract member Save : string -> obj -> (float * float)
     abstract member CanSave : Type -> string -> bool
