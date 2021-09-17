@@ -303,7 +303,7 @@ and GPU(kernelsFilename : string, dimension : int) =
         
         let channelOrder =            
             match nComponents  with
-            | 1 -> CLEnum.R
+            | 1 -> CLEnum.Intensity
             | 4 -> CLEnum.Rgba
             | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
