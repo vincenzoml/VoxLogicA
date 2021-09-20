@@ -68,7 +68,8 @@ release-win:
 
 release: release-linux release-osx release-win	
 
-upload-release: release
+upload-release: 
+	echo Did you "make release" first? press enter to continue
 	./upload_helper.sh
 
 	
