@@ -8,7 +8,7 @@ echo "script: " $4
 function checkmd5() {
   gpu=$1
   cpu=$2
-  if [[ $md5_to_test == $md5_from_file ]]
+  if [[ $gpu == $cpu ]]
     then
       echo "ok"
     else
