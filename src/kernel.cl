@@ -469,7 +469,7 @@ __kernel void iterateCCL3D( //__read_only image3d_t image,
   float currenty = input1.y;
   float currentz = input1.z;
   float orig =
-      input1.w > 0; // original boolean image (see the initialization kernel)
+      input1.w; // original boolean image (see the initialization kernel)
 
   if (orig == 2) {
     float4 parent =
