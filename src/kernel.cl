@@ -397,6 +397,10 @@ __kernel void mask(__read_only IMG_T inputImage1, __read_only IMG_T inputImage2,
 
 /********************* CONNECTED COMPONENTS *********************/
 
+// The original image is stored into the 4th component of the output
+// image, with a trick: the condition input.x > 0 is multiplied
+// by 2, to avoid issues with the out of bound sampling (which returns (0,0,0,1))
+// in the iterate and reconnect kernels
 __kernel void initCCL(__read_only image2d_t inputImage,
                       __write_only image2d_t outputImage) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
@@ -404,7 +408,7 @@ __kernel void initCCL(__read_only image2d_t inputImage,
   int y = gid.y;
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
-  write_imagef(outputImage, gid, (float4)(ui4.x * x, ui4.x * y, 0, ui4.x));
+  write_imagef(outputImage, gid, (float4)(ui4.x * x, ui4.x * y, 0, (ui4.x>0)*2));
 }
 
 __kernel void initCCL3D(__read_only image3d_t inputImage,
@@ -416,7 +420,7 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
   write_imagef(outputImage, gid,
-               (float4)(ui4.x * x, ui4.x * y, ui4.x * z, ui4.x > 0));
+               (float4)(ui4.x * x, ui4.x * y, ui4.x * z, (ui4.x > 0)*2));
 }
 
 __kernel void iterateCCL(__read_only image2d_t inputImage1,
@@ -429,7 +433,7 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
   float currenty = input1.y;
   float orig = input1.w; // original image (see the initialization kernel)
 
-  if (orig) {
+  if (orig == 2) {
     float4 parent = read_imagef(inputImage1, sampler,
                                 (int2)(currentx, currenty)); // pointer jumping
     float labelx = parent.x;
@@ -443,7 +447,7 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
             read_imagef(inputImage1, sampler, (int2)(labelx + a, labely + b));
         unsigned int condition =
             ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy))) &&
-            (tmpa.w > 0);
+            (tmpa.w == 2);
         maxx = (condition * tmpa.x) + ((!condition) * maxx);
         maxy = (condition * tmpa.y) + ((!condition) * maxy);
       }
@@ -467,7 +471,7 @@ __kernel void iterateCCL3D( //__read_only image3d_t image,
   float orig =
       input1.w > 0; // original boolean image (see the initialization kernel)
 
-  if (orig) {
+  if (orig == 2) {
     float4 parent =
         read_imagef(inputImage1, sampler,
                     (int4)(currentx, currenty, currentz, 0)); // pointer jumping
@@ -485,7 +489,7 @@ __kernel void iterateCCL3D( //__read_only image3d_t image,
           tmpa = read_imagef(inputImage1, sampler,
                              (int4)(labelx + a, labely + b, labelz + c, 0));
           unsigned int conditiona =
-              (tmpa.w > 0) &&
+              (tmpa.w == 2) &&
               ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy)) ||
               ((tmpa.x == maxx) && (tmpa.y == maxy) && (tmpa.z > maxz)));
           maxx = (conditiona * tmpa.x) + ((!conditiona) * maxx);
@@ -518,13 +522,13 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
 
   unsigned int toFlag = 0;
 
-  if (orig > 0) {
+  if (orig == 2) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         float4 tmpb = read_imagef(inputImage1, sampler, (int2)(x + a, y + b));
         unsigned int tmpcondition =
             ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y)) &&
-            (tmpb.w > 0);
+            (tmpb.w == 2);
         max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
                        tmpcondition * tmpb.y + (!tmpcondition * max.y), 0.0,
                        orig);
@@ -558,7 +562,7 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
 
   unsigned int toFlag = 0;
 
-  if (orig > 0) {
+  if (orig == 2) {
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         for (int c = -1; c <= 1; c++) {
@@ -567,7 +571,7 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
           unsigned int tmpcondition =
               ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y) ||
                (tmpb.x == max.x && tmpb.y == max.y && tmpb.z > max.z)) &&
-              (tmpb.w > 0);
+              (tmpb.w == 2);
           max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
                          tmpcondition * tmpb.y + (!tmpcondition * max.y),
                          tmpcondition * tmpb.z + (!tmpcondition * max.z), orig);
