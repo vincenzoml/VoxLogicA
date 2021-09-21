@@ -39,23 +39,6 @@ __kernel void getComponent(__read_only IMG_T inputImage,
   write_imagef(outputImage, gid, i);
 }
 
-__kernel void rgbComps(__read_only IMG_T inputImage1,
-                       __read_only IMG_T inputImage2,
-                       __read_only IMG_T inputImage3,
-                       __write_only IMG_T outImage) {
-  INIT_GID(gid)
-
-  float4 pix1 = (float4)read_imagef(inputImage1, gid);
-  float4 pix2 = (float4)read_imagef(inputImage2, gid);
-  float4 pix3 = (float4)read_imagef(inputImage3, gid);
-
-  write_imagef(
-      outImage, gid,
-      (float4)(pix1.x, pix2.y, pix3.z,
-               255)); // TODO: why 255? What if the image is 16bit? Float32?
-                      // This primitive needs a value for alpha
-}
-
 __kernel void rgbaComps(__read_only IMG_T inputImage1,
                         __read_only IMG_T inputImage2,
                         __read_only IMG_T inputImage3,
@@ -454,12 +437,9 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
     }
     write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
   }
-
-  // TODO: optimize by assuming input and output are copies of each other
-  // (requires change in initialization?)
 }
 
-__kernel void iterateCCL3D( //__read_only image3d_t image,
+__kernel void iterateCCL3D(
     __read_only image3d_t inputImage1, __write_only image3d_t outImage1) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
 
@@ -588,13 +568,13 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
 
 /********************* THROUGH *********************/
 
-// kernel 1: prende output di LCC, img e immagine temporanea (output)
-// e scrive in [x, y, (z)] coord della componente connessa
-// il valore di phi1 (img in Through)
+// Takes the output of LCC, the phi1 image (img) and outputs
+// a temporary image, containing 1 in all and only the points whose
+// coordinates are a connected component's label
 __kernel void
 initThrough(__read_only image2d_t
-                inputImage1, // primo parametro della primitiva Through
-            __read_only image2d_t inputImage2, // output di LCC(img2)
+                inputImage1, // phi1
+            __read_only image2d_t inputImage2, // phi2
             __write_only image2d_t tempOutput) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
@@ -609,8 +589,8 @@ initThrough(__read_only image2d_t
 
 __kernel void
 initThrough3D(__read_only image3d_t
-                  inputImage1, // primo parametro della primitiva Through
-              __read_only image3d_t inputImage2, // output di LCC(img2)
+                  inputImage1,
+              __read_only image3d_t inputImage2,
               __write_only image3d_t tempOutput) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
 
@@ -621,12 +601,13 @@ initThrough3D(__read_only image3d_t
     write_imageui(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), 1);
 }
 
-// kernel 2: prende output di LCC e immagine temporanea e scrive
-// in ogni pixel dove phi2 è vera il valore di tmp all'indice dato
-// dalla label di output LCC in quel pixel
+// Takes the output of LCC and the temporary output of the
+// initialization kernel. Reads the value of the output in gid
+// and the value of tmp at the coordinates given by the result
+// of the previous read. Finally, it writes this value in the output.
 __kernel void
-finalizeThrough(__read_only image2d_t inputImage1, // immagine temporanea
-                __read_only image2d_t inputImage2, // output di LCC(img2)
+finalizeThrough(__read_only image2d_t inputImage1,
+                __read_only image2d_t inputImage2,
                 __write_only image2d_t outputImage) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
@@ -634,8 +615,6 @@ finalizeThrough(__read_only image2d_t inputImage1, // immagine temporanea
 
   float4 input2 = read_imagef(inputImage2, sampler, gid);
   uint4 input1 = read_imageui(inputImage1, sampler, (int2)(input2.x, input2.y));
-
-  // l'output è una immagine booleana
 
   write_imagef(outputImage, gid, input1.x > 0);
 }

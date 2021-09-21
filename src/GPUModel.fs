@@ -152,7 +152,6 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
-                printfn "start intensity"
 
                 if img.NComponents > 1 then
                     let event =
@@ -168,7 +167,6 @@ type GPUModel() =
                         )
                     return { gVal = output; gEvt = [| event |] }
                 else
-                    printfn "intensity done"
                     return imgIn
             }
 
@@ -256,33 +254,6 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        member __.RGB (imgr: GPUModelValue) (imgg: GPUModelValue) (imgb: GPUModelValue) =
-            job {
-                let img = getBaseImg ()
-                let output = gpu().NewImageOnDevice(img, 4, Float32)
-
-                let tmpEvents =
-                    Seq.distinct (Array.append (Array.append imgr.gEvt imgg.gEvt) imgb.gEvt)
-
-                let newEvents = Seq.toArray tmpEvents
-
-                let event =
-                    gpu().Run(
-                        "rgbComps",
-                        newEvents,
-                        seq {
-                            imgr.gVal
-                            imgg.gVal
-                            imgb.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
-
-                return { gVal = output; gEvt = [| event |] }
-            }
-
         member __.RGBA (imgr: GPUModelValue) (imgg: GPUModelValue) (imgb: GPUModelValue) (imga: GPUModelValue) =
             job {
                 let img = getBaseImg ()
@@ -324,18 +295,24 @@ type GPUModel() =
                 return result
             }
 
-        //member __.MaxVol img =
-        //    job {
-        //        let img = getBaseImg ()
-        //        let output = gpu().NewImageOnDevice(img,1,UInt8)
+        // IN CPU
+        member __.MaxVol img =
+            job {
+                
+                gpu().Wait img.gEvt
 
-        //        let event =
-        //            gpu().Run("test", [||], seq { output }, img.Size, None)
+                let cpuImg = img.gVal.Get()
 
-        //        return { gVal = output; gEvt = [| event |] }
-        //    }
+                let result =
+                    VoxImage.MaxVol cpuImg
 
-        member __.Percentiles imgIn mask correction = // IN CPU
+                let output = gpu().CopyImageToDevice result
+
+                return { gVal = output; gEvt = [||] }
+            }
+
+        // IN CPU
+        member __.Percentiles imgIn mask correction =
             job {
                 let evt = Array.append imgIn.gEvt mask.gEvt
                 gpu().Wait evt
@@ -804,7 +781,6 @@ type GPUModel() =
 
         member __.EqSV value imgIn =
             job {
-                printfn "launch eq"
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
@@ -826,7 +802,6 @@ type GPUModel() =
 
         member __.GeqSV value imgIn =
             job {
-                printfn "launch Geq"
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
@@ -848,7 +823,6 @@ type GPUModel() =
 
         member __.LeqSV value imgIn =
             job {
-                printfn "launch leq"
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
                 let event =
