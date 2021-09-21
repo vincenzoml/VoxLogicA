@@ -98,7 +98,10 @@ type GPUModel() =
     override __.Load s =
         let img = new VoxImage(s)
         dim <- img.Dimension
-        gpuval <- Some(GPU(kernelFile, dim))
+        gpuval <- 
+            match gpuval with
+            | None -> Some(GPU(kernelFile, dim))
+            | Some(y) as x -> x
 
         let res =
             match baseImg with
