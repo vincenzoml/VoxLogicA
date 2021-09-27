@@ -12,7 +12,7 @@ let a = alpha(img2)
 
 save "output/Border.png" bb
 save "output/Intensity.png" i
-// save "output/Red.png" r
-// save "output/Green.png" g
-// save "output/Blue.png" b
-// save "output/Alpha.png" a
+save "output/Red.png" r
+save "output/Green.png" g
+save "output/Blue.png" b
+save "output/Alpha.png" a
