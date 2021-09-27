@@ -1,14 +1,13 @@
 //2D
-load img1 = "../test1.png"
-load img2 = "../test2.png"
+load img1 = "../three_coloured_items.png"
 
 let bb = border
 
 let i = 1 .<= intensity(img1)
-let r = red(img2)
-let g = green(img2)
-let b = blue(img2)
-let a = alpha(img2)
+let r = red(img1)
+let g = green(img1)
+let b = blue(img1)
+let a = alpha(img1)
 
 save "output/Border.png" bb
 save "output/Intensity.png" i
