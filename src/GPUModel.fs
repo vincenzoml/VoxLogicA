@@ -287,6 +287,7 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
+        // ON CPU
         member __.Volume img =
             job {
                 gpu().Wait img.gEvt
@@ -298,7 +299,7 @@ type GPUModel() =
                 return result
             }
 
-        // IN CPU
+        // ON CPU
         member __.MaxVol img =
             job {
                 
@@ -314,7 +315,7 @@ type GPUModel() =
                 return { gVal = output; gEvt = [||] }
             }
 
-        // IN CPU
+        // ON CPU
         member __.Percentiles imgIn mask correction =
             job {
                 let evt = Array.append imgIn.gEvt mask.gEvt
