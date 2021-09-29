@@ -30,15 +30,8 @@ type GPUModelValue =
 type GPUModel() =
     inherit IModel()
 
-    let kernelFile =
-        System.IO.Path.Combine [| System.IO.Path.GetDirectoryName(
-                                      System
-                                          .Reflection
-                                          .Assembly
-                                          .GetExecutingAssembly()
-                                          .Location
-                                  )
-                                  "kernel.cl" |]
+    let kernelFile =        
+        System.IO.Path.Combine [| System.AppContext.BaseDirectory; "kernel.cl" |]
 
     let mutable gpuval = None
     let mutable dim = 0
