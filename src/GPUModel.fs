@@ -1153,6 +1153,20 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
+        // member __.Min imgIn =
+        //     job {
+        //         let evt = Array.append imgIn.gEvt mask.gEvt
+        //         gpu().Wait evt
+
+        //         let cpuImg = imgIn.gVal.Get()
+
+        //         let result = VoxImage.Min cpuImg 
+
+        //         let output = gpu().Float32 (float32 result)
+
+        //         return { gVal = output; gEvt = [||] }
+        //     }
+
 // interface IStatisticalModel<VoxImage> with
 //     member __.CrossCorrelation rho a b fb m1 m2 k = VoxImage.Crosscorrelation rho a b fb m1 m2 k
 
