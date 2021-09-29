@@ -4,7 +4,4 @@ load ib = "b.nii.gz"
 let a = intensity(ia) >. 0
 let b = intensity(ib) >. 0
 
-let grow(a,b) = (a|touch(b,a))
-let res = grow(a,b)
-
-save "output/res.nii.gz" res
+save "output/res.nii.gz" through(a,b)
