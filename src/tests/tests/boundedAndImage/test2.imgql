@@ -5,6 +5,4 @@ load img2 = "../test2.nii.gz"
 let a = 1 .<= intensity(img1)
 let b = 1 .<= intensity(img2)
 
-save "output/andImgs.nii.gz" a & b
-save "output/orImgs.nii.gz" a | b
-save "output/notImg1.nii.gz" !a
+save "output/through.nii.gz" through(a, b)
