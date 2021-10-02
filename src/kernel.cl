@@ -629,7 +629,7 @@ finalizeThrough3D(__read_only image3d_t inputImage1, // immagine temporanea
   uint4 input1 = read_imageui(inputImage1, sampler,
                               (int4)(input2.x, input2.y, input2.z, 0));
 
-  write_imageui(tempOutput, gid, input1.x > 0 && input2.x > 0);
+  write_imageui(tempOutput, gid, input1.x > 0);
 }
 
 /********************* WIP *********************/
