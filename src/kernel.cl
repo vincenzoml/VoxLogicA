@@ -583,7 +583,7 @@ initThrough(__read_only image2d_t
   float4 input1 = read_imagef(inputImage1, sampler, gid);
   float4 input2 = read_imagef(inputImage2, sampler, gid);
 
-  if (input1.x > 0)
+  if (input1.x > 0 && input2.w == 2)
     write_imageui(tempOutput, (int2)(input2.x, input2.y), 1);
 }
 
@@ -597,7 +597,7 @@ initThrough3D(__read_only image3d_t
   uint4 input1 = read_imageui(inputImage1, sampler, gid);
   float4 input2 = read_imagef(inputImage2, sampler, gid);
 
-  if (input1.x > 0)
+  if (input1.x > 0 && input2.w == 2)
     write_imageui(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), 1);
 }
 
