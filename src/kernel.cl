@@ -616,7 +616,7 @@ finalizeThrough(__read_only image2d_t inputImage1,
   float4 input2 = read_imagef(inputImage2, sampler, gid);
   uint4 input1 = read_imageui(inputImage1, sampler, (int2)(input2.x, input2.y));
 
-  write_imagef(outputImage, gid, input1.x > 0 && input2.x > 0);
+  write_imageui(outputImage, gid, input1.x > 0 && input2.x > 0);
 }
 
 __kernel void
