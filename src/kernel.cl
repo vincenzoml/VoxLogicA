@@ -570,11 +570,11 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
 
 // Takes the output of LCC, the phi1 image (img) and outputs
 // a temporary image, containing 1 in all and only the points whose
-// coordinates are a connected component's label
+// coordinates are a label of a connected component containing a point of phi1
 __kernel void
 initThrough(__read_only image2d_t
                 inputImage1, // phi1
-            __read_only image2d_t inputImage2, // phi2
+            __read_only image2d_t inputImage2, // output LCC
             __write_only image2d_t tempOutput) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
@@ -606,17 +606,15 @@ initThrough3D(__read_only image3d_t
 // and the value of tmp at the coordinates given by the result
 // of the previous read. Finally, it writes this value in the output.
 __kernel void
-finalizeThrough(__read_only image2d_t inputImage1,
-                __read_only image2d_t inputImage2,
+finalizeThrough(__read_only image2d_t inputImage1, //tmpout
+                __read_only image2d_t inputImage2, // lcc out
                 __write_only image2d_t outputImage) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
-  int x = gid.x;
-  int y = gid.y;
 
   float4 input2 = read_imagef(inputImage2, sampler, gid);
   uint4 input1 = read_imageui(inputImage1, sampler, (int2)(input2.x, input2.y));
 
-  write_imageui(outputImage, gid, input1.x > 0 && input2.x > 0);
+  write_imageui(outputImage, gid, input1.x > 0 && input2.w == 2);
 }
 
 __kernel void
@@ -629,7 +627,7 @@ finalizeThrough3D(__read_only image3d_t inputImage1, // immagine temporanea
   uint4 input1 = read_imageui(inputImage1, sampler,
                               (int4)(input2.x, input2.y, input2.z, 0));
 
-  write_imageui(tempOutput, gid, input1.x > 0 && input2.x > 0);
+  write_imageui(tempOutput, gid, input1.x > 0 && input2.w == 2);
 }
 
 /********************* WIP *********************/
