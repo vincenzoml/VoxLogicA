@@ -331,6 +331,7 @@ and GPU(kernelsFilename : string, dimension : int) =
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         lock mutex (fun () -> 
+            // printfn "kernelName: %A" kernelName
             let kernel = kernels.[kernelName].Pointer
             let args' = Seq.zip (Seq.initInfinite id) args
             let mutable dimIdx = 0

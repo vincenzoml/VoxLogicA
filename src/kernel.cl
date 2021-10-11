@@ -89,11 +89,11 @@ __kernel void dilate(__read_only image2d_t inputImage,
     for (int b = -1; b <= 1; b++) {
       newcoord = (int2)(x + a, y + b);
       ui4 = read_imageui(inputImage, sampler, newcoord);
-      found = found + (ui4.x > 0);
+      found = found | (ui4.x > 0);
     }
   }
 
-  write_imageui(outputImage, coord, found > 0);
+  write_imageui(outputImage, coord, found);
 }
 
 __kernel void dilate3D(__read_only image3d_t inputImage,
@@ -111,12 +111,12 @@ __kernel void dilate3D(__read_only image3d_t inputImage,
       for (int c = -1; c <= 1; c++) {
         newcoord = (int4)(x + a, y + b, z + c, 0);
         ui4 = read_imageui(inputImage, sampler, newcoord);
-        found = found + (ui4.x > 0);
+        found = found | (ui4.x > 0);
       }
     }
   }
 
-  write_imageui(outputImage, coord, found > 0);
+  write_imageui(outputImage, coord, found);
 }
 
 __kernel void erode(__read_only image2d_t inputImage,
@@ -145,21 +145,30 @@ __kernel void erode3D(__read_only image3d_t inputImage,
   int y = get_global_id(1);
   int z = get_global_id(2);
   int4 coord = (int4)(x, y, z, 0);
+  uint4 me = read_imageui(inputImage, sampler, coord);
 
-  int found = 0;
-  int4 newcoord;
-  uint4 ui4;
-  for (int a = -1; a <= 1; a++) {
-    for (int b = -1; b <= 1; b++) {
-      for (int c = -1; c <= 1; c++) {
-        newcoord = (int4)(x + a, y + b, z + c, 0);
-        ui4 = read_imageui(inputImage, sampler, newcoord);
-        found = found || (ui4.x == 0);
+  if (me.x > 0) {
+    int found = 0;
+    int4 newcoord;
+    uint4 ui4;
+    for (int a = -1; a <= 1; a++) {
+      for (int b = -1; b <= 1; b++) {
+        for (int c = -1; c <= 1; c++) {
+          newcoord = (int4)(x + a, y + b, z + c, 0);
+          ui4 = read_imageui(inputImage, sampler, newcoord);
+          found = found ||
+                  (ui4.x == 0); // TODO how to break the three for loops when found becomes 1 the first time? Use a
+                                // while? This could be way more efficient, in
+                                // fact, if the coordinates to iterate upon were
+                                // into an array (also for other kernels)
+        }
       }
     }
+    write_imageui(outputImage, coord, (!found));
+  } else {
+    write_imageui(outputImage, coord, 0);
   }
 
-  write_imageui(outputImage, coord, !found);
 }
 
 __kernel void booleanImg(__write_only IMG_T outputImage, float val) {
@@ -208,13 +217,13 @@ __kernel void constImg(__write_only IMG_T outImage, float value) {
   write_imagef(outImage, gid, value);
 }
 
-__kernel void geq(__read_only IMG_T image, __write_only IMG_T outImage,
-                  float value) {
+__kernel void geqSV(__read_only IMG_T image, __write_only IMG_T outImage,
+                    float value) {
   INIT_GID(gid)
 
   float4 ui4 = (float4)read_imagef(image, sampler, gid);
 
-  int condition = (ui4.x > value);
+  int condition = (value >= ui4.x);
 
   write_imageui(outImage, gid, condition);
 }
@@ -382,8 +391,8 @@ __kernel void mask(__read_only IMG_T inputImage1, __read_only IMG_T inputImage2,
 
 // The original image is stored into the 4th component of the output
 // image, with a trick: the condition input.x > 0 is multiplied
-// by 2, to avoid issues with the out of bound sampling (which returns (0,0,0,1))
-// in the iterate and reconnect kernels
+// by 2, to avoid issues with the out of bound sampling (which returns
+// (0,0,0,1)) in the iterate and reconnect kernels
 __kernel void initCCL(__read_only image2d_t inputImage,
                       __write_only image2d_t outputImage) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
@@ -391,7 +400,8 @@ __kernel void initCCL(__read_only image2d_t inputImage,
   int y = gid.y;
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
-  write_imagef(outputImage, gid, (float4)(ui4.x * x, ui4.x * y, 0, (ui4.x>0)*2));
+  write_imagef(outputImage, gid,
+               (float4)(ui4.x * x, ui4.x * y, 0, (ui4.x > 0) * 2));
 }
 
 __kernel void initCCL3D(__read_only image3d_t inputImage,
@@ -403,7 +413,7 @@ __kernel void initCCL3D(__read_only image3d_t inputImage,
 
   uint4 ui4 = read_imageui(inputImage, sampler, gid);
   write_imagef(outputImage, gid,
-               (float4)(ui4.x * x, ui4.x * y, ui4.x * z, (ui4.x > 0)*2));
+               (float4)(ui4.x * x, ui4.x * y, ui4.x * z, (ui4.x > 0) * 2));
 }
 
 __kernel void iterateCCL(__read_only image2d_t inputImage1,
@@ -439,8 +449,8 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
   }
 }
 
-__kernel void iterateCCL3D(
-    __read_only image3d_t inputImage1, __write_only image3d_t outImage1) {
+__kernel void iterateCCL3D(__read_only image3d_t inputImage1,
+                           __write_only image3d_t outImage1) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
 
   float4 input1 = read_imagef(inputImage1, sampler, gid);
@@ -471,7 +481,7 @@ __kernel void iterateCCL3D(
           unsigned int conditiona =
               (tmpa.w == 2) &&
               ((tmpa.x > maxx) || ((tmpa.x == maxx) && (tmpa.y > maxy)) ||
-              ((tmpa.x == maxx) && (tmpa.y == maxy) && (tmpa.z > maxz)));
+               ((tmpa.x == maxx) && (tmpa.y == maxy) && (tmpa.z > maxz)));
           maxx = (conditiona * tmpa.x) + ((!conditiona) * maxx);
           maxy = (conditiona * tmpa.y) + ((!conditiona) * maxy);
           maxz = (conditiona * tmpa.z) + ((!conditiona) * maxz);
@@ -571,11 +581,9 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
 // Takes the output of LCC, the phi1 image (img) and outputs
 // a temporary image, containing 1 in all and only the points whose
 // coordinates are a label of a connected component containing a point of phi1
-__kernel void
-initThrough(__read_only image2d_t
-                inputImage1, // phi1
-            __read_only image2d_t inputImage2, // output LCC
-            __write_only image2d_t tempOutput) {
+__kernel void initThrough(__read_only image2d_t inputImage1, // phi1
+                          __read_only image2d_t inputImage2, // output LCC
+                          __write_only image2d_t tempOutput) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
@@ -587,11 +595,9 @@ initThrough(__read_only image2d_t
     write_imageui(tempOutput, (int2)(input2.x, input2.y), 1);
 }
 
-__kernel void
-initThrough3D(__read_only image3d_t
-                  inputImage1,
-              __read_only image3d_t inputImage2,
-              __write_only image3d_t tempOutput) {
+__kernel void initThrough3D(__read_only image3d_t inputImage1,
+                            __read_only image3d_t inputImage2,
+                            __write_only image3d_t tempOutput) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
 
   uint4 input1 = read_imageui(inputImage1, sampler, gid);
@@ -605,10 +611,9 @@ initThrough3D(__read_only image3d_t
 // initialization kernel. Reads the value of the output in gid
 // and the value of tmp at the coordinates given by the result
 // of the previous read. Finally, it writes this value in the output.
-__kernel void
-finalizeThrough(__read_only image2d_t inputImage1, //tmpout
-                __read_only image2d_t inputImage2, // lcc out
-                __write_only image2d_t outputImage) {
+__kernel void finalizeThrough(__read_only image2d_t inputImage1, // tmpout
+                              __read_only image2d_t inputImage2, // lcc out
+                              __write_only image2d_t outputImage) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
 
   float4 input2 = read_imagef(inputImage2, sampler, gid);
