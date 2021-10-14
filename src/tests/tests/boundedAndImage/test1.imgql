@@ -5,5 +5,5 @@ load img2 = "../test2.png"
 let a = 1 .<= intensity(img1)
 let b = 1 .<= intensity(img2)
 
-print "volume" volume(a)
+print "volume" volume(b)
 save "output/through.png" through(a,b)
