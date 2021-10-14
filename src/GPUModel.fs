@@ -285,7 +285,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewArrayOnDevice(img.NPixels/32)
-                let tile : GPUArray = gpu().NewArrayOnDevice(32)
+                let tile = gpu().NewArrayOnDevice(32)
                 let mutable result = 0f
 
                 let event =
