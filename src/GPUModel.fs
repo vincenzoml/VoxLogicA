@@ -299,14 +299,14 @@ type GPUModel() =
                 let mutable output = gpu().NewImageOnDevice(img1, 1, Float32)
                 let mutable tmp = gpu().CopyImageToDevice(img.gVal.Get())
                 let mutable newEvent = img.gEvt
-                let iterations = Math.Log2(float img1.Size.[0])
+                let iterations = int (Math.Log2(float img1.Size.[0]))
 
                 let swap () =
                     let temp = tmp
                     tmp <- output
                     output <- temp
 
-                for i = 0 to int iterations do
+                for i = 0 to iterations do
                     let event =
                         gpu()
                             .Run(
