@@ -409,7 +409,7 @@ __kernel void volume2D(__read_only image2d_t inputImage,
       val += read_imagef(inputImage, sampler, (int2)(x - idx, y + idx)).x > 0;
       val += read_imagef(inputImage, sampler, (int2)(x - idx, y)).x > 0;
   }
-  //printf("%f", val);
+  printf("%f", val);
 
   write_imagef(outputImage, gid, val);
 }
