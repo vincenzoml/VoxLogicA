@@ -31,8 +31,9 @@ type GPUModelValue =
 type GPUModel() =
     inherit IModel()
 
-    let kernelFile =        
-        System.IO.Path.Combine [| System.AppContext.BaseDirectory; "kernel.cl" |]
+    let kernelFile =
+        System.IO.Path.Combine [| System.AppContext.BaseDirectory
+                                  "kernel.cl" |]
 
     let mutable gpuval = None
     let mutable dim = 0
@@ -72,8 +73,8 @@ type GPUModel() =
     let gpu () =
         match gpuval with
         | None -> raise NoModelLoadedException
-        | Some (x : GPU) -> x
-        
+        | Some (x: GPU) -> x
+
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         match t with
         | (TValuation (_)
@@ -81,7 +82,7 @@ type GPUModel() =
         | _ -> false
 
     override __.Save filename v =
-        ErrorMsg.Logger.Debug (sprintf "about to save: %A" filename)
+        ErrorMsg.Logger.Debug(sprintf "about to save: %A" filename)
         let gmv = (v :?> GPUModelValue)
         gpu().Wait <| gmv.gEvt
         let img = gmv.gVal.Get()
@@ -92,10 +93,11 @@ type GPUModel() =
     override __.Load s =
         let img = new VoxImage(s)
         dim <- img.Dimension
-        gpuval <- 
+
+        gpuval <-
             match gpuval with
             | None -> Some(GPU(kernelFile, dim))
-            | Some(y) as x -> x
+            | Some (y) as x -> x
 
         let res =
             match baseImg with
@@ -138,8 +140,10 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
                 let kernelName = if dim = 2 then "border" else "border3D"
+
                 let event =
-                    gpu().Run(kernelName, [||], seq { output }, img.Size, None)
+                    gpu()
+                        .Run(kernelName, [||], seq { output }, img.Size, None)
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -152,16 +156,18 @@ type GPUModel() =
 
                 if img.NComponents > 1 then
                     let event =
-                        gpu().Run(
-                            "intensity",
-                            imgIn.gEvt,
-                            seq {
-                                imgIn.gVal
-                                output
-                            },
-                            img.Size,
-                            None
-                        )
+                        gpu()
+                            .Run(
+                                "intensity",
+                                imgIn.gEvt,
+                                seq {
+                                    imgIn.gVal
+                                    output
+                                },
+                                img.Size,
+                                None
+                            )
+
                     return { gVal = output; gEvt = [| event |] }
                 else
                     return imgIn
@@ -173,17 +179,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "getComponent",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(1f) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "getComponent",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(1f) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -194,17 +201,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "getComponent",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(2f) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "getComponent",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(2f) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -215,17 +223,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "getComponent",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(3f) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "getComponent",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(3f) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -236,17 +245,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "getComponent",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(4f) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "getComponent",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(4f) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -264,65 +274,70 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "rgbaComps",
-                        newEvents,
-                        seq {
-                            imgr.gVal
-                            imgg.gVal
-                            imgb.gVal
-                            imga.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "rgbaComps",
+                            newEvents,
+                            seq {
+                                imgr.gVal
+                                imgg.gVal
+                                imgb.gVal
+                                imga.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
 
         // ON CPU
-        member __.Volume (img : GPUModelValue) =
+        member __.Volume(img: GPUModelValue) =
             job {
                 let img1 = getBaseImg ()
-                let mutable output = gpu().NewImageOnDevice (img1, 1, Float32)
-                let mutable tmp = gpu().CopyImageToDevice (img.gVal.Get())
+                let mutable output = gpu().NewImageOnDevice(img1, 1, Float32)
+                let mutable tmp = gpu().CopyImageToDevice(img.gVal.Get())
                 let mutable newEvent = img.gEvt
-                let iterations = Math.Log2 (float img1.Size.[0])
-                
+                let iterations = Math.Log2(float img1.Size.[0])
+
                 let swap () =
                     let temp = tmp
                     tmp <- output
                     output <- temp
+
                 for i = 0 to int iterations do
-                    let event = 
-                        gpu().Run(
-                            "volume2D",
+                    let event =
+                        gpu()
+                            .Run(
+                                "volume2D",
+                                newEvent,
+                                seq {
+                                    tmp :> KernelArg
+                                    output :> KernelArg
+                                    gpu().Float32(float32 i) :> KernelArg
+                                },
+                                img1.Size,
+                                None
+                            )
+
+                    newEvent <- [| event |]
+                    swap ()
+
+                let mutable res: GPUValue<array<float32>> = gpu().CopyArrayToDevice([| 0f |])
+
+                ignore (
+                    gpu()
+                        .Run(
+                            "writeVolume2D",
                             newEvent,
                             seq {
-                                tmp :> KernelArg
-                                output :> KernelArg
-                                gpu().Float32(float32 i) :> KernelArg
+                                output
+                                res
                             },
                             img1.Size,
                             None
                         )
-
-                    newEvent <- [|event|]
-                    swap()
-
-                let mutable res: GPUValue<array<float32>> = gpu().CopyArrayToDevice([| 0f |])
-                ignore (
-                    gpu().Run(
-                        "writeVolume2D",
-                        newEvent,
-                        seq {
-                            output
-                            res
-                        },
-                        img1.Size,
-                        None
-                    )
                 )
 
                 let result = res.Get()
@@ -332,13 +347,12 @@ type GPUModel() =
         // ON CPU
         member __.MaxVol img =
             job {
-                
+
                 gpu().Wait img.gEvt
 
                 let cpuImg = img.gVal.Get()
 
-                let result =
-                    VoxImage.MaxVol cpuImg
+                let result = VoxImage.MaxVol cpuImg
 
                 let output = gpu().CopyImageToDevice result
 
@@ -369,9 +383,24 @@ type GPUModel() =
                 let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |])
                 let mutable output = gpu().NewImageOnDevice(bimg, 4, Float32)
                 let mutable tmp = gpu().NewImageOnDevice(bimg, 4, Float32)
-                let kernelInit = if dim = 2 then "initCCL" else "initCCL3D"
-                let kernelIterate = if dim = 2 then "iterateCCL" else "iterateCCL3D"
-                let kernelReconnect = if dim = 2 then "reconnectCCL" else "reconnectCCL3D"
+
+                let kernelInit =
+                    if dim = 2 then
+                        "initCCL"
+                    else
+                        "initCCL3D"
+
+                let kernelIterate =
+                    if dim = 2 then
+                        "iterateCCL"
+                    else
+                        "iterateCCL3D"
+
+                let kernelReconnect =
+                    if dim = 2 then
+                        "reconnectCCL"
+                    else
+                        "reconnectCCL3D"
 
                 let swap () =
                     let temp = tmp
@@ -379,16 +408,17 @@ type GPUModel() =
                     output <- temp
 
                 let evt0 =
-                    gpu().Run(
-                        kernelInit,
-                        img.gEvt,
-                        seq {
-                            img.gVal :> KernelArg
-                            tmp :> KernelArg
-                        },
-                        bimg.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            kernelInit,
+                            img.gEvt,
+                            seq {
+                                img.gVal :> KernelArg
+                                tmp :> KernelArg
+                            },
+                            bimg.Size,
+                            None
+                        )
 
                 //gpu().Wait([|evt0|])
                 //tmp.Get().Save("output/init.nii.gz")
@@ -398,16 +428,17 @@ type GPUModel() =
                         evt
                     else
                         let evt' =
-                            gpu().Run(
-                                kernelIterate,
-                                [| evt |],
-                                seq {
-                                    tmp :> KernelArg
-                                    output :> KernelArg
-                                },
-                                bimg.Size,
-                                None
-                            )
+                            gpu()
+                                .Run(
+                                    kernelIterate,
+                                    [| evt |],
+                                    seq {
+                                        tmp :> KernelArg
+                                        output :> KernelArg
+                                    },
+                                    bimg.Size,
+                                    None
+                                )
 
                         //gpu().Wait([|evt'|])
                         //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
@@ -429,17 +460,18 @@ type GPUModel() =
                     let evt1 = iterate 0 k whileEvt
 
                     let evt2 =
-                        gpu().Run(
-                            kernelReconnect,
-                            [| evt1 |],
-                            seq {
-                                tmp :> KernelArg
-                                output :> KernelArg
-                                flag :> KernelArg
-                            },
-                            bimg.Size,
-                            None
-                        )
+                        gpu()
+                            .Run(
+                                kernelReconnect,
+                                [| evt1 |],
+                                seq {
+                                    tmp :> KernelArg
+                                    output :> KernelArg
+                                    flag :> KernelArg
+                                },
+                                bimg.Size,
+                                None
+                            )
 
                     nsteps <- nsteps + k
                     nrecs <- nrecs + 1
@@ -448,14 +480,17 @@ type GPUModel() =
 
                     if flag.Get().[0] > 0uy then
                         swap ()
-                        whileEvt <- gpu().Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+
+                        whileEvt <-
+                            gpu()
+                                .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
                     else
                         // ErrorMsg.Logger.Debug(
                         //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
                         // )
                         terminated <- true
-                    
-                    // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
+
+                // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
                 return { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
             }
@@ -468,16 +503,17 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu().Run(
-                        "booleanImg",
-                        [||],
-                        seq {
-                            output :> KernelArg
-                            gpu().Float32(1f) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "booleanImg",
+                            [||],
+                            seq {
+                                output :> KernelArg
+                                gpu().Float32(1f) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -488,16 +524,17 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu().Run(
-                        "booleanImg",
-                        [||],
-                        seq {
-                            output :> KernelArg
-                            gpu().Float32(0f) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "booleanImg",
+                            [||],
+                            seq {
+                                output :> KernelArg
+                                gpu().Float32(0f) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -509,16 +546,17 @@ type GPUModel() =
                 let v = if value then 1f else 0f
 
                 let event =
-                    gpu().Run(
-                        "booleanImg",
-                        [||],
-                        seq {
-                            output :> KernelArg
-                            gpu().Float32(v) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "booleanImg",
+                            [||],
+                            seq {
+                                output :> KernelArg
+                                gpu().Float32(v) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -534,17 +572,18 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "logand",
-                        newEvents,
-                        seq {
-                            img1.gVal
-                            img2.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "logand",
+                            newEvents,
+                            seq {
+                                img1.gVal
+                                img2.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -560,17 +599,18 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "logor",
-                        newEvents,
-                        seq {
-                            img1.gVal
-                            img2.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "logor",
+                            newEvents,
+                            seq {
+                                img1.gVal
+                                img2.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -581,16 +621,17 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu().Run(
-                        "lognot",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "lognot",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -603,38 +644,55 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu().Run(
-                        kernelName,
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            kernelName,
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
 
         member this.Through img img2 =
             let lcc img =
-                    let bimg = getBaseImg ()
+                let bimg = getBaseImg ()
 
-                    let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |])
-                    let mutable output = gpu().NewImageOnDevice(bimg, 4, Float32)
-                    let mutable tmp = gpu().NewImageOnDevice(bimg, 4, Float32)
-                    let kernelInit = if dim = 2 then "initCCL" else "initCCL3D"
-                    let kernelIterate = if dim = 2 then "iterateCCL" else "iterateCCL3D"
-                    let kernelReconnect = if dim = 2 then "reconnectCCL" else "reconnectCCL3D"
+                let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |])
+                let mutable output = gpu().NewImageOnDevice(bimg, 4, Float32)
+                let mutable tmp = gpu().NewImageOnDevice(bimg, 4, Float32)
 
-                    let swap () =
-                        let temp = tmp
-                        tmp <- output
-                        output <- temp
+                let kernelInit =
+                    if dim = 2 then
+                        "initCCL"
+                    else
+                        "initCCL3D"
 
-                    let evt0 =
-                        gpu().Run(
+                let kernelIterate =
+                    if dim = 2 then
+                        "iterateCCL"
+                    else
+                        "iterateCCL3D"
+
+                let kernelReconnect =
+                    if dim = 2 then
+                        "reconnectCCL"
+                    else
+                        "reconnectCCL3D"
+
+                let swap () =
+                    let temp = tmp
+                    tmp <- output
+                    output <- temp
+
+                let evt0 =
+                    gpu()
+                        .Run(
                             kernelInit,
                             img.gEvt,
                             seq {
@@ -645,15 +703,16 @@ type GPUModel() =
                             None
                         )
 
-                    //gpu().Wait([|evt0|])
-                    //tmp.Get().Save("output/init.nii.gz")
+                //gpu().Wait([|evt0|])
+                //tmp.Get().Save("output/init.nii.gz")
 
-                    let rec iterate n iterations evt =
-                        if n >= iterations then
-                            evt
-                        else
-                            let evt' =
-                                gpu().Run(
+                let rec iterate n iterations evt =
+                    if n >= iterations then
+                        evt
+                    else
+                        let evt' =
+                            gpu()
+                                .Run(
                                     kernelIterate,
                                     [| evt |],
                                     seq {
@@ -664,27 +723,28 @@ type GPUModel() =
                                     None
                                 )
 
-                            //gpu().Wait([|evt'|])
-                            //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
+                        //gpu().Wait([|evt'|])
+                        //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
 
-                            swap ()
-                            iterate (n + 1) iterations evt'
+                        swap ()
+                        iterate (n + 1) iterations evt'
 
-                    let mutable terminated = false
+                let mutable terminated = false
 
-                    let mutable whileEvt = evt0
+                let mutable whileEvt = evt0
 
-                    let mutable nsteps = 0
-                    let mutable nrecs = 0
+                let mutable nsteps = 0
+                let mutable nrecs = 0
 
-                    while not terminated do
+                while not terminated do
 
-                        let k = 8
+                    let k = 8
 
-                        let evt1 = iterate 0 k whileEvt
+                    let evt1 = iterate 0 k whileEvt
 
-                        let evt2 =
-                            gpu().Run(
+                    let evt2 =
+                        gpu()
+                            .Run(
                                 kernelReconnect,
                                 [| evt1 |],
                                 seq {
@@ -696,64 +756,87 @@ type GPUModel() =
                                 None
                             )
 
-                        nsteps <- nsteps + k
-                        nrecs <- nrecs + 1
+                    nsteps <- nsteps + k
+                    nrecs <- nrecs + 1
 
-                        gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
+                    gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
 
-                        if flag.Get().[0] > 0uy then
-                            swap ()
-                            whileEvt <- gpu().Run("resetFlag", [||], seq { flag }, [| 1 |], None)
-                        else
-                            // ErrorMsg.Logger.Debug(
-                            //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
-                            // )
-                            terminated <- true
+                    if flag.Get().[0] > 0uy then
+                        swap ()
 
-                        // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
+                        whileEvt <-
+                            gpu()
+                                .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+                    else
+                        // ErrorMsg.Logger.Debug(
+                        //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
+                        // )
+                        terminated <- true
 
-                    { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
+                // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
-            job { 
+                { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
+
+            job {
                 let baseImg = getBaseImg ()
-                let tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
-                let output = gpu().NewImageOnDevice(baseImg, 1, UInt8)
+
+                let tmp =
+                    gpu().NewImageOnDevice(baseImg, 1, UInt8)
+
+                let output =
+                    gpu().NewImageOnDevice(baseImg, 1, UInt8)
 
                 let tmpResult = lcc img2
                 let lccImg = tmpResult.gVal
-                let tmpEvents = Seq.distinct (Array.append img.gEvt tmpResult.gEvt)
-                let kernelInit = if dim = 2 then "initThrough" else "initThrough3D"
-                let kernelFinalize = if dim = 2 then "finalizeThrough" else "finalizeThrough3D"
+
+                let tmpEvents =
+                    Seq.distinct (Array.append img.gEvt tmpResult.gEvt)
+
+                let kernelInit =
+                    if dim = 2 then
+                        "initThrough"
+                    else
+                        "initThrough3D"
+
+                let kernelFinalize =
+                    if dim = 2 then
+                        "finalizeThrough"
+                    else
+                        "finalizeThrough3D"
 
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        kernelInit,
-                        newEvents,
-                        seq {
-                            img.gVal
-                            lccImg
-                            tmp
-                        },
-                        baseImg.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            kernelInit,
+                            newEvents,
+                            seq {
+                                img.gVal
+                                lccImg
+                                tmp
+                            },
+                            baseImg.Size,
+                            None
+                        )
 
-                let resultEvent = 
-                    gpu().Run(
-                        kernelFinalize,
-                        [| event |],
-                        seq {
-                            tmp
-                            lccImg
-                            output
-                        },
-                        baseImg.Size,
-                        None
-                    )
+                let resultEvent =
+                    gpu()
+                        .Run(
+                            kernelFinalize,
+                            [| event |],
+                            seq {
+                                tmp
+                                lccImg
+                                output
+                            },
+                            baseImg.Size,
+                            None
+                        )
 
-                return { gVal = output; gEvt = [| resultEvent |] }
+                return
+                    { gVal = output
+                      gEvt = [| resultEvent |] }
 
             }
 
@@ -764,16 +847,17 @@ type GPUModel() =
                 let kernelName = if dim = 2 then "erode" else "erode3D"
 
                 let event =
-                    gpu().Run(
-                        kernelName,
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            kernelName,
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -799,16 +883,17 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "constImg",
-                        [||],
-                        seq {
-                            output :> KernelArg
-                            gpu().Float32(float32 value) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "constImg",
+                            [||],
+                            seq {
+                                output :> KernelArg
+                                gpu().Float32(float32 value) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -819,17 +904,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu().Run(
-                        "eq",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 value) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "eq",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 value) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -840,17 +926,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu().Run(
-                        "geqSV",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 value) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "geqSV",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 value) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -859,18 +946,20 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
+
                 let event =
-                    gpu().Run(
-                        "leq",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 value) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "leq",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 value) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -881,18 +970,19 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
                 let event =
-                    gpu().Run(
-                        "between",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 value1) :> KernelArg
-                            gpu().Float32(float32 value2) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "between",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 value1) :> KernelArg
+                                gpu().Float32(float32 value2) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -903,16 +993,17 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "abs",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "abs",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -945,17 +1036,18 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "sub",
-                        newEvents,
-                        seq {
-                            img1.gVal
-                            img2.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "sub",
+                            newEvents,
+                            seq {
+                                img1.gVal
+                                img2.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -971,17 +1063,18 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "add",
-                        newEvents,
-                        seq {
-                            img1.gVal
-                            img2.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "add",
+                            newEvents,
+                            seq {
+                                img1.gVal
+                                img2.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -997,17 +1090,18 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "mul",
-                        newEvents,
-                        seq {
-                            img1.gVal
-                            img2.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "mul",
+                            newEvents,
+                            seq {
+                                img1.gVal
+                                img2.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1023,17 +1117,18 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "div",
-                        newEvents,
-                        seq {
-                            img1.gVal
-                            img2.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "div",
+                            newEvents,
+                            seq {
+                                img1.gVal
+                                img2.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1049,17 +1144,18 @@ type GPUModel() =
                 let newEvents = Seq.toArray tmpEvents
 
                 let event =
-                    gpu().Run(
-                        "mask",
-                        newEvents,
-                        seq {
-                            imgIn.gVal
-                            maskImg.gVal
-                            output
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "mask",
+                            newEvents,
+                            seq {
+                                imgIn.gVal
+                                maskImg.gVal
+                                output
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1070,17 +1166,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "addVS",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 k) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "addVS",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 k) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1091,17 +1188,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "mulVS",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 k) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "mulVS",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 k) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1112,17 +1210,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "subVS",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 k) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "subVS",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 k) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1133,17 +1232,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "divVS",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 k) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "divVS",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 k) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1154,17 +1254,18 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "subSV",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 k) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "subSV",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 k) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
@@ -1175,34 +1276,35 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let event =
-                    gpu().Run(
-                        "divSV",
-                        imgIn.gEvt,
-                        seq {
-                            imgIn.gVal :> KernelArg
-                            output :> KernelArg
-                            gpu().Float32(float32 k) :> KernelArg
-                        },
-                        img.Size,
-                        None
-                    )
+                    gpu()
+                        .Run(
+                            "divSV",
+                            imgIn.gEvt,
+                            seq {
+                                imgIn.gVal :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 k) :> KernelArg
+                            },
+                            img.Size,
+                            None
+                        )
 
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        // member __.Min imgIn =
-        //     job {
-        //         let evt = Array.append imgIn.gEvt mask.gEvt
-        //         gpu().Wait evt
+// member __.Min imgIn =
+//     job {
+//         let evt = Array.append imgIn.gEvt mask.gEvt
+//         gpu().Wait evt
 
-        //         let cpuImg = imgIn.gVal.Get()
+//         let cpuImg = imgIn.gVal.Get()
 
-        //         let result = VoxImage.Min cpuImg 
+//         let result = VoxImage.Min cpuImg
 
-        //         let output = gpu().Float32 (float32 result)
+//         let output = gpu().Float32 (float32 result)
 
-        //         return { gVal = output; gEvt = [||] }
-        //     }
+//         return { gVal = output; gEvt = [||] }
+//     }
 
 // interface IStatisticalModel<VoxImage> with
 //     member __.CrossCorrelation rho a b fb m1 m2 k = VoxImage.Crosscorrelation rho a b fb m1 m2 k
