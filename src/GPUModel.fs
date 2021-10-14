@@ -301,6 +301,8 @@ type GPUModel() =
                         None
                     )
 
+                printfn "ciao"
+
                 let a = output.Get()
                 for i = 0 to img.NPixels/32 do
                     result <- result + a.[i]
