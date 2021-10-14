@@ -309,7 +309,7 @@ type GPUModel() =
                         img1.Size,
                         None
                     )
-                let mutable newEvent = evt'
+                let mutable newEvent = [|evt'|]
                 let iterations = int (ceil (Math.Log2(float img1.Size.[0])))
 
                 let swap () =
