@@ -63,7 +63,7 @@ type private GPUFloat (x : float32) =
         member __.Value = Float x
         member __.Get() = x
 
-type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : int,queue : Pointer) =
+type GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : int,queue : Pointer) =
     
     override __.ToString() = sprintf "<GPUArray %d>" dataPointer
 
