@@ -307,7 +307,7 @@ type GPUModel() =
                     output <- temp
 
                 printfn "%A" iterations
-                for i = 1 to iterations do
+                for i = 0 to iterations - 1 do
                     let event =
                         gpu()
                             .Run(
