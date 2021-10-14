@@ -399,7 +399,6 @@ __kernel void volume2D(__read_only image2d_t inputImage,
       val += read_imageui(inputImage, sampler, (int2)(x, y + idx)).x;
       val += read_imageui(inputImage, sampler, (int2)(x - idx, y + idx)).x;
       val += read_imageui(inputImage, sampler, (int2)(x - idx, y)).x;
-      printf("%f", val);
   }
 
   write_imageui(outputImage, gid, val);
