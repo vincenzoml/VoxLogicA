@@ -1,7 +1,0 @@
-load ia = "a.nii.gz"
-load ib = "b.nii.gz"
-
-let a = intensity(ia) >. 0
-let b = intensity(ib) >. 0
-
-save "output/res.nii.gz" through(a,b)

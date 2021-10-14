@@ -804,7 +804,7 @@ type GPUModel() =
 
                 let event =
                     gpu().Run(
-                        "geq",
+                        "geqSV",
                         imgIn.gEvt,
                         seq {
                             imgIn.gVal :> KernelArg
