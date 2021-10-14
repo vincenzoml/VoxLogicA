@@ -297,6 +297,7 @@ type GPUModel() =
             job {
                 let img1 = getBaseImg ()
                 let mutable output = gpu().NewImageOnDevice(img1, 1, Float32)
+                gpu().Wait(img.gEvt)
                 let mutable tmp = gpu().CopyImageToDevice(img.gVal.Get())
                 gpu().Wait(img.gEvt)
                 let x = tmp.Get()
