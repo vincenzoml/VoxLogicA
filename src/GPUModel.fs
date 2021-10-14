@@ -283,13 +283,28 @@ type GPUModel() =
         // ON CPU
         member __.Volume img =
             job {
-                gpu().Wait img.gEvt
+                let img = getBaseImg ()
+                let output = gpu().NewArrayOnDevice(img.NPixels/32)
+                let tile = gpu().NewArrayOnDevice(32)
+                let mutable result = 0f
 
-                let cpuImg = img.gVal.Get()
+                let event =
+                    gpu().Run(
+                        "volume2D",
+                        [||],
+                        seq {
+                            output :> KernelArg
+                            tile :> KernelArg
+                        },
+                        img.Size,
+                        None
+                    )
 
-                let result = VoxImage.Volume cpuImg
+                let a = output.Get()
+                for i = 0 to img.NPixels/32 do
+                    result <- result + a.[i]
 
-                return result
+                return float result
             }
 
         // ON CPU
