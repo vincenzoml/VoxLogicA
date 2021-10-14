@@ -387,6 +387,15 @@ __kernel void mask(__read_only IMG_T inputImage1, __read_only IMG_T inputImage2,
   write_imagef(outImage, gid, pix.x * (mask.x > 0));
 }
 
+__kernel void castUInt8ToFloat(__read_only IMG_T input,
+                               __write_only IMG_T output) {
+  INIT_GID(gid)
+
+  uint4 inPix = (uint4)read_imageui(input, sampler, gid);
+
+  write_imagef(output, gid, ((float) inPix.x))
+}
+
 __kernel void volume2D(__read_only image2d_t inputImage, 
                        __write_only image2d_t outputImage,
                        float idx) {

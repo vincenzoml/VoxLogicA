@@ -297,13 +297,19 @@ type GPUModel() =
             job {
                 let img1 = getBaseImg ()
                 let mutable output = gpu().NewImageOnDevice(img1, 1, Float32)
-                gpu().Wait(img.gEvt)
-                let mutable tmp = gpu().CopyImageToDevice(img.gVal.Get())
-                gpu().Wait(img.gEvt)
-                let x = tmp.Get()
-                x.Save("output/TMP.png")
-                printfn "%A" x.BufferType
-                let mutable newEvent = img.gEvt
+                let mutable tmp = gpu().NewImageOnDevice(img1, 1, Float32)
+                let evt' = 
+                    gpu().Run(
+                        "castUInt8ToFloat32",
+                        img.gEvt,
+                        seq {
+                           img.gVal :> KernelArg
+                           tmp :> KernelArg
+                        },
+                        img1.Size,
+                        None
+                    )
+                let mutable newEvent = evt'
                 let iterations = int (ceil (Math.Log2(float img1.Size.[0])))
 
                 let swap () =
@@ -311,7 +317,6 @@ type GPUModel() =
                     tmp <- output
                     output <- temp
 
-                printfn "%A" iterations
                 for i = 0 to iterations - 1 do
                     let event =
                         gpu()
