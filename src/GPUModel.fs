@@ -327,7 +327,7 @@ type GPUModel() =
 
                 let mutable res: GPUValue<array<float32>> = gpu().CopyArrayToDevice([| 0f |])
 
-                ignore (
+                let ev = (
                     gpu()
                         .Run(
                             "writeVolume2D",
@@ -340,7 +340,7 @@ type GPUModel() =
                             None
                         )
                 )
-
+                gpu().Wait([|ev|])
                 let result = res.Get()
                 return float result.[0]
             }
