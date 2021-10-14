@@ -393,7 +393,7 @@ __kernel void castUInt8ToFloat32(__read_only IMG_T input,
 
   uint4 inPix = (uint4)read_imageui(input, sampler, gid);
 
-  write_imagef(output, gid, ((float) 7));
+  write_imagef(output, gid, ((float) inPix.x > 0));
 }
 
 __kernel void volume2D(__read_only image2d_t inputImage, 
