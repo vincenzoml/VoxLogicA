@@ -393,16 +393,15 @@ __kernel void volume2D(__read_only image2d_t inputImage,
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
-  unsigned int val = read_imageui(inputImage, sampler, gid).x;
+  float val = read_imagef(inputImage, sampler, gid).x;
 
   if(x % (int) idx == 1 && y % (int) idx == 1) {
-      val += read_imageui(inputImage, sampler, (int2)(x, y + idx)).x;
-      val += read_imageui(inputImage, sampler, (int2)(x - idx, y + idx)).x;
-      val += read_imageui(inputImage, sampler, (int2)(x - idx, y)).x;
-      printf("%f", val);
+      val += read_imagef(inputImage, sampler, (int2)(x, y + idx)).x;
+      val += read_imagef(inputImage, sampler, (int2)(x - idx, y + idx)).x;
+      val += read_imagef(inputImage, sampler, (int2)(x - idx, y)).x;
   }
 
-  write_imageui(outputImage, gid, val);
+  write_imagef(outputImage, gid, val);
 }
 
 __kernel void writeVolume2D(__read_only image2d_t image, __global float result[1]) {
