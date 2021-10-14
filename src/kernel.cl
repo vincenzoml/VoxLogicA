@@ -387,7 +387,7 @@ __kernel void mask(__read_only IMG_T inputImage1, __read_only IMG_T inputImage2,
   write_imagef(outImage, gid, pix.x * (mask.x > 0));
 }
 
-__kernel void castUInt8ToFloat(__read_only IMG_T input,
+__kernel void castUInt8ToFloat32(__read_only IMG_T input,
                                __write_only IMG_T output) {
   INIT_GID(gid)
 
