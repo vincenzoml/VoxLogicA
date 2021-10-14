@@ -20,6 +20,7 @@ exception NoModelLoadedException with
     override __.Message = "No model loaded"
 
 open Hopac
+open System
 open VoxLogicA.GPU
 open SITKUtil
 
@@ -281,33 +282,51 @@ type GPUModel() =
             }
 
         // ON CPU
-        member __.Volume img =
+        member __.Volume (img : GPUModelValue) =
             job {
-                let img = getBaseImg ()
-                let output = gpu().NewArrayOnDevice(img.NPixels/32)
-                let tileArr = Array.create 32 0f
-                let tile = gpu().CopyArrayToDevice(tileArr)
-                let mutable result = 0f
+                let img1 = getBaseImg ()
+                let mutable output = gpu().NewImageOnDevice(img1, 1, Float32)
+                let mutable tmp = gpu().CopyImageToDevice(img1)
+                let mutable newEvent = img.gEvt
+                let iterations = Math.Log2 (float img1.Size.[0])
+                
+                let swap () =
+                    let temp = tmp
+                    tmp <- output
+                    output <- temp
+                for i = 0 to int iterations do
+                    let event = 
+                        gpu().Run(
+                            "volume2D",
+                            newEvent,
+                            seq {
+                                tmp :> KernelArg
+                                output :> KernelArg
+                                gpu().Float32(float32 i) :> KernelArg
+                            },
+                            img1.Size,
+                            None
+                        )
 
-                let event =
+                    newEvent <- [|event|]
+                    swap()
+
+                let mutable res: GPUValue<array<float32>> = gpu().CopyArrayToDevice([| 0f |])
+                ignore (
                     gpu().Run(
-                        "volume2D",
-                        [||],
+                        "writeVolume2D",
+                        newEvent,
                         seq {
-                            output :> KernelArg
-                            tile :> KernelArg
+                            output
+                            res
                         },
-                        img.Size,
+                        img1.Size,
                         None
                     )
+                )
 
-                printfn "ciao"
-
-                let a = output.Get()
-                for i = 0 to img.NPixels/32 do
-                    result <- result + a.[i]
-
-                return float result
+                let result = res.Get()
+                return float result.[0]
             }
 
         // ON CPU
