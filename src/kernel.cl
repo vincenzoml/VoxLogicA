@@ -378,6 +378,35 @@ __kernel void mask(__read_only IMG_T inputImage1, __read_only IMG_T inputImage2,
   write_imagef(outImage, gid, pix.x * (mask.x > 0));
 }
 
+__kernel void volume2D(__read_only image2d_t inputImage, __global float *results,
+                     __local float *tile) {
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  int2 lid = (int2)(get_local_id(0), get_local_id(1));
+  int2 gr_size = (int2)(get_local_size(0), get_local_size(1));
+
+  int2 size = get_image_dim(inputImage);
+  const sampler_t sampler =
+      CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
+
+  uint4 base = read_imageui(inputImage, sampler, gid);
+  tile[lid.x + lid.y * gr_size.x] = base.x;
+
+  for (uint stride = gr_size.x / 2 - 1; stride > 0; stride /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (lid.y < stride) {
+      tile[lid.x + lid.y * gr_size.x] +=
+          tile[(lid.x) + (lid.y + stride) * gr_size.x];
+    }
+  }
+
+  if (lid.x == 0 && lid.y == 0) {
+    for (uint i = 0; i < gr_size.y; i++) {
+      tile[0] += tile[i];
+    }
+    results[get_group_id(0) + get_group_id(1) * get_num_groups(0)] = tile[0];
+  }
+}
+
 /********************* CONNECTED COMPONENTS *********************/
 
 // The original image is stored into the 4th component of the output
