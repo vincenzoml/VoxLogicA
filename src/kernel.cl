@@ -403,6 +403,8 @@ __kernel void volume2D(__read_only image2d_t inputImage,
   int x = gid.x;
   int y = gid.y;
   float val = read_imagef(inputImage, sampler, gid).x > 0;
+  
+  write_imagef(outputImage, gid, val);
 
   if((x % (int) idx*2) == 0 && (y % (int) idx*2) == 0) {
       val += read_imagef(inputImage, sampler, (int2)(x, y + idx)).x > 0;
@@ -411,7 +413,6 @@ __kernel void volume2D(__read_only image2d_t inputImage,
   }
   printf("%f", val);
 
-  write_imagef(outputImage, gid, val);
 }
 
 __kernel void writeVolume2D(__read_only image2d_t image, __global float result[1]) {
