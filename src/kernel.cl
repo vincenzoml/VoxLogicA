@@ -403,10 +403,9 @@ __kernel void volume2D(__read_only image2d_t inputImage,
   int x = gid.x;
   int y = gid.y;
   float val = read_imagef(inputImage, sampler, gid).x > 0;
-  int count = 1;
+  unsigned int count = 1;
   
   if((x % (int) idx*2) == 0 && (y % (int) idx*2) == 0) {
-    val++;
     count = count + read_imagef(inputImage, sampler, (int2)(x, y + idx)).x > 0;
     count = count + read_imagef(inputImage, sampler, (int2)(x - idx, y + idx)).x > 0;
     count = count + read_imagef(inputImage, sampler, (int2)(x - idx, y)).x > 0;
