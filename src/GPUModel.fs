@@ -309,8 +309,8 @@ type GPUModel() =
                         img1.Size,
                         None
                     )
-                gpu().Wait([|evt'|])
-                tmp.Get().Save("output/TMP.nii.gz")
+                //gpu().Wait([|evt'|])
+                //tmp.Get().Save("output/TMP.nii.gz")
                 let mutable newEvent = [|evt'|]
                 let iterations = int (ceil (Math.Log2(float img1.Size.[0])))
 
