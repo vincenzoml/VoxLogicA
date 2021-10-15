@@ -410,7 +410,7 @@ __kernel void volume2D(__read_only image2d_t inputImage,
     count = count + read_imagef(inputImage, sampler, (int2)(x - idx, y)).x > 0;
   }
   //printf("%f", val);
-  write_imagef(outputImage, gid, count);
+  write_imagef(outputImage, gid, (float)count);
 
 }
 
