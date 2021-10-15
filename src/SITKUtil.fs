@@ -336,7 +336,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                         if img.GetPixelID() <> PixelIDValueEnum.sitkUInt8 then
                             // TODO: double-check that "nearest integer" in the message below is correct
                             Logger.Warning (sprintf "saving to %s\nrequires cast to uint16. For each component, only values between 0 and 65535 are preserved, rounded to the nearest integer; the behaviour on values outside this range is unspecified." fname)                    
-                            let ncomp = img.GetNumberOfComponentsPerPixel()
+                            let ncomp = img.GetNumberOfComponentsPerPixel()                             
                             if ncomp = 1ul
                             then SimpleITK.Cast(img,PixelIDValueEnum.sitkUInt16)
                             else // TODO: why simply casting the image doesn't work here? It works in load

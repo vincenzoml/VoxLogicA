@@ -1,6 +1,6 @@
 //2D
 load img1 = "../testGray.png"
 
-let a = 1 .<= intensity(img1)
+let a = intensity(img1) >. 0
 
 print "volume" volume(a)

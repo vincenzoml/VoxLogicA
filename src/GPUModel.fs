@@ -309,8 +309,6 @@ type GPUModel() =
                         img1.Size,
                         None
                     )
-                gpu().Wait([|evt'|])
-                tmp.Get().Save("output/TMP.nii.gz")
                 let mutable newEvent = [|evt'|]
                 let iterations = int (ceil (Math.Log2(float img1.Size.[0])))
 
@@ -320,7 +318,6 @@ type GPUModel() =
                     output <- temp
 
                 for i = 0 to iterations - 1 do
-                    printf "%A" (pown 2 i)
                     let event =
                         gpu()
                             .Run(
@@ -335,30 +332,34 @@ type GPUModel() =
                                 None
                             )
 
-                    gpu().Wait([|event|])
-                    output.Get().Save(sprintf "output/iteration-%02d.nii.gz" i)
+                    // gpu().Wait([|event|])
+                    // let x = (VoxImage.Mult (output.Get(),float 256))
+                    // x.Save(sprintf "output/iteration-%02d.png" i)
 
                     newEvent <- [| event |]
                     swap ()
 
                 let mutable res: GPUValue<array<float32>> = gpu().CopyArrayToDevice([| 0f |])
+                
+                // gpu().Wait(newEvent)
+                // let x = (VoxImage.Mult (tmp.Get(),float 256))
+                // x.Save("output/tmp.png")
 
                 let ev = (
                     gpu()
                         .Run(
-                            "writeVolume2D",
+                            "readFirstPixel2D",
                             newEvent,
                             seq {
-                                output
+                                tmp
                                 res
                             },
-                            img1.Size,
+                            [|1|],
                             None
                         )
                 )
                 gpu().Wait([|ev|])
                 let result = res.Get()
-                printfn "%A" result
                 return float result.[0]
             }
 
