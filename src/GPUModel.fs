@@ -358,7 +358,7 @@ type GPUModel() =
                 )
                 gpu().Wait([|ev|])
                 let result = res.Get()
-                printf "%A" result
+                printfn "%A" result
                 return float result.[0]
             }
 
