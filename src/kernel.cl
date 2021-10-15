@@ -406,8 +406,8 @@ __kernel void volume2D(__read_only image2d_t inputImage,
   
   if((x % (int) idx*2) == 0 && (y % (int) idx*2) == 0) {
     count = count + read_imagef(inputImage, sampler, (int2)(x, y + idx)).x > 0;
-    count = count + read_imagef(inputImage, sampler, (int2)(x - idx, y + idx)).x > 0;
-    count = count + read_imagef(inputImage, sampler, (int2)(x - idx, y)).x > 0;
+    count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y + idx)).x > 0;
+    count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y)).x > 0;
   }
   //printf("%f", val);
   write_imagef(outputImage, gid, (float)count);
@@ -417,7 +417,7 @@ __kernel void volume2D(__read_only image2d_t inputImage,
 __kernel void writeVolume2D(__read_only image2d_t image, __global float result[1]) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
 
-  if(gid.x == get_image_width(image) - 1 && gid.y == get_image_height(image) - 1) {
+  if(gid.x == 0 && gid.y == 0) {
     result[0] = read_imagef(image, sampler, gid).x;
     printf("%f", result[0]);
   }
