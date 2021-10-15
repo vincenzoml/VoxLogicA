@@ -334,8 +334,8 @@ type GPUModel() =
                                 None
                             )
 
-                    gpu().Wait([|event|])
-                    tmp.Get().Save(sprintf "output/iteration-%02d.nii.gz" i)
+                    //gpu().Wait([|event|])
+                    //tmp.Get().Save(sprintf "output/iteration-%02d.nii.gz" i)
 
                     newEvent <- [| event |]
                     swap ()
