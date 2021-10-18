@@ -398,20 +398,20 @@ __kernel void castUInt8ToFloat32(__read_only IMG_T input,
 }
 
 __kernel void volume2D(__read_only image2d_t inputImage,
-                       __write_only image2d_t outputImage, float idx) {
+                       __write_only image2d_t outputImage, float idx) { // IDX NON SERVE
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
   unsigned int count = read_imagef(inputImage, sampler, gid).x;
 
-  if ((x % (int)idx * 2) == 0 && (y % (int)idx * 2) == 0) {
-    count = count + read_imagef(inputImage, sampler, (int2)(x, y + idx)).x;
+  if ((x % (int)idx * 2) == 0 && (y % (int)idx * 2) == 0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER TUTTE LE DIMENSIONI PRENDE LA SOMMA DEI "VICINI MAGGIORI" E LA SCRIVE NEL PUNTO CON COORDINATE LA META' DELLE SUE IN TUTTE LE DIMENSIONI
+    count = count + read_imagef(inputImage, sampler, (int2)(x, y + idx)).x; // IDX DIVENTA 1
     count =
         count + read_imagef(inputImage, sampler, (int2)(x + idx, y + idx)).x;
     count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y)).x;
   }
   // printf("%f", val);
-  write_imagef(outputImage, gid, (float)count);
+  write_imagef(outputImage, gid, (float)count); // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
 }
 
 __kernel void readFirstPixel2D(__read_only image2d_t image,

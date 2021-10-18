@@ -316,8 +316,8 @@ type GPUModel() =
                     let temp = tmp
                     tmp <- output
                     output <- temp
-
-                for i = 0 to iterations - 1 do
+                // ARRAY DELLE DIMENSIONI, COPIATO COME VARIABILE
+                for i = 0 to iterations - 1 do // WHILE UNA DELLE DIMENSIONI E' MAGGIORE DI 1
                     let event =
                         gpu()
                             .Run(
@@ -328,13 +328,15 @@ type GPUModel() =
                                     output :> KernelArg
                                     gpu().Float32(float32 (pown 2 i)) :> KernelArg
                                 },
-                                img1.Size,
+                                img1.Size, // VETTORE DELLE DIMENSIONI 
                                 None
                             )
 
                     // gpu().Wait([|event|])
                     // let x = (VoxImage.Mult (output.Get(),float 256))
                     // x.Save(sprintf "output/iteration-%02d.png" i)
+
+                    // AGGIUNGERE UNO ALLE DIMENSIONI DISPARI E DIMEZZARLE
 
                     newEvent <- [| event |]
                     swap ()
