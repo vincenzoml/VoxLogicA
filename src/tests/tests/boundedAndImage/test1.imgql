@@ -1,5 +1,5 @@
 //2D
-load img1 = "../test2.png"
+load img1 = "../test1.png"
 load img2 = "../test2.png"
 
 let a = 1 .<= intensity(img1)
