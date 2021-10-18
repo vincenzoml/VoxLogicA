@@ -156,11 +156,13 @@ __kernel void erode3D(__read_only image3d_t inputImage,
         for (int c = -1; c <= 1; c++) {
           newcoord = (int4)(x + a, y + b, z + c, 0);
           ui4 = read_imageui(inputImage, sampler, newcoord);
-          found = found ||
-                  (ui4.x == 0); // TODO how to break the three for loops when found becomes 1 the first time? Use a
-                                // while? This could be way more efficient, in
-                                // fact, if the coordinates to iterate upon were
-                                // into an array (also for other kernels)
+          found =
+              found ||
+              (ui4.x ==
+               0); // TODO how to break the three for loops when found becomes 1
+                   // the first time? Use a while? This could be way more
+                   // efficient, in fact, if the coordinates to iterate upon
+                   // were into an array (also for other kernels)
         }
       }
     }
@@ -168,7 +170,6 @@ __kernel void erode3D(__read_only image3d_t inputImage,
   } else {
     write_imageui(outputImage, coord, 0);
   }
-
 }
 
 __kernel void booleanImg(__write_only IMG_T outputImage, float val) {
@@ -388,39 +389,35 @@ __kernel void mask(__read_only IMG_T inputImage1, __read_only IMG_T inputImage2,
 }
 
 __kernel void castUInt8ToFloat32(__read_only IMG_T input,
-                               __write_only IMG_T output) {
+                                 __write_only IMG_T output) {
   INIT_GID(gid)
 
   uint4 inPix = (uint4)read_imageui(input, sampler, gid);
 
-  write_imagef(output, gid, ((float) inPix.x > 0));
+  write_imagef(output, gid, ((float)inPix.x > 0));
 }
 
-__kernel void volume2D(__read_only image2d_t inputImage, 
-                       __write_only image2d_t outputImage,
-                       float idx) {
+__kernel void volume2D(__read_only image2d_t inputImage,
+                       __write_only image2d_t outputImage, float idx) {
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
-  unsigned int count = read_imagef(inputImage, sampler, gid).x > 0;
-  
-  if((x % (int) idx*2) == 0 && (y % (int) idx*2) == 0) {
-    count = count + read_imagef(inputImage, sampler, (int2)(x, y + idx)).x > 0;
-    count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y + idx)).x > 0;
-    count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y)).x > 0;
-  }
-  //printf("%f", val);
-  write_imagef(outputImage, gid, (float)count);
+  unsigned int count = read_imagef(inputImage, sampler, gid).x;
 
+  if ((x % (int)idx * 2) == 0 && (y % (int)idx * 2) == 0) {
+    count = count + read_imagef(inputImage, sampler, (int2)(x, y + idx)).x;
+    count =
+        count + read_imagef(inputImage, sampler, (int2)(x + idx, y + idx)).x;
+    count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y)).x;
+  }
+  // printf("%f", val);
+  write_imagef(outputImage, gid, (float)count);
 }
 
-__kernel void writeVolume2D(__read_only image2d_t image, __global float result[1]) {
-  int2 gid = (int2)(get_global_id(0), get_global_id(1));
-
-  if(gid.x == 0 && gid.y == 0) {
-    result[0] = read_imagef(image, sampler, gid).x;
-    printf("%f", result[0]);
-  }
+__kernel void readFirstPixel2D(__read_only image2d_t image,
+                            __global float result[1]) {                              
+  float f = read_imagef(image, sampler, (int2)(0,0)).x;
+  result[0] = (float)(f);
 }
 
 /********************* CONNECTED COMPONENTS *********************/

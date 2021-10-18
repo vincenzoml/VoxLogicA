@@ -1,9 +1,6 @@
 //2D
-load img1 = "../test1.png"
-load img2 = "../test2.png"
+load img1 = "../testGray.png"
 
-let a = 1 .<= intensity(img1)
-let b = 1 .<= intensity(img2)
+let a = intensity(img1) >. 0
 
 print "volume" volume(a)
-save "output/through.png" through(a,b)

@@ -73,7 +73,7 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
             let dest = Array.zeroCreate length
             use ptr = fixed dest
             let ptr' = NativePtr.toVoidPtr ptr
-            checkErr <| API.EnqueueReadBuffer(queue.Pointer,dataPointer,true,0un,unativeint length,ptr',0ul,nullPtr,nullPtr)
+            checkErr <| API.EnqueueReadBuffer(queue.Pointer,dataPointer,true,0un,unativeint (length * sizeof<'a>),ptr',0ul,nullPtr,nullPtr)
             dest
 
 type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) = 
