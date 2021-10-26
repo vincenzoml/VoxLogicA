@@ -347,7 +347,7 @@ type GPUModel() =
                 // let x = (VoxImage.Mult (tmp.Get(),float 256))
                 // x.Save("output/tmp.png")
 
-                let ev = (
+                let! ev = (
                     gpu()
                         .Run(
                             "readFirstPixel2D",
@@ -428,7 +428,7 @@ type GPUModel() =
                     tmp <- output
                     output <- temp
 
-                let evt0 =
+                let! evt0 =
                     gpu()
                         .Run(
                             kernelInit,
@@ -444,28 +444,30 @@ type GPUModel() =
                 //gpu().Wait([|evt0|])
                 //tmp.Get().Save("output/init.nii.gz")
 
-                let rec iterate n iterations evt =
-                    if n >= iterations then
-                        evt
-                    else
-                        let evt' =
-                            gpu()
-                                .Run(
-                                    kernelIterate,
-                                    [| evt |],
-                                    seq {
-                                        tmp :> KernelArg
-                                        output :> KernelArg
-                                    },
-                                    bimg.Size,
-                                    None
-                                )
+                let rec iterate n iterations evt = 
+                    job {
+                        if n >= iterations then
+                                return evt
+                            else
+                                let! evt' =
+                                    gpu()
+                                        .Run(
+                                            kernelIterate,
+                                            [| evt |],
+                                            seq {
+                                                tmp :> KernelArg
+                                                output :> KernelArg
+                                            },
+                                            bimg.Size,
+                                            None
+                                        )
 
-                        //gpu().Wait([|evt'|])
-                        //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
+                                //gpu().Wait([|evt'|])
+                                //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
 
-                        swap ()
-                        iterate (n + 1) iterations evt'
+                                swap ()
+                                return! iterate (n + 1) iterations evt'                                
+                    }
 
                 let mutable terminated = false
 
@@ -478,9 +480,9 @@ type GPUModel() =
 
                     let k = 8
 
-                    let evt1 = iterate 0 k whileEvt
+                    let! evt1 = iterate 0 k whileEvt
 
-                    let evt2 =
+                    let! evt2 =
                         gpu()
                             .Run(
                                 kernelReconnect,
@@ -500,11 +502,9 @@ type GPUModel() =
                     gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
 
                     if flag.Get().[0] > 0uy then
-                        swap ()
-
-                        whileEvt <-
-                            gpu()
-                                .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+                        swap ()                        
+                        let! whileEvtTmp = gpu().Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+                        whileEvt <- whileEvtTmp
                     else
                         // ErrorMsg.Logger.Debug(
                         //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
@@ -682,121 +682,126 @@ type GPUModel() =
 
         member this.Through img img2 =
             let lcc img =
-                let bimg = getBaseImg ()
+                job {
+                    let bimg = getBaseImg ()
 
-                let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |])
-                let mutable output = gpu().NewImageOnDevice(bimg, 4, Float32)
-                let mutable tmp = gpu().NewImageOnDevice(bimg, 4, Float32)
+                    let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |])
+                    let mutable output = gpu().NewImageOnDevice(bimg, 4, Float32)
+                    let mutable tmp = gpu().NewImageOnDevice(bimg, 4, Float32)
 
-                let kernelInit =
-                    if dim = 2 then
-                        "initCCL"
-                    else
-                        "initCCL3D"
+                    let kernelInit =
+                        if dim = 2 then
+                            "initCCL"
+                        else
+                            "initCCL3D"
 
-                let kernelIterate =
-                    if dim = 2 then
-                        "iterateCCL"
-                    else
-                        "iterateCCL3D"
+                    let kernelIterate =
+                        if dim = 2 then
+                            "iterateCCL"
+                        else
+                            "iterateCCL3D"
 
-                let kernelReconnect =
-                    if dim = 2 then
-                        "reconnectCCL"
-                    else
-                        "reconnectCCL3D"
+                    let kernelReconnect =
+                        if dim = 2 then
+                            "reconnectCCL"
+                        else
+                            "reconnectCCL3D"
 
-                let swap () =
-                    let temp = tmp
-                    tmp <- output
-                    output <- temp
+                    let swap () =
+                        let temp = tmp
+                        tmp <- output
+                        output <- temp
 
-                let evt0 =
-                    gpu()
-                        .Run(
-                            kernelInit,
-                            img.gEvt,
-                            seq {
-                                img.gVal :> KernelArg
-                                tmp :> KernelArg
-                            },
-                            bimg.Size,
-                            None
-                        )
-
-                //gpu().Wait([|evt0|])
-                //tmp.Get().Save("output/init.nii.gz")
-
-                let rec iterate n iterations evt =
-                    if n >= iterations then
-                        evt
-                    else
-                        let evt' =
-                            gpu()
-                                .Run(
-                                    kernelIterate,
-                                    [| evt |],
-                                    seq {
-                                        tmp :> KernelArg
-                                        output :> KernelArg
-                                    },
-                                    bimg.Size,
-                                    None
-                                )
-
-                        //gpu().Wait([|evt'|])
-                        //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
-
-                        swap ()
-                        iterate (n + 1) iterations evt'
-
-                let mutable terminated = false
-
-                let mutable whileEvt = evt0
-
-                let mutable nsteps = 0
-                let mutable nrecs = 0
-
-                while not terminated do
-
-                    let k = 8
-
-                    let evt1 = iterate 0 k whileEvt
-
-                    let evt2 =
+                    let! evt0 =
                         gpu()
                             .Run(
-                                kernelReconnect,
-                                [| evt1 |],
+                                kernelInit,
+                                img.gEvt,
                                 seq {
+                                    img.gVal :> KernelArg
                                     tmp :> KernelArg
-                                    output :> KernelArg
-                                    flag :> KernelArg
                                 },
                                 bimg.Size,
                                 None
                             )
 
-                    nsteps <- nsteps + k
-                    nrecs <- nrecs + 1
+                    //gpu().Wait([|evt0|])
+                    //tmp.Get().Save("output/init.nii.gz")
 
-                    gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
+                    let rec iterate n iterations evt =
+                        job {
+                            if n >= iterations then
+                                return evt
+                            else
+                                let! evt' =
+                                    gpu()
+                                        .Run(
+                                            kernelIterate,
+                                            [| evt |],
+                                            seq {
+                                                tmp :> KernelArg
+                                                output :> KernelArg
+                                            },
+                                            bimg.Size,
+                                            None
+                                        )
 
-                    if flag.Get().[0] > 0uy then
-                        swap ()
+                                //gpu().Wait([|evt'|])
+                                //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
 
-                        whileEvt <-
+                                swap ()
+                                return! iterate (n + 1) iterations evt'
+                        }
+
+                    let mutable terminated = false
+
+                    let mutable whileEvt = evt0
+
+                    let mutable nsteps = 0
+                    let mutable nrecs = 0
+
+                    while not terminated do
+
+                        let k = 8
+
+                        let! evt1 = iterate 0 k whileEvt
+
+                        let! evt2 =
                             gpu()
-                                .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
-                    else
-                        // ErrorMsg.Logger.Debug(
-                        //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
-                        // )
-                        terminated <- true
+                                .Run(
+                                    kernelReconnect,
+                                    [| evt1 |],
+                                    seq {
+                                        tmp :> KernelArg
+                                        output :> KernelArg
+                                        flag :> KernelArg
+                                    },
+                                    bimg.Size,
+                                    None
+                                )
 
-                // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
+                        nsteps <- nsteps + k
+                        nrecs <- nrecs + 1
 
-                { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
+                        gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
+
+                        if flag.Get().[0] > 0uy then
+                            swap ()
+
+                            let! whileEvtTmp = gpu().Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+                            whileEvt <- whileEvtTmp
+                                
+                        else
+                            // ErrorMsg.Logger.Debug(
+                            //     sprintf "LCC terminated after %d steps (%d reconnects)" (nsteps + nrecs) nrecs
+                            // )
+                            terminated <- true
+
+                    // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
+
+                    return { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
+                }
+
 
             job {
                 let baseImg = getBaseImg ()
@@ -807,7 +812,7 @@ type GPUModel() =
                 let output =
                     gpu().NewImageOnDevice(baseImg, 1, UInt8)
 
-                let tmpResult = lcc img2
+                let! tmpResult = lcc img2
                 let lccImg = tmpResult.gVal
 
                 let tmpEvents =
@@ -841,7 +846,7 @@ type GPUModel() =
                             None
                         )
 
-                let resultEvent =
+                let! resultEvent =
                     gpu()
                         .Run(
                             kernelFinalize,
