@@ -50,71 +50,74 @@ type Data = private { DataPointer : nativeint }
 
 type KArgType = Buffer of Data | Float of float32 
 
-type KernelArg =
+[<AbstractClass>]
+type KernelArg() =
+    let refcount = ref 0
     abstract member Value : KArgType
+    
+    member __.reference() = lock refcount (fun () -> refcount := !refcount + 1)
+    member __.dereference = lock refcount (fun () -> refcount := !refcount - 1)
 
-type GPUValue<'a> =    
-    inherit KernelArg
+[<AbstractClass>]
+type GPUValue<'a>() =    
+    inherit KernelArg()
     abstract member Get : unit -> 'a  
 
 type private GPUFloat (x : float32) =
+    inherit GPUValue<float32>()
+
     override __.ToString() = sprintf "<GPUFloat %f>" x
 
-    interface GPUValue<float32> with
-        member __.Value = Float x
-        member __.Get() = x
+    override __.Value = Float x
+    override __.Get() = x
 
 type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : int,queue : Pointer) =
-    
+    inherit GPUValue<array<'a>>()
     override __.ToString() = sprintf "<GPUArray %d>" dataPointer
+    override __.Value = Buffer { DataPointer = dataPointer }
+    override _.Get () =
+        let dest = Array.zeroCreate length
+        use ptr = fixed dest
+        let ptr' = NativePtr.toVoidPtr ptr
+        checkErr <| API.EnqueueReadBuffer(queue.Pointer,dataPointer,true,0un,unativeint (length * sizeof<'a>),ptr',0ul,nullPtr,nullPtr)
+        dest
 
-    interface GPUValue<array<'a>> with
-        member __.Value = Buffer { DataPointer = dataPointer }
-        member _.Get () =
-            let dest = Array.zeroCreate length
-            use ptr = fixed dest
-            let ptr' = NativePtr.toVoidPtr ptr
-            checkErr <| API.EnqueueReadBuffer(queue.Pointer,dataPointer,true,0un,unativeint (length * sizeof<'a>),ptr',0ul,nullPtr,nullPtr)
-            dest
-
-type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) = 
-    
+type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) =     
+    inherit GPUValue<VoxImage>() 
     override __.ToString() = sprintf "<GPUImage %d>" dataPointer
+    override __.Value = Buffer { DataPointer = dataPointer }        
+    override __.Get () =         
+        let pixelID = 
+            match bufferType with
+            | Float32 -> PixelIDValueEnum.sitkFloat32
+            | UInt8 -> PixelIDValueEnum.sitkUInt8 
 
-    interface GPUValue<VoxImage> with 
-        member __.Value = Buffer { DataPointer = dataPointer }        
-        member __.Get () =         
-            let pixelID = 
-                match bufferType with
-                | Float32 -> PixelIDValueEnum.sitkFloat32
-                | UInt8 -> PixelIDValueEnum.sitkUInt8 
+        let destination = 
+            if img.NComponents = nComponents then 
+                if nComponents = 1 then new VoxImage(img,pixelID)
+                else new VoxImage(img,nComponents,pixelID)
+            else
+                match nComponents with
+                | 1 -> new VoxImage(VoxImage.Red(img),pixelID) // TODO optimize this double allocation
+                | 4 -> new VoxImage(img,4,pixelID) // TODO optimize this double allocation
+                | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
-            let destination = 
-                if img.NComponents = nComponents then 
-                    if nComponents = 1 then new VoxImage(img,pixelID)
-                    else new VoxImage(img,nComponents,pixelID)
-                else
-                    match nComponents with
-                    | 1 -> new VoxImage(VoxImage.Red(img),pixelID) // TODO optimize this double allocation
-                    | 4 -> new VoxImage(img,4,pixelID) // TODO optimize this double allocation
-                    | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
+        use startPtr = fixed [|0un;0un;0un|]
+        use endPtr = fixed [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]            
+        
+        match destination.BufferType with
+        | UInt8 ->
+            destination.GetBufferAsUInt8
+                (fun buf -> 
+                    let ptr = NativePtr.toVoidPtr buf.Pointer
+                    checkErr <| API.EnqueueReadImage(queue.Pointer,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
+        | Float32 ->
+            destination.GetBufferAsFloat
+                (fun buf -> 
+                    let ptr = NativePtr.toVoidPtr buf.Pointer
+                    checkErr <| API.EnqueueReadImage(queue.Pointer,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
 
-            use startPtr = fixed [|0un;0un;0un|]
-            use endPtr = fixed [|unativeint destination.Size.[0];unativeint destination.Size.[1];unativeint (if destination.Size.Length >= 3 then destination.Size.[2] else 1)|]            
-            
-            match destination.BufferType with
-            | UInt8 ->
-                destination.GetBufferAsUInt8
-                    (fun buf -> 
-                        let ptr = NativePtr.toVoidPtr buf.Pointer
-                        checkErr <| API.EnqueueReadImage(queue.Pointer,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
-            | Float32 ->
-                destination.GetBufferAsFloat
-                    (fun buf -> 
-                        let ptr = NativePtr.toVoidPtr buf.Pointer
-                        checkErr <| API.EnqueueReadImage(queue.Pointer,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))
-
-            destination
+        destination
 
 type Kernel = 
     {   Name : string
@@ -332,43 +335,46 @@ and GPU(kernelsFilename : string, dimension : int) =
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
-            return lock mutex (fun () -> 
+            let res =
+                lock mutex (fun () -> 
                 // printfn "kernelName: %A" kernelName
-                let kernel = kernels.[kernelName].Pointer
-                let args' = Seq.zip (Seq.initInfinite id) args
-                let mutable dimIdx = 0
-                let events = Array.map (fun (x : Event) -> x.EventPointer) events
-                for (idx,arg) in args' do
-                    dimIdx <- idx          
-                    match arg.Value with
-                    | Buffer d -> 
-                        use a' = fixed [| d.DataPointer |] 
-                        let a = NativePtr.toVoidPtr a'
-                        checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
-                    | Float f -> 
-                        use a' = fixed [| f |]
-                        let a = NativePtr.toVoidPtr a'
-                        checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
-                use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
-                let event = [|0n|]
-                use event' = fixed event
-                use events'' = fixed events
-                let events' = if events.Length > 0 then events'' else nullPtr
-                let fn (localWorkSize' : nativeptr<unativeint>) = 
-                    checkErr <|                 
-                        API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
-                //this.Finish()        
-                match oLocalWorkSize with
-                | None -> fn uNullPtr
-                | Some localWorkSize ->
-                    assert (globalWorkSize.Length = localWorkSize.Length)
-                    use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
-                    fn localWorkSize'            
-                let res = { EventPointer = event.[0] }
-                this.Wait [|res|]
-                printfn "finished: %A" kernelName
-                res
+                    let kernel = kernels.[kernelName].Pointer
+                    let args' = Seq.zip (Seq.initInfinite id) args
+                    let mutable dimIdx = 0
+                    let events = Array.map (fun (x : Event) -> x.EventPointer) events
+                    for (idx,arg) in args' do
+                        dimIdx <- idx          
+                        match arg.Value with
+                        | Buffer d -> 
+                            use a' = fixed [| d.DataPointer |] 
+                            let a = NativePtr.toVoidPtr a'
+                            checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
+                        | Float f -> 
+                            use a' = fixed [| f |]
+                            let a = NativePtr.toVoidPtr a'
+                            checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
+                    use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
+                    let event = [|0n|]
+                    use event' = fixed event
+                    use events'' = fixed events
+                    let events' = if events.Length > 0 then events'' else nullPtr
+                    let fn (localWorkSize' : nativeptr<unativeint>) = 
+                        checkErr <|                 
+                            API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
+                    //this.Finish()        
+                    match oLocalWorkSize with
+                    | None -> fn uNullPtr
+                    | Some localWorkSize ->
+                        assert (globalWorkSize.Length = localWorkSize.Length)
+                        use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
+                        fn localWorkSize'            
+                    { EventPointer = event.[0] }                    
                 )
+            let! _ = Job.queue <| job {
+                this.Wait [|res|]               
+                // TODO decrease reference counts 
+            }
+            return res
         }
 
     // member this.Run(kernelName : string, events : array<Event>, variadic : seq<GPUValue<_>>, globalWorkSize : array<int>, localWorkSize : Option<array<int>>) = this.Run(kernelName,events, Seq.map (fun x -> x :> KernelArg) variadic, globalWorkSize,localWorkSize)
