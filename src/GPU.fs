@@ -9,6 +9,10 @@ open Silk.NET.OpenCL
 open System.Collections.Generic
 open FSharp.NativeInterop
 open itk.simple
+
+exception RefCountException of r : int
+    with override this.Message = sprintf "GPU Value referenced with reference count %d, which is less or equal than 0" this.r
+
 exception GPUException of c : int
     with override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
 
@@ -18,7 +22,7 @@ exception GPUCompileException of s : string
 exception UnsupportedImageDimensionException of i : int
     with override this.Message = sprintf "Unsupported image dimension: %d (only 2D and 3D images are supported by the GPU implementation)" this.i
 
-exception FormatMismatchInGPUMemoryTransfer
+exception FormatMismatchInGPUMemoryTransferException
     with override this.Message = "Format mismatch in GPU to CPU memory transfer or CPU to GPU memory transfer"
 
 let nullPtr : nativeptr<nativeint> = NativePtr.ofNativeInt 0n
@@ -52,12 +56,23 @@ type KArgType = Buffer of Data | Float of float32
 
 [<AbstractClass>]
 type KernelArg() =
-    let refcount = ref 0
+    let refcount = ref 1
     abstract member Value : KArgType
+    interface System.IDisposable with
+        member this.Dispose() =
+            this.Dereference()
     
-    member __.reference() = lock refcount (fun () -> refcount := !refcount + 1)
-    member __.dereference = lock refcount (fun () -> refcount := !refcount - 1)
-
+    member this.Delete() = printfn "POOL ME!!!"
+    member __.Reference() = 
+        lock refcount (fun () -> 
+            if !refcount > 0 then refcount := !refcount + 1
+            else raise <| RefCountException !refcount)
+    member this.Dereference() = 
+        lock refcount (fun () -> 
+                        refcount := !refcount - 1
+                        if !refcount = 0 then 
+                            this.Delete())
+                         
 [<AbstractClass>]
 type GPUValue<'a>() =    
     inherit KernelArg()
@@ -239,7 +254,7 @@ and GPU(kernelsFilename : string, dimension : int) =
         dimensionIndex <- x
 
     member __.Float32 (f : float32) =
-        GPUFloat f :> GPUValue<float32>
+        new GPUFloat(f) :> GPUValue<float32>
 
     member __.NewArrayOnDevice<'a when 'a : unmanaged> (length : int) =
         let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,CLEnum.MemReadWrite,unativeint (length * sizeof<'a>),vNullPtr,p)
@@ -294,7 +309,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                                 imgPtr,
                                 p)))
 
-        GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+        new GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
                       
     //member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents,img.BufferType)
 
@@ -331,10 +346,12 @@ and GPU(kernelsFilename : string, dimension : int) =
         
         let ptr = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
-        GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+        new GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
+            for arg in args do
+               arg.Reference()
             let res =
                 lock mutex (fun () -> 
                 // printfn "kernelName: %A" kernelName
@@ -371,8 +388,8 @@ and GPU(kernelsFilename : string, dimension : int) =
                     { EventPointer = event.[0] }                    
                 )
             let! _ = Job.queue <| job {
-                this.Wait [|res|]               
-                // TODO decrease reference counts 
+                this.Wait [|res|]     
+                for arg in args do arg.Dereference()         
             }
             return res
         }
