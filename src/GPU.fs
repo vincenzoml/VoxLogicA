@@ -2,6 +2,7 @@ module VoxLogicA.GPU
 
 #nowarn "9"
 
+open Hopac
 open Silk.NET.Core.Native
 open VoxLogicA.SITKUtil
 open Silk.NET.OpenCL
@@ -330,39 +331,45 @@ and GPU(kernelsFilename : string, dimension : int) =
         GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
-        lock mutex (fun () -> 
-            // printfn "kernelName: %A" kernelName
-            let kernel = kernels.[kernelName].Pointer
-            let args' = Seq.zip (Seq.initInfinite id) args
-            let mutable dimIdx = 0
-            let events = Array.map (fun (x : Event) -> x.EventPointer) events
-            for (idx,arg) in args' do
-                dimIdx <- idx          
-                match arg.Value with
-                | Buffer d -> 
-                    use a' = fixed [| d.DataPointer |] 
-                    let a = NativePtr.toVoidPtr a'
-                    checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
-                | Float f -> 
-                    use a' = fixed [| f |]
-                    let a = NativePtr.toVoidPtr a'
-                    checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
-            use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
-            let event = [|0n|]
-            use event' = fixed event
-            use events'' = fixed events
-            let events' = if events.Length > 0 then events'' else nullPtr
-            let fn (localWorkSize' : nativeptr<unativeint>) = 
-                checkErr <|                 
-                    API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
-            //this.Finish()        
-            match oLocalWorkSize with
-            | None -> fn uNullPtr
-            | Some localWorkSize ->
-                assert (globalWorkSize.Length = localWorkSize.Length)
-                use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
-                fn localWorkSize'            
-            { EventPointer = event.[0] })
+        job {
+            return lock mutex (fun () -> 
+                // printfn "kernelName: %A" kernelName
+                let kernel = kernels.[kernelName].Pointer
+                let args' = Seq.zip (Seq.initInfinite id) args
+                let mutable dimIdx = 0
+                let events = Array.map (fun (x : Event) -> x.EventPointer) events
+                for (idx,arg) in args' do
+                    dimIdx <- idx          
+                    match arg.Value with
+                    | Buffer d -> 
+                        use a' = fixed [| d.DataPointer |] 
+                        let a = NativePtr.toVoidPtr a'
+                        checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<nativeint>,a)        
+                    | Float f -> 
+                        use a' = fixed [| f |]
+                        let a = NativePtr.toVoidPtr a'
+                        checkErr <| API.SetKernelArg(kernel.Pointer,uint32 idx,unativeint sizeof<float32>,a)          
+                use globalWorkSize' = fixed (Array.map unativeint globalWorkSize)
+                let event = [|0n|]
+                use event' = fixed event
+                use events'' = fixed events
+                let events' = if events.Length > 0 then events'' else nullPtr
+                let fn (localWorkSize' : nativeptr<unativeint>) = 
+                    checkErr <|                 
+                        API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
+                //this.Finish()        
+                match oLocalWorkSize with
+                | None -> fn uNullPtr
+                | Some localWorkSize ->
+                    assert (globalWorkSize.Length = localWorkSize.Length)
+                    use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
+                    fn localWorkSize'            
+                let res = { EventPointer = event.[0] }
+                this.Wait [|res|]
+                printfn "finished: %A" kernelName
+                res
+                )
+        }
 
     // member this.Run(kernelName : string, events : array<Event>, variadic : seq<GPUValue<_>>, globalWorkSize : array<int>, localWorkSize : Option<array<int>>) = this.Run(kernelName,events, Seq.map (fun x -> x :> KernelArg) variadic, globalWorkSize,localWorkSize)
 

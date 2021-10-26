@@ -141,7 +141,7 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
                 let kernelName = if dim = 2 then "border" else "border3D"
 
-                let event =
+                let! event =
                     gpu()
                         .Run(kernelName, [||], seq { output }, img.Size, None)
 
@@ -155,7 +155,7 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 if img.NComponents > 1 then
-                    let event =
+                    let! event =
                         gpu()
                             .Run(
                                 "intensity",
@@ -178,7 +178,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "getComponent",
@@ -200,7 +200,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "getComponent",
@@ -222,7 +222,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "getComponent",
@@ -244,7 +244,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "getComponent",
@@ -273,7 +273,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "rgbaComps",
@@ -298,7 +298,7 @@ type GPUModel() =
                 let img1 = getBaseImg ()
                 let mutable output = gpu().NewImageOnDevice(img1, 1, Float32)
                 let mutable tmp = gpu().NewImageOnDevice(img1, 1, Float32)
-                let evt' = 
+                let! evt' = 
                     gpu().Run(
                         "castUInt8ToFloat32",
                         img.gEvt,
@@ -318,7 +318,7 @@ type GPUModel() =
                     output <- temp
                 // ARRAY DELLE DIMENSIONI, COPIATO COME VARIABILE
                 for i = 0 to iterations - 1 do // WHILE UNA DELLE DIMENSIONI E' MAGGIORE DI 1
-                    let event =
+                    let! event =
                         gpu()
                             .Run(
                                 "volume2D",
@@ -523,7 +523,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "booleanImg",
@@ -544,7 +544,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "booleanImg",
@@ -566,7 +566,7 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
                 let v = if value then 1f else 0f
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "booleanImg",
@@ -592,7 +592,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "logand",
@@ -619,7 +619,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "logor",
@@ -641,7 +641,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "lognot",
@@ -664,7 +664,7 @@ type GPUModel() =
                 let kernelName = if dim = 2 then "dilate" else "dilate3D"
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             kernelName,
@@ -827,7 +827,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             kernelInit,
@@ -867,7 +867,7 @@ type GPUModel() =
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
                 let kernelName = if dim = 2 then "erode" else "erode3D"
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             kernelName,
@@ -903,7 +903,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "constImg",
@@ -924,7 +924,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "eq",
@@ -946,7 +946,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "geqSV",
@@ -968,7 +968,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "leq",
@@ -990,7 +990,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "between",
@@ -1013,7 +1013,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "abs",
@@ -1056,7 +1056,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "sub",
@@ -1083,7 +1083,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "add",
@@ -1110,7 +1110,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "mul",
@@ -1137,7 +1137,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "div",
@@ -1164,7 +1164,7 @@ type GPUModel() =
 
                 let newEvents = Seq.toArray tmpEvents
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "mask",
@@ -1186,7 +1186,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "addVS",
@@ -1208,7 +1208,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "mulVS",
@@ -1230,7 +1230,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "subVS",
@@ -1252,7 +1252,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "divVS",
@@ -1274,7 +1274,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "subSV",
@@ -1296,7 +1296,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                let event =
+                let! event =
                     gpu()
                         .Run(
                             "divSV",
