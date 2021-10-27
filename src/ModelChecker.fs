@@ -32,13 +32,13 @@ type RefCount() =
     abstract member Reference : unit -> unit
     default this.Reference () =
         lock refcount (fun () -> 
-            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
+            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) (this.GetHashCode())
             if !refcount >= 0 then refcount := !refcount + 1
             else raise <| RefCountException !refcount)
     abstract member Dereference : unit -> unit
     default this.Dereference() =         
         lock refcount (fun () ->
-            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
+            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) (this.GetHashCode())
             refcount := !refcount - 1
             if !refcount = 0 then 
                 this.Delete())
@@ -77,14 +77,14 @@ type ModelChecker(model : IModel) =
                                     for (arg : obj) in Seq.distinct arguments do 
                                         try (arg :?> RefCount).Reference()
                                         with :? System.InvalidCastException -> ()
-                                    // ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
-                                    // ErrorMsg.Logger.DebugOnly (sprintf "Arguments: %A" (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
+                                    ErrorMsg.Logger.Debug (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
+                                    ErrorMsg.Logger.Debug (sprintf "Arguments: %A" arguments)
                                     let! x = op.Eval (Array.ofSeq arguments)     
                                     for arg in Seq.distinct arguments do 
                                         try (arg :?> RefCount).Dereference()
                                         with :? System.InvalidCastException -> ()                                            
-                                    // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
-                                    // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())  
+                                    ErrorMsg.Logger.Debug (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
+                                    ErrorMsg.Logger.Debug (sprintf "Result: %A" <| x)  
                                     do! IVar.fill iv x } )
                             (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.fillFailure iv exn)
                 cache.[i] <- iv }
