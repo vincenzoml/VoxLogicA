@@ -337,7 +337,7 @@ and GPU(kernelsFilename : string, dimension : int) =
             let args = Seq.cache args
             let res =
                 lock mutex (fun () -> 
-                    for arg in Seq.distinct args do arg.Reference()   
+                    // for arg in Seq.distinct args do arg.Reference()   
                     let kernel = kernels.[kernelName].Pointer
                     let args' = Seq.zip (Seq.initInfinite id) args
                     let mutable dimIdx = 0
@@ -372,8 +372,8 @@ and GPU(kernelsFilename : string, dimension : int) =
                 )
             let! _ = Job.queue <| job {                
                 this.Wait [|res|]     
-                for arg in Seq.distinct args do 
-                    arg.Dereference()                             
+                // for arg in Seq.distinct args do 
+                //     arg.Dereference()                             
             }
             return res
         }

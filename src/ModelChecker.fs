@@ -32,13 +32,13 @@ type RefCount() =
     abstract member Reference : unit -> unit
     default this.Reference () =
         lock refcount (fun () -> 
-            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
+            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) (this.GetHashCode())
             if !refcount >= 0 then refcount := !refcount + 1
             else raise <| RefCountException !refcount)
     abstract member Dereference : unit -> unit
     default this.Dereference() =         
         lock refcount (fun () ->
-            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
+            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) (this.GetHashCode())
             refcount := !refcount - 1
             if !refcount = 0 then 
                 this.Delete())
