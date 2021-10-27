@@ -10,9 +10,6 @@ open System.Collections.Generic
 open FSharp.NativeInterop
 open itk.simple
 
-exception RefCountException of r : int
-    with override this.Message = sprintf "GPU Value referenced with reference count %d, which is less or equal than 0" this.r
-
 exception GPUException of c : int
     with override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
 
@@ -56,26 +53,9 @@ type KArgType = Buffer of Data | Float of float32
 
 [<AbstractClass>]
 type KernelArg() =
-    let refcount = ref 1
-    abstract member Value : KArgType
-
-    interface System.IDisposable with
-        member this.Dispose() =
-            printfn "DISPOSE!!!"
-            this.Dereference()
+    inherit RefCount()
     
-    member this.Delete() = ErrorMsg.Logger.Debug <| sprintf "reference at 0 %A" this
-    member this.Reference() = 
-        lock refcount (fun () -> 
-            // ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
-            if !refcount > 0 then refcount := !refcount + 1
-            else raise <| RefCountException !refcount)
-    member this.Dereference() =         
-        lock refcount (fun () ->
-            // ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
-            refcount := !refcount - 1
-            if !refcount = 0 then 
-                this.Delete())
+    abstract member Value : KArgType    
                          
 [<AbstractClass>]
 type GPUValue<'a>() =    
@@ -357,8 +337,7 @@ and GPU(kernelsFilename : string, dimension : int) =
             let args = Seq.cache args
             let res =
                 lock mutex (fun () -> 
-                    for arg in Seq.distinct args do
-                        arg.Reference()   
+                    for arg in Seq.distinct args do arg.Reference()   
                     let kernel = kernels.[kernelName].Pointer
                     let args' = Seq.zip (Seq.initInfinite id) args
                     let mutable dimIdx = 0

@@ -24,16 +24,22 @@ open System
 open VoxLogicA.GPU
 open SITKUtil
 
-type GPUModelValue =
-    { gVal: GPUValue<VoxImage>
-      gEvt: array<Event> }
+type GPUModelValue(gVal : GPUValue<VoxImage>, gEvt: array<Event>) =
+    inherit RefCount()
+    override __.Dereference() = 
+        base.Dereference()
+        
+    member __.gVal = gVal
+    member __.gEvt = gEvt
+
+    
+    
 
 type GPUModel() =
     inherit IModel()
 
     let kernelFile =
-        System.IO.Path.Combine [| System.AppContext.BaseDirectory
-                                  "kernel.cl" |]
+        System.IO.Path.Combine [| AppContext.BaseDirectory; "kernel.cl" |]
 
     let mutable gpuval = None
     let mutable dim = 0
@@ -130,9 +136,7 @@ type GPUModel() =
 
         ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())
 
-        { gVal = (gpu().CopyImageToDevice res)
-          gEvt = [||] }
-        :> obj
+        new GPUModelValue((gpu().CopyImageToDevice res),[||]) :> obj
 
     interface IBoundedModel<GPUModelValue> with
         member __.Border =
@@ -145,7 +149,7 @@ type GPUModel() =
                     gpu()
                         .Run(kernelName, [||], seq { output }, img.Size, None)
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
     interface IImageModel<GPUModelValue> with
@@ -168,7 +172,7 @@ type GPUModel() =
                                 None
                             )
 
-                    return { gVal = output; gEvt = [| event |] }
+                    return new GPUModelValue(output,[| event |])
                 else
                     return imgIn
             }
@@ -193,7 +197,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.Green(imgIn: GPUModelValue) =
@@ -216,7 +220,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.Blue(imgIn: GPUModelValue) =
@@ -239,7 +243,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.Alpha(imgIn: GPUModelValue) =
@@ -262,7 +266,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.RGBA (imgr: GPUModelValue) (imgg: GPUModelValue) (imgb: GPUModelValue) (imga: GPUModelValue) =
@@ -293,7 +297,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.Volume(img: GPUModelValue) =
@@ -382,7 +386,7 @@ type GPUModel() =
 
                 let output = gpu().CopyImageToDevice result
 
-                return { gVal = output; gEvt = [||] }
+                return new GPUModelValue(output,[||])
             }
 
         // ON CPU
@@ -399,7 +403,7 @@ type GPUModel() =
 
                 let output = gpu().CopyImageToDevice result
 
-                return { gVal = output; gEvt = [||] }
+                return new GPUModelValue(output,[||])
             }
 
         member __.LCC img =
@@ -518,7 +522,7 @@ type GPUModel() =
 
                 // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
-                return { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
+                return new GPUModelValue(output,[||]) // No event returned as we waited for the event already to read the flag
             }
 
 
@@ -542,7 +546,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.FF =
@@ -564,7 +568,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.BConst value =
@@ -587,7 +591,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.And img1 img2 =
@@ -614,7 +618,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.Or img1 img2 =
@@ -641,7 +645,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
         member __.Not imgIn =
@@ -662,7 +666,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output,[| event |])
             }
 
     interface ISpatialModel<GPUModelValue> with
@@ -685,11 +689,11 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
-        member this.Through img img2 =
-            let lcc img =
+        member this.Through (img : GPUModelValue) (img2 : GPUModelValue) =
+            let lcc (img : GPUModelValue) =
                 job {
                     let bimg = getBaseImg ()
 
@@ -807,7 +811,7 @@ type GPUModel() =
 
                     // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
-                    return { gVal = output; gEvt = [||] } // No event returned as we waited for the event already to read the flag
+                    return new GPUModelValue(output, gEvt = [||] ) // No event returned as we waited for the event already to read the flag
                 }
 
 
@@ -868,9 +872,7 @@ type GPUModel() =
                             None
                         )
 
-                return
-                    { gVal = output
-                      gEvt = [| resultEvent |] }
+                return new GPUModelValue(output,[| resultEvent |])
 
             }
 
@@ -893,7 +895,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
     interface IDistanceModel<GPUModelValue> with
@@ -907,7 +909,7 @@ type GPUModel() =
 
                 let output = gpu().CopyImageToDevice result
 
-                return { gVal = output; gEvt = [||] }
+                return new GPUModelValue(output, gEvt = [||] )
             }
 
     interface IQuantitativeModel<GPUModelValue> with
@@ -930,7 +932,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.EqSV value imgIn =
@@ -952,7 +954,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.GeqSV value imgIn =
@@ -975,7 +977,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.LeqSV value imgIn =
@@ -998,7 +1000,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.Between value1 value2 imgIn =
@@ -1022,7 +1024,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.Abs imgIn =
@@ -1043,7 +1045,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
         //     member __.Max img = lift VoxImage.Max img
 
@@ -1058,7 +1060,7 @@ type GPUModel() =
 
         //         let output = gpu().CopyImageToDevice result
 
-        //         return { gVal = output; gEvt = [||] }
+        //         return new GPUModelValue(output, gEvt = [||] )
         //     }
 
 
@@ -1087,7 +1089,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.AddVV img1 img2 =
@@ -1114,7 +1116,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.MultiplyVV img1 img2 =
@@ -1141,7 +1143,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.DivideVV img1 img2 =
@@ -1168,7 +1170,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.Mask imgIn maskImg =
@@ -1195,7 +1197,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
         //     member __.Avg (img : VoxImage) (maskImg : VoxImage)  = lift2 VoxImage.Avg img maskImg
         member __.AddVS imgIn k =
@@ -1218,7 +1220,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.MulVS imgIn k =
@@ -1241,7 +1243,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.SubVS imgIn k =
@@ -1264,7 +1266,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.DivVS imgIn k =
@@ -1287,7 +1289,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.SubSV k imgIn =
@@ -1310,7 +1312,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
         member __.DivSV k imgIn =
@@ -1333,7 +1335,7 @@ type GPUModel() =
                             None
                         )
 
-                return { gVal = output; gEvt = [| event |] }
+                return new GPUModelValue(output, gEvt = [| event |] )
             }
 
 // member __.Min imgIn =
@@ -1347,7 +1349,7 @@ type GPUModel() =
 
 //         let output = gpu().Float32 (float32 result)
 
-//         return { gVal = output; gEvt = [||] }
+//         return new GPUModelValue(output, gEvt = [||] )
 //     }
 
 // interface IStatisticalModel<VoxImage> with

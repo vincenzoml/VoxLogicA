@@ -18,6 +18,31 @@ namespace VoxLogicA
 
 open Hopac  
 
+exception RefCountException of r : int
+    with override this.Message = sprintf "Value referenced, with reference count already %d, which is less or equal than 0. This should never happen, please report it as a bug." this.r
+
+type RefCount() =
+    let refcount = ref 1
+    interface System.IDisposable with
+        member this.Dispose() =
+            printfn "Dispose called. This is a stub"
+            this.Dereference()
+    
+    member this.Delete() = ErrorMsg.Logger.Debug <| sprintf "reference at 0 for object %A. This is a stub." this
+    abstract member Reference : unit -> unit
+    default this.Reference () =
+        lock refcount (fun () -> 
+            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
+            if !refcount > 0 then refcount := !refcount + 1
+            else raise <| RefCountException !refcount)
+    abstract member Dereference : unit -> unit
+    default this.Dereference() =         
+        lock refcount (fun () ->
+            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
+            refcount := !refcount - 1
+            if !refcount = 0 then 
+                this.Delete())
+
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
