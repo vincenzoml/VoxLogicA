@@ -358,7 +358,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                 lock mutex (fun () -> 
                     printfn "kernelName: %A" kernelName
                     for arg in Seq.distinct args do
-                        printfn "ARG: %A %A" arg arg.Type
+                        printfn "ARG: %A %A" arg (arg.GetType())
                         arg.Reference()                    
                     let kernel = kernels.[kernelName].Pointer
                     let args' = Seq.zip (Seq.initInfinite id) args
