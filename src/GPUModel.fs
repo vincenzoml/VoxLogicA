@@ -28,11 +28,9 @@ type GPUModelValue(gVal : GPUValue<VoxImage>, gEvt: array<Event>) =
     inherit RefCount()
     override __.Reference() = 
         gVal.Reference()
-        base.Reference()
 
     override __.Dereference() = 
         gVal.Dereference()
-        base.Dereference()
         
     member __.gVal = gVal
     member __.gEvt = gEvt
