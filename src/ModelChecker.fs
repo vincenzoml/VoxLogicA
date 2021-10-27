@@ -43,20 +43,30 @@ type RefCount() =
             if !refcount = 0 then 
                 this.Delete())
 
+type ComputationHandle() = 
+    inherit RefCount()
+
+    let iv = new IVar<obj>()
+
+    member __.Write(x) = IVar.fill iv x 
+    member __.Read() = IVar.read iv
+    member __.Fail(exn) = IVar.FillFailure (iv,exn)
+
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
-    let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
+    let cache = System.Collections.Generic.Dictionary<int,ComputationHandle>()            
     let mutable alreadyChecked = 0
     let startChecker i = 
-        job {   let iv = new IVar<_>()
+        job {   let iv = new ComputationHandle()
                 let f = formulaFactory.[i]
                 let op = f.Operator                
                 do! Job.queue <|
                         Job.tryWith                                                  
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph
-                                    let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)  
+                                    let computations = (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
+                                    let! arguments = Job.seqCollect (Array.map (fun (x : ComputationHandle) -> x.Read()) computations)  
                                     for arg in Seq.distinct arguments do 
                                         try (arg :?> RefCount).Reference()
                                         with :? System.InvalidCastException -> ()
@@ -68,9 +78,9 @@ type ModelChecker(model : IModel) =
                                         with :? System.InvalidCastException -> ()                                            
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
-                                    do! IVar.fill iv x } )
-                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.FillFailure (iv,exn))  
-                cache.[i] <- IVar.read iv }
+                                    do! iv.Write x } )
+                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); iv.Fail(exn))
+                cache.[i] <- iv }
                     
     member __.OperatorFactory = operatorFactory    
     member __.FormulaFactory = formulaFactory
@@ -82,9 +92,12 @@ type ModelChecker(model : IModel) =
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
                     // ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
-                    do! startChecker i                    
+                    do! startChecker i
                 alreadyChecked <- formulaFactory.Count                  }
-    member __.Get (f : Formula) = cache.[f.Uid]   
+    member __.Get (f : Formula) =         
+        let iv = cache.[f.Uid]   
+        iv.Reference()
+        iv.Read()
         
 
 
