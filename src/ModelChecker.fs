@@ -25,20 +25,20 @@ type RefCount() =
     let refcount = ref 1
     interface System.IDisposable with
         member this.Dispose() =
-            printfn "Dispose called. This is a stub"
-            this.Dereference()
+            ErrorMsg.Logger.Debug <| sprint "Stub: Called Dispose of %A : RefCount with reference count %d" this !refcount
     
-    member this.Delete() = ErrorMsg.Logger.Debug <| sprintf "reference at 0 for object %A. This is a stub." this
+    member this.Delete() = 
+        ErrorMsg.Logger.Debug <| sprintf "Stub: Called Delete on object %A." this
     abstract member Reference : unit -> unit
     default this.Reference () =
         lock refcount (fun () -> 
-            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
+            // ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
             if !refcount > 0 then refcount := !refcount + 1
             else raise <| RefCountException !refcount)
     abstract member Dereference : unit -> unit
     default this.Dereference() =         
         lock refcount (fun () ->
-            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
+            // ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
             refcount := !refcount - 1
             if !refcount = 0 then 
                 this.Delete())
@@ -56,7 +56,7 @@ type ModelChecker(model : IModel) =
                         Job.tryWith                                                  
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph
-                                    let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
+                                    let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)                                    
                                     // ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Arguments: %A" (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
                                     let! x = op.Eval (Array.ofSeq arguments)                                                 

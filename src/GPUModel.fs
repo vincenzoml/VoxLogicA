@@ -26,8 +26,13 @@ open SITKUtil
 
 type GPUModelValue(gVal : GPUValue<VoxImage>, gEvt: array<Event>) =
     inherit RefCount()
+    override __.Reference() = 
+        gVal.Reference()
+        base.Reference()
+
     override __.Dereference() = 
-        base.Dereference()
+        gVal.Dereference()
+        base.Derefefrence
         
     member __.gVal = gVal
     member __.gEvt = gEvt
