@@ -10,8 +10,8 @@
   <ItemGroup>
     <Compile Include="Exceptions.fs" />
     <Compile Include="Util.fs" />
-    <Compile Include="Types.fs" />
     <Compile Include="ErrorMsg.fs" />
+    <Compile Include="Types.fs" />
     <Compile Include="UniqueFactory.fs" />
     <Compile Include="Operator.fs" />
     <Compile Include="Formula.fs" />

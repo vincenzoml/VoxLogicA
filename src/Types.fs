@@ -16,8 +16,6 @@
 
 namespace VoxLogicA
 
-type JSonOutput = FSharp.Data.JsonProvider<"example.json">
-
 open FParsec
 
 type UnsupportedTypeException(t : System.Type) =
@@ -62,7 +60,40 @@ type Type =
             for i = 0 to ta.Length - 2 do res <- res + (ta.[i].ToString()) + ","
             res <- res + ta.[ta.Length - 1].ToString() + ")"
             res
-            
-            
+                        
 type IDisposableJob =
     abstract member Dispose : Hopac.Job<unit>
+
+exception RefCountException of r : int
+    with override this.Message = sprintf "Value referenced, with reference count already %d, which is less than 0. This should never happen, please report it as a bug." this.r
+type RefCount() =
+    let refcount = ref 0
+    let mutable toDispose = false
+    let mutable disposed = false
+    interface System.IDisposable with
+        member this.Dispose() =
+            lock refcount (fun () ->
+                if not disposed then
+                    if !refcount = 0 then
+                        disposed <- true
+                        this.Delete()
+                    else toDispose <- true
+            )
+    
+    abstract member Delete : unit -> unit
+    default this.Delete() =         
+        ErrorMsg.Logger.Debug <| sprintf "Stub: Called Delete on object %A." this
+
+    abstract member Reference : unit -> unit
+    default this.Reference () =
+        lock refcount (fun () -> 
+            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) (this.GetHashCode())
+            if !refcount >= 0 then refcount := !refcount + 1
+            else raise <| RefCountException !refcount)
+    abstract member Dereference : unit -> unit
+    default this.Dereference() =         
+        lock refcount (fun () ->
+            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) (this.GetHashCode())
+            refcount := !refcount - 1
+            if !refcount = 0 && toDispose && not disposed then 
+                this.Delete())

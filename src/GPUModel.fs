@@ -25,18 +25,15 @@ open VoxLogicA.GPU
 open SITKUtil
 
 type GPUModelValue(gVal : GPUValue<VoxImage>, gEvt: array<Event>) =
-    inherit RefCount()
-    override __.Reference() = 
-        gVal.Reference()
+    interface IDisposableJob with
+        member this.Dispose =
+            job {
+                printfn "DISPOSE %A" this
+                (gVal :> IDisposable).Dispose() 
+            }
 
-    override __.Dereference() = 
-        gVal.Dereference()
-        
     member __.gVal = gVal
     member __.gEvt = gEvt
-
-    
-    
 
 type GPUModel() =
     inherit IModel()
