@@ -51,16 +51,49 @@ type Data = private { DataPointer : nativeint }
 
 type KArgType = Buffer of Data | Float of float32 
 
+type GPUMemoryPool() =
+    static let globalLock = ref ()
+    static let pools = new Dictionary<obj,(ref<unit> * ref<list<obj>>)>()
+    
+    static member Enqueue(key,mem) = 
+        let (l,queue) = 
+            lock globalLock (fun () -> 
+                try pools.[key]
+                with :? KeyNotFoundException ->                    
+                    let r = (ref (),ref [])
+                    pools.[key] <- r
+                    r
+            )
+                
+        lock l (fun () ->
+            queue := mem::!queue 
+        )             
+
+    static member Dequeue(key) = 
+        let mQueue = 
+            lock globalLock (fun () ->
+                try Some pools.[key]
+                with :? KeyNotFoundException -> 
+                    None)        
+        match mQueue with 
+        | None -> None
+        | Some (l,queue) ->
+            lock l (fun () ->
+                match !queue with
+                | [] -> None
+                | x::xs ->
+                    queue := xs
+                    Some x)  
+
 [<AbstractClass>]
 type KernelArg() =
-    inherit RefCount()
-    
-    abstract member Value : KArgType    
+    inherit RefCount()    
+    abstract member Value : KArgType        
                          
 [<AbstractClass>]
 type GPUValue<'a>() =    
     inherit KernelArg()
-    abstract member Get : unit -> 'a  
+    abstract member Get : unit -> 'a 
 
 type private GPUFloat (x : float32) =
     inherit GPUValue<float32>()
@@ -72,6 +105,8 @@ type private GPUFloat (x : float32) =
 
 type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : int,queue : Pointer) =
     inherit GPUValue<array<'a>>()
+    override __.Delete() =
+        GPUMemoryPool.Enqueue(("array",length),dataPointer)
     override __.ToString() = sprintf "<GPUArray %d>" dataPointer
     override __.Value = Buffer { DataPointer = dataPointer }
     override _.Get () =
@@ -83,6 +118,8 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
 
 type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) =     
     inherit GPUValue<VoxImage>() 
+    override __.Delete() =
+        GPUMemoryPool.Enqueue(("image",nComponents,bufferType,img.NPixels),dataPointer)
     override __.ToString() = sprintf "<GPUImage %d>" dataPointer
     override __.Value = Buffer { DataPointer = dataPointer }        
     override __.Get () =         
@@ -295,8 +332,6 @@ and GPU(kernelsFilename : string, dimension : int) =
 
         new GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
                       
-    //member this.NewImageOnDevice img = this.NewImageOnDevice (img,img.NComponents,img.BufferType)
-
     member __.NewImageOnDevice (img: VoxImage,nComponents,bufferType) =
         let dimension =            
             match img.Dimension with 
@@ -328,7 +363,10 @@ and GPU(kernelsFilename : string, dimension : int) =
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
-        let ptr = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+        let ptr = 
+            match GPUMemoryPool.Dequeue(("image",nComponents,bufferType,img.NPixels)) with
+            | Some p -> p :?> nativeint
+            | None -> checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
         new GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
 
