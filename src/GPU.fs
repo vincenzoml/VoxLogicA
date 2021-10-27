@@ -354,7 +354,7 @@ and GPU(kernelsFilename : string, dimension : int) =
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
-            for arg in args do
+            for arg in Seq.distinct args do
                arg.Reference()
             let res =
                 lock mutex (fun () -> 
