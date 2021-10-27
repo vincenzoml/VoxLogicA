@@ -43,28 +43,13 @@ type RefCount() =
             if !refcount = 0 then 
                 this.Delete())
 
-// type ComputationHandle() = 
-//     inherit RefCount()
-
-//     let mutable computation = None
-
-//     let iv = new IVar<obj>()
-
-//     member __.SetComputation (c : #RefCount()) = computation <- Some c
-
-//     override __.Reference() = match computation with Some c -> c.Reference() | None -> ()
-//     override __.Dereference() = match computation with Some c -> c.Dereference() | None -> ()
-
-//     member __.Write(x) = IVar.fill iv x 
-//     member __.Read() = IVar.read iv
-//     member __.Fail(exn) = IVar.FillFailure (iv,exn)
-
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
-    let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()            
+    let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0
-    let startChecker i = 
+    let mutable referenceCount = Array.init 0 (fun i -> ref 0)
+    let startChecker i (referenceCount : array<ref<int>>) = 
         job {   let iv = new IVar<_>()
                 let f = formulaFactory.[i]
                 let op = f.Operator                
@@ -72,22 +57,42 @@ type ModelChecker(model : IModel) =
                         Job.tryWith                                                  
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph
-                                    let computations = (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
-                                    let! arguments = Job.seqCollect (Array.map IVar.read computations)  
-                                    for (arg : obj) in Seq.distinct arguments do 
-                                        try (arg :?> RefCount).Reference()
-                                        with :? System.InvalidCastException -> ()
+                                    let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Arguments: %A" (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
-                                    let! x = op.Eval (Array.ofSeq arguments)     
-                                    for arg in Seq.distinct arguments do 
-                                        try (arg :?> RefCount).Dereference()
-                                        with :? System.InvalidCastException -> ()                                            
+                                    
+
+                                    /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
+                                    /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
+                                    printfn "about to compute %d" i
+                                    let! x = op.Eval (Array.ofSeq arguments)  
+                                    printfn "computed %d" i
+                                    for arg in formulaFactory.[i].Arguments do
+                                        let (oldrefc,newrefc) = 
+                                            lock 
+                                                referenceCount.[arg.Uid] 
+                                                (fun () -> 
+                                                    let r = referenceCount.[arg.Uid]
+                                                    let o = !r 
+                                                    let n = !r - 1
+                                                    r := n
+                                                    (o,n))
+                                        printfn "  arg: %d oldrefs: %d newrefs: %d" arg.Uid oldrefc newrefc
+                                        if newrefc <= 0 then 
+                                            printfn "  disposing %d" arg.Uid
+                                            let! y = cache.[arg.Uid]
+                                            let dispose = 
+                                                try (y :?> IDisposableJob).Dispose
+                                                with :? InvalidCastException -> job { return () }
+                                            do! (Job.start dispose)
+
+                                    /// after this, lock, reference counts of arguments - 1, GC eventually, unlock
+                                                                                    
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
-                                    // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())  
+                                    // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
                                     do! IVar.fill iv x } )
-                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.fillFailure iv exn)
-                cache.[i] <- iv }
+                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.FillFailure (iv,exn))  
+                cache.[i] <- IVar.read iv }
                     
     member __.OperatorFactory = operatorFactory    
     member __.FormulaFactory = formulaFactory
@@ -97,17 +102,19 @@ type ModelChecker(model : IModel) =
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
-        job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
-                    // ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
-                    do! startChecker i
+        referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
+        for i = 0 to formulaFactory.Count - 1 do            
+            for x in formulaFactory.[i].Arguments do
+                referenceCount.[x.Uid] := !referenceCount.[x.Uid] + 1
+        for i = 0 to formulaFactory.Count - 1 do
+            let f = formulaFactory.[i]
+            printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
+        job {   for i = alreadyChecked to formulaFactory.Count - 1 do                                           
+                    //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
+                    do! startChecker i referenceCount                   
                 alreadyChecked <- formulaFactory.Count                  }
-    member __.Get (f : Formula) =   
-        job {      
-            let! res = IVar.read cache.[f.Uid]  
-            try (res :?> RefCount).Reference()        
-            with :? System.InvalidCastException -> ()
-            return res
-        }
+    member __.Get (f : Formula) =  
+        let r = referenceCount.[f.Uid]
+        lock r (fun () -> r := !r + 1)
+        cache.[f.Uid]   
         
-
-
