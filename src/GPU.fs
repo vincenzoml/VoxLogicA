@@ -393,7 +393,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                 )
             let! _ = Job.queue <| job {
                 this.Wait [|res|]     
-                for arg in args do arg.Dereference()         
+                for arg in Seq.distinct args do arg.Dereference()         
             }
             return res
         }
