@@ -25,7 +25,7 @@ type RefCount() =
     let refcount = ref 1
     interface System.IDisposable with
         member this.Dispose() =
-            ErrorMsg.Logger.Debug <| sprint "Stub: Called Dispose of %A : RefCount with reference count %d" this !refcount
+            ErrorMsg.Logger.Debug <| sprintf "Stub: Called Dispose of %A : RefCount with reference count %d" this !refcount
     
     member this.Delete() = 
         ErrorMsg.Logger.Debug <| sprintf "Stub: Called Delete on object %A." this
@@ -56,10 +56,16 @@ type ModelChecker(model : IModel) =
                         Job.tryWith                                                  
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph
-                                    let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)                                    
+                                    let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)  
+                                    for arg in Seq.distinct arguments do 
+                                        try (arg :?> RefCount).Reference()
+                                        with :? System.InvalidCastException -> ()
                                     // ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Arguments: %A" (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
-                                    let! x = op.Eval (Array.ofSeq arguments)                                                 
+                                    let! x = op.Eval (Array.ofSeq arguments)     
+                                    for arg in Seq.distinct arguments do 
+                                        try (arg :?> RefCount).Dereference()
+                                        with :? System.InvalidCastException -> ()                                            
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
                                     do! IVar.fill iv x } )

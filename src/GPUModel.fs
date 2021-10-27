@@ -32,7 +32,7 @@ type GPUModelValue(gVal : GPUValue<VoxImage>, gEvt: array<Event>) =
 
     override __.Dereference() = 
         gVal.Dereference()
-        base.Derefefrence
+        base.Dereference()
         
     member __.gVal = gVal
     member __.gEvt = gEvt
