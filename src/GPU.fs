@@ -67,12 +67,12 @@ type KernelArg() =
     member this.Delete() = ErrorMsg.Logger.Debug <| sprintf "reference at 0 %A" this
     member this.Reference() = 
         lock refcount (fun () -> 
-            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
+            // ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
             if !refcount > 0 then refcount := !refcount + 1
             else raise <| RefCountException !refcount)
     member this.Dereference() =         
         lock refcount (fun () ->
-            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
+            // ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
             refcount := !refcount - 1
             if !refcount = 0 then 
                 this.Delete())
@@ -354,12 +354,11 @@ and GPU(kernelsFilename : string, dimension : int) =
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
+            let args = Seq.cache args
             let res =
                 lock mutex (fun () -> 
-                    printfn "kernelName: %A" kernelName
                     for arg in Seq.distinct args do
-                        printfn "ARG: %A %A" arg (arg.GetType())
-                        arg.Reference()                    
+                        arg.Reference()   
                     let kernel = kernels.[kernelName].Pointer
                     let args' = Seq.zip (Seq.initInfinite id) args
                     let mutable dimIdx = 0
@@ -394,9 +393,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                 )
             let! _ = Job.queue <| job {                
                 this.Wait [|res|]     
-                printfn "finished %A" kernelName
                 for arg in Seq.distinct args do 
-                    printfn "ARGdn: %A" arg 
                     arg.Dereference()                             
             }
             return res

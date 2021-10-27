@@ -177,6 +177,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(1f)
 
                 let! event =
                     gpu()
@@ -186,7 +187,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(1f) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -199,6 +200,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(1f)
 
                 let! event =
                     gpu()
@@ -208,7 +210,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(2f) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -221,6 +223,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(3f)
 
                 let! event =
                     gpu()
@@ -230,7 +233,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(3f) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -243,6 +246,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(4f)
 
                 let! event =
                     gpu()
@@ -252,7 +256,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(4f) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -315,8 +319,10 @@ type GPUModel() =
                     let temp = tmp
                     tmp <- output
                     output <- temp
+
                 // ARRAY DELLE DIMENSIONI, COPIATO COME VARIABILE
                 for i = 0 to iterations - 1 do // WHILE UNA DELLE DIMENSIONI E' MAGGIORE DI 1
+                    let f = gpu().Float32(float32 (pown 2 i))
                     let! event =
                         gpu()
                             .Run(
@@ -325,7 +331,7 @@ type GPUModel() =
                                 seq {
                                     tmp :> KernelArg
                                     output :> KernelArg
-                                    gpu().Float32(float32 (pown 2 i)) :> KernelArg
+                                    f :> KernelArg
                                 },
                                 img1.Size, // VETTORE DELLE DIMENSIONI 
                                 None
@@ -521,6 +527,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let f = gpu().Float32(1f)
 
                 let! event =
                     gpu()
@@ -529,7 +536,7 @@ type GPUModel() =
                             [||],
                             seq {
                                 output :> KernelArg
-                                gpu().Float32(1f) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -542,6 +549,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let f = gpu().Float32(0f)
 
                 let! event =
                     gpu()
@@ -550,7 +558,7 @@ type GPUModel() =
                             [||],
                             seq {
                                 output :> KernelArg
-                                gpu().Float32(0f) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -564,6 +572,7 @@ type GPUModel() =
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
                 let v = if value then 1f else 0f
+                let f = gpu().Float32(v)
 
                 let! event =
                     gpu()
@@ -572,7 +581,7 @@ type GPUModel() =
                             [||],
                             seq {
                                 output :> KernelArg
-                                gpu().Float32(v) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -906,6 +915,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(float32 value)
 
                 let! event =
                     gpu()
@@ -914,7 +924,7 @@ type GPUModel() =
                             [||],
                             seq {
                                 output :> KernelArg
-                                gpu().Float32(float32 value) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -927,7 +937,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
-
+                let f = gpu().Float32(float32 value)
                 let! event =
                     gpu()
                         .Run(
@@ -936,7 +946,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 value) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -949,7 +959,8 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
-
+                let f = gpu().Float32(float32 value)
+                
                 let! event =
                     gpu()
                         .Run(
@@ -958,7 +969,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 value) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -971,6 +982,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let f = gpu().Float32(float32 value)
 
                 let! event =
                     gpu()
@@ -980,7 +992,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 value) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -993,7 +1005,8 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, UInt8)
-
+                let f1 = gpu().Float32(float32 value1)
+                let f2 = gpu().Float32(float32 value2)
                 let! event =
                     gpu()
                         .Run(
@@ -1002,8 +1015,8 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 value1) :> KernelArg
-                                gpu().Float32(float32 value2) :> KernelArg
+                                f1 :> KernelArg
+                                f2 :> KernelArg
                             },
                             img.Size,
                             None
@@ -1189,6 +1202,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(float32 k)
 
                 let! event =
                     gpu()
@@ -1198,7 +1212,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 k) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -1211,6 +1225,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(float32 k)
 
                 let! event =
                     gpu()
@@ -1220,7 +1235,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 k) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -1233,6 +1248,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(float32 k)
 
                 let! event =
                     gpu()
@@ -1242,7 +1258,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 k) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -1255,6 +1271,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(float32 k)
 
                 let! event =
                     gpu()
@@ -1264,7 +1281,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 k) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -1277,7 +1294,8 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
-
+                let f = gpu().Float32(float32 k)
+                
                 let! event =
                     gpu()
                         .Run(
@@ -1286,7 +1304,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 k) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
@@ -1299,6 +1317,7 @@ type GPUModel() =
             job {
                 let img = getBaseImg ()
                 let output = gpu().NewImageOnDevice(img, 1, Float32)
+                let f = gpu().Float32(float32 k)
 
                 let! event =
                     gpu()
@@ -1308,7 +1327,7 @@ type GPUModel() =
                             seq {
                                 imgIn.gVal :> KernelArg
                                 output :> KernelArg
-                                gpu().Float32(float32 k) :> KernelArg
+                                f :> KernelArg
                             },
                             img.Size,
                             None
