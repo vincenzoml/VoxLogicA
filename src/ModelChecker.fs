@@ -43,28 +43,29 @@ type RefCount() =
             if !refcount = 0 then 
                 this.Delete())
 
-type ComputationHandle() = 
-    inherit RefCount()
+// type ComputationHandle() = 
+//     inherit RefCount()
 
-    let mutable computation = None
+//     let mutable computation = None
 
-    let iv = new IVar<obj>()
+//     let iv = new IVar<obj>()
 
-    member __.SetComputation (c : #RefCount()) = computation <- Some c
+//     member __.SetComputation (c : #RefCount()) = computation <- Some c
 
-    override __.Reference() = match computation with Some c -> c.Reference() | None -> ()
-    override __.Dereference() = match computation with Some c -> c.Dereference() | None -> ()
-    member __.Write(x) = IVar.fill iv x 
-    member __.Read() = IVar.read iv
-    member __.Fail(exn) = IVar.FillFailure (iv,exn)
+//     override __.Reference() = match computation with Some c -> c.Reference() | None -> ()
+//     override __.Dereference() = match computation with Some c -> c.Dereference() | None -> ()
+
+//     member __.Write(x) = IVar.fill iv x 
+//     member __.Read() = IVar.read iv
+//     member __.Fail(exn) = IVar.FillFailure (iv,exn)
 
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
-    let cache = System.Collections.Generic.Dictionary<int,ComputationHandle>()            
+    let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()            
     let mutable alreadyChecked = 0
     let startChecker i = 
-        job {   let iv = new ComputationHandle()
+        job {   let iv = new IVar<_>()
                 let f = formulaFactory.[i]
                 let op = f.Operator                
                 do! Job.queue <|
@@ -72,8 +73,8 @@ type ModelChecker(model : IModel) =
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph
                                     let computations = (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
-                                    let! arguments = Job.seqCollect (Array.map (fun (x : ComputationHandle) -> x.Read()) computations)  
-                                    for arg in Seq.distinct arguments do 
+                                    let! arguments = Job.seqCollect (Array.map IVar.read computations)  
+                                    for (arg : obj) in Seq.distinct arguments do 
                                         try (arg :?> RefCount).Reference()
                                         with :? System.InvalidCastException -> ()
                                     // ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)" f.Operator.Name f.Uid)
@@ -83,9 +84,9 @@ type ModelChecker(model : IModel) =
                                         try (arg :?> RefCount).Dereference()
                                         with :? System.InvalidCastException -> ()                                            
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
-                                    // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
-                                    do! iv.Write x } )
-                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); iv.Fail(exn))
+                                    // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())  
+                                    do! IVar.fill iv x } )
+                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.fillFailure iv exn)
                 cache.[i] <- iv }
                     
     member __.OperatorFactory = operatorFactory    
@@ -100,10 +101,13 @@ type ModelChecker(model : IModel) =
                     // ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
                     do! startChecker i
                 alreadyChecked <- formulaFactory.Count                  }
-    member __.Get (f : Formula) =         
-        let iv = cache.[f.Uid]   
-        iv.Reference()
-        iv.Read()
+    member __.Get (f : Formula) =   
+        job {      
+            let! res = IVar.read cache.[f.Uid]  
+            try (res :?> RefCount).Reference()        
+            with :? System.InvalidCastException -> ()
+            return res
+        }
         
 
 
