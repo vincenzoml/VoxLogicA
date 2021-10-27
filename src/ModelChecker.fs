@@ -69,7 +69,7 @@ type ModelChecker(model : IModel) =
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
                                     // ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
                                     do! IVar.fill iv x } )
-                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.FillFailure (iv,exn))  
+                            (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.FillFailure (iv,exn))
                 cache.[i] <- IVar.read iv }
                     
     member __.OperatorFactory = operatorFactory    
@@ -82,7 +82,7 @@ type ModelChecker(model : IModel) =
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do   
                     // ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
-                    do! startChecker i                    
+                    do! startChecker i
                 alreadyChecked <- formulaFactory.Count                  }
     member __.Get (f : Formula) = cache.[f.Uid]   
         
