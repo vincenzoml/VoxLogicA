@@ -292,7 +292,6 @@ type GPUModel() =
                 return { gVal = output; gEvt = [| event |] }
             }
 
-        // ON CPU
         member __.Volume(img: GPUModelValue) =
             job {
                 let img1 = getBaseImg ()

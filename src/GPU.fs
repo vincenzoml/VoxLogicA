@@ -58,20 +58,24 @@ type KArgType = Buffer of Data | Float of float32
 type KernelArg() =
     let refcount = ref 1
     abstract member Value : KArgType
+
     interface System.IDisposable with
         member this.Dispose() =
+            printfn "DISPOSE!!!"
             this.Dereference()
     
-    member this.Delete() = printfn "POOL ME!!!"
-    member __.Reference() = 
+    member this.Delete() = ErrorMsg.Logger.Debug <| sprintf "reference at 0 %A" this
+    member this.Reference() = 
         lock refcount (fun () -> 
+            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
             if !refcount > 0 then refcount := !refcount + 1
             else raise <| RefCountException !refcount)
-    member this.Dereference() = 
-        lock refcount (fun () -> 
-                        refcount := !refcount - 1
-                        if !refcount = 0 then 
-                            this.Delete())
+    member this.Dereference() =         
+        lock refcount (fun () ->
+            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
+            refcount := !refcount - 1
+            if !refcount = 0 then 
+                this.Delete())
                          
 [<AbstractClass>]
 type GPUValue<'a>() =    
