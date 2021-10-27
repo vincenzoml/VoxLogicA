@@ -354,11 +354,12 @@ and GPU(kernelsFilename : string, dimension : int) =
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
-            for arg in Seq.distinct args do
-               arg.Reference()
             let res =
                 lock mutex (fun () -> 
-                // printfn "kernelName: %A" kernelName
+                    printfn "kernelName: %A" kernelName
+                    for arg in Seq.distinct args do
+                        printfn "ARG: %A %A" arg arg.Type
+                        arg.Reference()                    
                     let kernel = kernels.[kernelName].Pointer
                     let args' = Seq.zip (Seq.initInfinite id) args
                     let mutable dimIdx = 0
@@ -391,9 +392,12 @@ and GPU(kernelsFilename : string, dimension : int) =
                         fn localWorkSize'            
                     { EventPointer = event.[0] }                    
                 )
-            let! _ = Job.queue <| job {
+            let! _ = Job.queue <| job {                
                 this.Wait [|res|]     
-                for arg in Seq.distinct args do arg.Dereference()         
+                printfn "finished %A" kernelName
+                for arg in Seq.distinct args do 
+                    printfn "ARGdn: %A" arg 
+                    arg.Dereference()                             
             }
             return res
         }
