@@ -19,10 +19,10 @@ namespace VoxLogicA
 open Hopac  
 
 exception RefCountException of r : int
-    with override this.Message = sprintf "Value referenced, with reference count already %d, which is less or equal than 0. This should never happen, please report it as a bug." this.r
+    with override this.Message = sprintf "Value referenced, with reference count already %d, which is less than 0. This should never happen, please report it as a bug." this.r
 
 type RefCount() =
-    let refcount = ref 1
+    let refcount = ref 0
     interface System.IDisposable with
         member this.Dispose() =
             ErrorMsg.Logger.Debug <| sprintf "Stub: Called Dispose of %A : RefCount with reference count %d" this !refcount
@@ -32,13 +32,13 @@ type RefCount() =
     abstract member Reference : unit -> unit
     default this.Reference () =
         lock refcount (fun () -> 
-            // ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
-            if !refcount > 0 then refcount := !refcount + 1
+            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) this
+            if !refcount >= 0 then refcount := !refcount + 1
             else raise <| RefCountException !refcount)
     abstract member Dereference : unit -> unit
     default this.Dereference() =         
         lock refcount (fun () ->
-            // ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
+            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) this
             refcount := !refcount - 1
             if !refcount = 0 then 
                 this.Delete())
