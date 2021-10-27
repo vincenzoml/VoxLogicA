@@ -46,8 +46,14 @@ type RefCount() =
 type ComputationHandle() = 
     inherit RefCount()
 
+    let mutable computation = None
+
     let iv = new IVar<obj>()
 
+    member __.SetComputation (c : #RefCount()) = computation <- Some c
+
+    override __.Reference() = match computation with Some c -> c.Reference() | None -> ()
+    override __.Dereference() = match computation with Some c -> c.Dereference() | None -> ()
     member __.Write(x) = IVar.fill iv x 
     member __.Read() = IVar.read iv
     member __.Fail(exn) = IVar.FillFailure (iv,exn)
