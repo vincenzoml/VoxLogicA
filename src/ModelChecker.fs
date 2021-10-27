@@ -83,7 +83,7 @@ type ModelChecker(model : IModel) =
                                             let! y = cache.[arg.Uid]
                                             let dispose = 
                                                 try (y :?> IDisposableJob).Dispose
-                                                with :? InvalidCastException -> job { return () }
+                                                with :? System.InvalidCastException -> job { return () }
                                             do! (Job.start dispose)
 
                                     /// after this, lock, reference counts of arguments - 1, GC eventually, unlock
