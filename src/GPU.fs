@@ -11,7 +11,10 @@ open FSharp.NativeInterop
 open itk.simple
 
 exception GPUException of c : int
-    with override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
+    with 
+        override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
+        member this.Code = this.c
+
 
 exception GPUCompileException of s : string
     with override this.Message = sprintf "Could not compile GPU kernels:\n%s" this.s
@@ -50,40 +53,81 @@ type Event = private { EventPointer : nativeint }
 type Data = private { DataPointer : nativeint }
 
 type KArgType = Buffer of Data | Float of float32 
+type Pool() = 
+    let lck = ref ()
+    let mutable queue = []
+    let mutable waitingList = []
 
-type GPUMemoryPool() =
+    member __.Put (x : obj) =
+        job { lock lck (fun () -> queue <- x::queue) }
+
+    member __.Get () =
+        job {
+            return lock lck (fun () -> 
+                match queue with
+                | [] -> None
+                | x::xs -> 
+                    queue <- xs
+                    Some x)
+        }
+
+    member __.Wait () =                         
+        lock lck (fun () -> 
+                match queue with
+                | [] -> 
+                    let iv = new IVar<_>()     
+                    waitingList <- iv::waitingList                 
+                    IVar.read iv
+                | x::xs ->
+                    Alt.always x)
+                // | x::xs ->
+                //     queue <- xs
+                //     job { return x })     
+
+type ImageKey = {
+    NComponents : int
+    BufferType : PixelType
+    Dimension: int
+    Width: int
+    Height: int
+    Depth: int
+}
+type MemoryKey = 
+    Image of ImageKey
+type GPUMemory() =
     static let globalLock = ref ()
-    static let pools = new Dictionary<obj,(ref<unit> * ref<list<obj>>)>()
+    static let pools = new Dictionary<MemoryKey,Pool>()
     
-    static member Enqueue(key,mem) = 
-        let (l,queue) = 
+    static member Put key mem = 
+        let pool = 
             lock globalLock (fun () -> 
                 try pools.[key]
                 with :? KeyNotFoundException ->                    
-                    let r = (ref (),ref [])
+                    let r = Pool()
                     pools.[key] <- r
                     r
             )
                 
-        lock l (fun () ->
-            queue := mem::!queue 
-        )             
+        pool.Put mem        
 
-    static member Dequeue(key) = 
-        let mQueue = 
+    static member Wait key =
+        let pool =
             lock globalLock (fun () ->
-                try Some pools.[key]
-                with :? KeyNotFoundException -> 
-                    None)        
-        match mQueue with 
-        | None -> None
-        | Some (l,queue) ->
-            lock l (fun () ->
-                match !queue with
-                | [] -> None
-                | x::xs ->
-                    queue := xs
-                    Some x)  
+                try pools.[key]
+                with :? KeyNotFoundException ->
+                    let r = Pool()
+                    pools.[key] <- r
+                    r
+            )
+        
+        pool.Wait()
+
+    static member Get key = 
+        lock globalLock (fun () ->
+            try 
+                pools.[key].Get()
+            with :? KeyNotFoundException -> 
+                job { return None })
 
 [<AbstractClass>]
 type KernelArg() =
@@ -105,8 +149,8 @@ type private GPUFloat (x : float32) =
 
 type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : int,queue : Pointer) =
     inherit GPUValue<array<'a>>()
-    override __.Delete() =
-        GPUMemoryPool.Enqueue(("array",length),dataPointer)
+    // override __.Delete() =
+    //     GPUMemory.Put ("array",length) dataPointer
     override __.ToString() = sprintf "<GPUArray %d>" dataPointer
     override __.Value = Buffer { DataPointer = dataPointer }
     override _.Get () =
@@ -118,8 +162,15 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
 
 type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) =     
     inherit GPUValue<VoxImage>() 
-    override __.Delete() =
-        GPUMemoryPool.Enqueue(("image",nComponents,bufferType,img.NPixels),dataPointer)
+    override __.Delete =
+        GPUMemory.Put (Image { 
+            NComponents = nComponents
+            BufferType = bufferType
+            Dimension = img.Dimension
+            Width = img.Width
+            Height = img.Height
+            Depth = img.Depth
+        }) dataPointer
     override __.ToString() = sprintf "<GPUImage %d>" dataPointer
     override __.Value = Buffer { DataPointer = dataPointer }        
     override __.Get () =         
@@ -160,6 +211,7 @@ type Kernel =
         Pointer : Pointer     }    
 
 and GPU(kernelsFilename : string, dimension : int) =
+    static let mutable imageCount = 0
     let mutex = ref ()
 
     let mutable dimensionIndex = 0
@@ -218,24 +270,24 @@ and GPU(kernelsFilename : string, dimension : int) =
         let prg = checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))                
         let res = API.CompileProgram(prg,0ul,nullPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) 
         if res = int CLEnum.CompileProgramFailure then        
-            let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
+            let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
             use lenPtr = fixed len                        
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
             let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
         let res = API.BuildProgram(prg,0ul,nullPtr,bNullPtr,noNotify,vNullPtr)     
         if res = int CLEnum.BuildProgramFailure then        
-            let param_name : uint32 = uint32 CLEnum.ProgramBuildLog            
+            let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
             let mutable len = [|0un|]
             use lenPtr = fixed len                        
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,0un,vNullPtr,lenPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
             let output = SilkMarshal.Allocate (int len.[0] + 1)
             let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            checkErr (API.GetProgramBuildInfo(prg,device,param_name,len.[0],outputPtr,uNullPtr)) 
+            checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr)) 
             let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
             raise <| GPUCompileException error
         checkErr res 
@@ -275,7 +327,7 @@ and GPU(kernelsFilename : string, dimension : int) =
         dimensionIndex <- x
 
     member __.Float32 (f : float32) =
-        new GPUFloat(f) :> GPUValue<float32>
+        GPUFloat(f) :> GPUValue<float32>
 
     member __.NewArrayOnDevice<'a when 'a : unmanaged> (length : int) =
         let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,CLEnum.MemReadWrite,unativeint (length * sizeof<'a>),vNullPtr,p)
@@ -330,9 +382,10 @@ and GPU(kernelsFilename : string, dimension : int) =
                                 imgPtr,
                                 p)))
 
-        new GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
-                      
+        GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+
     member __.NewImageOnDevice (img: VoxImage,nComponents,bufferType) =
+        // printfn "Allocated: %d" countAllocatedImages
         let dimension =            
             match img.Dimension with 
             | 2 -> CLEnum.MemObjectImage2D
@@ -362,20 +415,47 @@ and GPU(kernelsFilename : string, dimension : int) =
         let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
         use imgDescPtr' = fixed [|imgDesc|]
         let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
-        
-        let ptr = 
-            match GPUMemoryPool.Dequeue(("image",nComponents,bufferType,img.NPixels)) with
-            | Some p -> p :?> nativeint
-            | None -> checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
 
-        new GPUImage(ptr,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+        let memoryKey = Image { 
+                NComponents = nComponents
+                BufferType = bufferType
+                Dimension = img.Dimension
+                Width = img.Width
+                Height = img.Height
+                Depth = img.Depth
+            }
+
+        let rec ptr () = job {
+            match! GPUMemory.Get memoryKey with
+            | Some p -> return p :?> nativeint
+            | None -> 
+                    imageCount <- imageCount + 1
+                    if imageCount < 50 then
+                        let res = checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))                    
+                        return res
+                    else
+                        let! x = GPUMemory.Wait memoryKey 
+                        return x :?> nativeint
+                // with GPUException c ->
+                    // System.Threading.Thread.Sleep(10)
+                    // ptr()
+                    // failwith <| e.ToString()
+        }
+        job {
+            let! p = ptr()
+
+            return GPUImage(p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+        }
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
+            // System.Threading.Thread.Sleep(10)
+
+            // ErrorMsg.Logger.Debug <| sprintf "start %A" kernelName
             let args = Seq.cache args
             let res =
                 lock mutex (fun () -> 
-                    for arg in Seq.distinct args do arg.Reference()   
+                    for arg in Seq.distinct args do Hopac.run <| arg.Reference()   
                     let kernel = kernels.[kernelName].Pointer
                     let args' = Seq.zip (Seq.initInfinite id) args
                     let mutable dimIdx = 0
@@ -396,10 +476,15 @@ and GPU(kernelsFilename : string, dimension : int) =
                     use event' = fixed event
                     use events'' = fixed events
                     let events' = if events.Length > 0 then events'' else nullPtr
-                    let fn (localWorkSize' : nativeptr<unativeint>) = 
-                        checkErr <|                 
-                            API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
-                    //this.Finish()        
+                    let rec fn (localWorkSize' : nativeptr<unativeint>) = 
+                        // try 
+                            checkErr <|                 
+                                API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
+                        // with GPUException c as x -> 
+                            // if c = -4 then 
+                            //     System.Threading.Thread.Sleep(5)
+                            //     fn localWorkSize'
+                            // else raise x
                     match oLocalWorkSize with
                     | None -> fn uNullPtr
                     | Some localWorkSize ->
@@ -410,9 +495,11 @@ and GPU(kernelsFilename : string, dimension : int) =
                 )
             let! _ = Job.queue <| job {                
                 this.Wait [|res|]     
+                // ErrorMsg.Logger.Debug <| sprintf "finish %A" kernelName
                 for arg in Seq.distinct args do 
-                    arg.Dereference()                             
+                    Hopac.run <| arg.Dereference()                             
             }
+            // ErrorMsg.Logger.Debug <| sprintf "exit %A" kernelName
             return res
         }
 

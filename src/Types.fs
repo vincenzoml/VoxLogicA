@@ -16,6 +16,8 @@
 
 namespace VoxLogicA
 
+open Hopac
+
 open FParsec
 
 type UnsupportedTypeException(t : System.Type) =
@@ -70,30 +72,36 @@ type RefCount() =
     let refcount = ref 0
     let mutable toDispose = false
     let mutable disposed = false
-    interface System.IDisposable with
-        member this.Dispose() =
-            lock refcount (fun () ->
+    interface IDisposableJob with
+        member this.Dispose = 
+            lock refcount (fun () -> job {
                 if not disposed then
-                    if !refcount = 0 then
+                    if ! refcount = 0 then
                         disposed <- true
-                        this.Delete()
-                    else toDispose <- true
-            )
+                        do! this.Delete
+                    else
+                        toDispose <- true
+            })        
     
-    abstract member Delete : unit -> unit
-    default this.Delete() =         
-        ErrorMsg.Logger.Debug <| sprintf "Stub: Called Delete on object %A." this
+    abstract member Delete : Job<unit>
+    default this.Delete =         
+        job { ErrorMsg.Logger.Debug <| sprintf "Stub: Called Delete on object %A." this }
 
-    abstract member Reference : unit -> unit
-    default this.Reference () =
+    abstract member Reference : unit -> Job<unit>
+    default this.Reference () = job {
         lock refcount (fun () -> 
-            ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) (this.GetHashCode())
+            // ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) (this.GetHashCode())
             if !refcount >= 0 then refcount := !refcount + 1
             else raise <| RefCountException !refcount)
-    abstract member Dereference : unit -> unit
-    default this.Dereference() =         
-        lock refcount (fun () ->
-            ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) (this.GetHashCode())
-            refcount := !refcount - 1
+    }
+    abstract member Dereference : unit -> Job<unit>
+    default this.Dereference() = job {         
+        do! lock refcount (fun () ->
+            // ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) (this.GetHashCode())
+            refcount := !refcount - 1            
             if !refcount = 0 && toDispose && not disposed then 
-                this.Delete())
+                this.Delete
+            else
+                job { return () }
+        )
+    }
