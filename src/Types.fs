@@ -76,7 +76,7 @@ type RefCount() =
         member this.Dispose = 
             lock refcount (fun () -> job {
                 if not disposed then
-                    if ! refcount = 0 then
+                    if !refcount = 0 then
                         disposed <- true
                         do! this.Delete
                     else
@@ -100,6 +100,7 @@ type RefCount() =
             // ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) (this.GetHashCode())
             refcount := !refcount - 1            
             if !refcount = 0 && toDispose && not disposed then 
+                disposed <- true
                 this.Delete
             else
                 job { return () }

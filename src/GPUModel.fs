@@ -35,6 +35,8 @@ type GPUModelValue(gVal : GPUValue<VoxImage>, gEvt: array<Event>) =
 type GPUModel() =
     inherit IModel()
 
+    static let shamefulLock = Lock()
+
     let kernelFile =
         System.IO.Path.Combine [| AppContext.BaseDirectory; "kernel.cl" |]
 
@@ -818,64 +820,65 @@ type GPUModel() =
                 }
 
 
-            job {
-                let baseImg = getBaseImg ()
+            Lock.duringJob shamefulLock <|
+                job {                
+                    let baseImg = getBaseImg ()
 
-                let! tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
+                    let! tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
 
-                let! output = gpu().NewImageOnDevice(baseImg, 1, UInt8)
+                    let! output = gpu().NewImageOnDevice(baseImg, 1, UInt8)
 
-                let! tmpResult = lcc img2
-                let lccImg = tmpResult.GVal
+                    let! tmpResult = lcc img2
+                    let lccImg = tmpResult.GVal
 
-                let tmpEvents =
-                    Seq.distinct (Array.append img.GEvt tmpResult.GEvt)
+                    let tmpEvents =
+                        Seq.distinct (Array.append img.GEvt tmpResult.GEvt)
 
-                let kernelInit =
-                    if dim = 2 then
-                        "initThrough"
-                    else
-                        "initThrough3D"
+                    let kernelInit =
+                        if dim = 2 then
+                            "initThrough"
+                        else
+                            "initThrough3D"
 
-                let kernelFinalize =
-                    if dim = 2 then
-                        "finalizeThrough"
-                    else
-                        "finalizeThrough3D"
+                    let kernelFinalize =
+                        if dim = 2 then
+                            "finalizeThrough"
+                        else
+                            "finalizeThrough3D"
 
-                let newEvents = Seq.toArray tmpEvents
+                    let newEvents = Seq.toArray tmpEvents
 
-                let! event =
-                    gpu()
-                        .Run(
-                            kernelInit,
-                            newEvents,
-                            seq {
-                                img.GVal
-                                lccImg
-                                tmp
-                            },
-                            baseImg.Size,
-                            None
-                        )
+                    let! event =
+                        gpu()
+                            .Run(
+                                kernelInit,
+                                newEvents,
+                                seq {
+                                    img.GVal
+                                    lccImg
+                                    tmp
+                                },
+                                baseImg.Size,
+                                None
+                            )
 
-                let! resultEvent =
-                    gpu()
-                        .Run(
-                            kernelFinalize,
-                            [| event |],
-                            seq {
-                                tmp
-                                lccImg
-                                output
-                            },
-                            baseImg.Size,
-                            None
-                        )
+                    let! resultEvent =
+                        gpu()
+                            .Run(
+                                kernelFinalize,
+                                [| event |],
+                                seq {
+                                    tmp
+                                    lccImg
+                                    output
+                                },
+                                baseImg.Size,
+                                None
+                            )
 
-                return GPUModelValue(output,[| resultEvent |])
+                    return GPUModelValue(output,[| resultEvent |])
 
-            }
+                }
 
         member __.Interior imgIn =
             job {
