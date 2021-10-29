@@ -448,27 +448,30 @@ and GPU(kernelsFilename : string, dimension : int) =
             }
         
         job {
-                 while! tmp = None do
-                        //ErrorMsg.Logger.Debug "M"              
+                let mutable p = None 
+                do! Job.whileDo (fun () -> p = None) <| job {                     
                         if imageCount < 250 then 
                             //ErrorMsg.Logger.Debug "N"                     
                             imageCount <- imageCount + 1
-                            tmp = Some (Alt.always <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p)))
+                            p <- Some <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                         else                      
                             System.Threading.Thread.Sleep 100
-                            tmp = GPUMemory.Get memoryKey
+                            let! q = GPUMemory.Get memoryKey
+                            p <- q
+                }
                             //ErrorMsg.Logger.Debug "O"              
                             //let r = GPUMemory.Wait memoryKey                      
                             //a <- 1
                             //r
                 //let mutable a = 0 // TODO: REMOVE THIS, IT'S FOR DEBUGGING PURPOSES 
-                let pw = 
-                    let mutable tmp = None                    
+                // let pw = 
+                //     let mutable tmp = None                    
                    
-                ErrorMsg.Logger.Debug <| sprintf "P%d" a
-                let! p = pw             
-                ErrorMsg.Logger.Debug <| sprintf "Q%d" a
-                return GPUImage(p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+                // ErrorMsg.Logger.Debug <| sprintf "P%d" a
+                // let! p = pw             
+                // ErrorMsg.Logger.Debug <| sprintf "Q%d" a
+                
+                return GPUImage(Option.get p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         }
         
 
