@@ -25,6 +25,7 @@
     <Compile Include="SITKUtil.fs" />
     <Compile Include="GPU.fs" />
     <Compile Include="GPUModel.fs" />
+    <Compile Include="SITKModel.fs"/>
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

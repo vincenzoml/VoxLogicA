@@ -442,7 +442,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                 ErrorMsg.Logger.DebugOnly "ALLOC"
                 ErrorMsg.Logger.DebugOnly <| sprintf "Image count: %d" imageCount
                 let! p =
-                    if imageCount < 800 then 
+                    if imageCount < 200 then 
                         imageCount <- imageCount + 1
                         Alt.always <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else

@@ -87,13 +87,14 @@ type GPUModel() =
         | _ -> false
 
     override __.Save filename v =
-        ErrorMsg.Logger.Debug(sprintf "about to save: %A" filename)
+        ErrorMsg.Logger.DebugOnly(sprintf "Retrieving from GPU: %A" filename)
         let gmv = (v :?> GPUModelValue)
         gpu().Wait <| gmv.GEvt
         let img = gmv.GVal.Get()
         ErrorMsg.Logger.DebugOnly(sprintf "saving image: %A" <| img.GetHashCode())
         img.Save(filename)
         JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))
+        // JSonOutput.Info(min = 0.0, max = 1.0)
 
     override __.Load s =
         let img = new VoxImage(s)

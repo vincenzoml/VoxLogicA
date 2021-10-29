@@ -16,8 +16,8 @@
 
 namespace VoxLogicA
 
-exception NoModelLoadedException 
-    with override __.Message = "No model loaded"
+// exception NoModelLoadedException 
+//     with override __.Message = "No model loaded"
 
 open SITKUtil
 open Hopac
@@ -49,8 +49,9 @@ type SITKModel() =
     override __.Save filename v =
         let img = v :?> VoxImage
         ErrorMsg.Logger.DebugOnly (sprintf "saving image: %A" <| img.GetHashCode())
-        img.Save(filename)
-        JSonOutput.Info(min = VoxImage.Min (VoxImage.Intensity img), max = VoxImage.Max (VoxImage.Intensity img))
+        //img.Save(filename)
+        //JSonOutput.Info(min = VoxImage.Min (VoxImage.Intensity img), max = VoxImage.Max (VoxImage.Intensity img))
+        JSonOutput.Info(min = 0.0, max = 1.0)
 
     override __.Load s =
         let img = new VoxImage(s) 
@@ -85,7 +86,7 @@ type SITKModel() =
         member __.Green (img : VoxImage) = lift VoxImage.Green img
         member __.Blue (img : VoxImage) = lift VoxImage.Blue img
         member __.Alpha (img : VoxImage) = lift VoxImage.Alpha img
-        member __.RGB (imgr : VoxImage) (imgg : VoxImage) (imgb : VoxImage) = job { return VoxImage.RGB imgr imgg imgb }
+        //member __.RGB (imgr : VoxImage) (imgg : VoxImage) (imgb : VoxImage) = job { return VoxImage.RGB imgr imgg imgb }
         member __.RGBA (imgr : VoxImage) (imgg : VoxImage) (imgb : VoxImage) (imga : VoxImage) = job { return VoxImage.RGBA imgr imgg imgb imga }
         member __.Volume img = lift VoxImage.Volume img
         member __.MaxVol img = lift VoxImage.MaxVol img
@@ -116,14 +117,14 @@ type SITKModel() =
         member __.LeqSV value img = lift2 VoxImage.Leq value img
         member __.Between value1 value2 img = job { return VoxImage.Between value1 value2 img }        
         member __.Abs img = job { return VoxImage.Abs img }
-        member __.Max img = lift VoxImage.Max img
-        member __.Min img = lift VoxImage.Min img
+        //member __.Max img = lift VoxImage.Max img
+        //member __.Min img = lift VoxImage.Min img
         member __.SubtractVV img1 img2 = job { return VoxImage.Subtract(img1,img2) }
         member __.AddVV img1 img2 = job {return VoxImage.Add(img1,img2) }
         member __.MultiplyVV img1 img2 = job { return VoxImage.Mult(img1,img2) }
         member __.DivideVV img1 img2 = job { return VoxImage.Div(img1,img2) }
         member __.Mask (img : VoxImage) (maskImg : VoxImage) = job { return VoxImage.Mask img maskImg 0.0 }
-        member __.Avg (img : VoxImage) (maskImg : VoxImage)  = lift2 VoxImage.Avg img maskImg
+        //member __.Avg (img : VoxImage) (maskImg : VoxImage)  = lift2 VoxImage.Avg img maskImg
         member __.AddVS (img : VoxImage) k = job { return VoxImage.Add(img,k) }
         member __.MulVS (img : VoxImage) k = job { return VoxImage.Mult(img,k) }
         member __.SubVS (img : VoxImage) k = job { return VoxImage.Subtract(img,k) }

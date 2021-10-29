@@ -60,7 +60,7 @@ let main (argv: string array) =
         else 
             ErrorMsg.Logger.LogToStdout ()
             ignore
-    let model = GPUModel() :> IModel
+    let model = GPUModel() :> IModel // SITKModel() :> IModel
     let checker = ModelChecker model
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning
