@@ -153,12 +153,12 @@ type GPUModel() =
 
     interface IImageModel<GPUModelValue> with
         member __.Intensity(imgIn: GPUModelValue) =
+            ErrorMsg.Logger.Warning "NOTE: Intensity must be changed in order to accommodate the special case in which it is the identity"
             job {
-                let img = getBaseImg ()
+                let img = getBaseImg()
                 let! output = gpu().NewImageOnDevice(img, 1, Float32)
 
-                if img.NComponents > 1 then
-                    let! event =
+                let! event =
                         gpu()
                             .Run(
                                 "intensity",
@@ -171,9 +171,7 @@ type GPUModel() =
                                 None
                             )
 
-                    return GPUModelValue(output,[| event |])
-                else
-                    return imgIn
+                return GPUModelValue(output,[| event |])            
             }
 
         member __.Red(imgIn: GPUModelValue) =
@@ -816,11 +814,12 @@ type GPUModel() =
 
                     // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
+                    do! (tmp :> IDisposableJob).Dispose
                     return GPUModelValue(output, gEvt = [||] ) // No event returned as we waited for the event already to read the flag
                 }
 
 
-            Lock.duringJob shamefulLock <|
+            Lock.duringJob shamefulLock <| // TODO change this to a multi-image allocation function on the GPU (this is here to avoid starvation)
                 job {                
                     let baseImg = getBaseImg ()
 
@@ -876,6 +875,7 @@ type GPUModel() =
                                 None
                             )
 
+                    do! (tmp :> IDisposableJob).Dispose
                     return GPUModelValue(output,[| resultEvent |])
 
                 }

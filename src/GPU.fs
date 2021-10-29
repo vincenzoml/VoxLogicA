@@ -59,19 +59,14 @@ type Pool() =
     let mutable waitingList = []
 
     member __.Put (x : nativeint) =
-        ErrorMsg.Logger.Debug "A"
         lock lck (fun () -> 
-                    ErrorMsg.Logger.Debug "B"
+                    ErrorMsg.Logger.DebugOnly "PUT"
                     match waitingList with
                     | [] -> 
-                        ErrorMsg.Logger.Debug "C"
                         queue <- x::queue
                         Job.result()
                     | y::ys -> 
-                        ErrorMsg.Logger.Debug "D"
-                        printfn "fill"
                         waitingList <- ys
-                        ErrorMsg.Logger.Debug <| sprintf "WAITING: %d" (List.length ys)
                         IVar.fill y x) 
         
 
@@ -86,20 +81,17 @@ type Pool() =
         }
 
     member __.Wait () =           
-        ErrorMsg.Logger.Debug "H"              
         let r = lock lck (fun () -> 
-                ErrorMsg.Logger.Debug "I"              
                 match queue with
                 | [] -> 
-                    ErrorMsg.Logger.Debug "J"              
                     let iv = new IVar<_>()     
                     waitingList <- iv::waitingList                 
                     IVar.read iv
                 | x::xs ->
-                    ErrorMsg.Logger.Debug "K"              
                     queue <- xs
                     Alt.always x)
         r
+
 type ImageKey = {
     NComponents : int
     BufferType : PixelType
@@ -123,15 +115,11 @@ type GPUMemory() =
                     pools.[key] <- r
                     r
             )
-        ErrorMsg.Logger.Debug "PUT"
         pool.Put mem        
 
     static member Wait key =
-        ErrorMsg.Logger.Debug "W1"
         let pool =
-            ErrorMsg.Logger.Debug "W2"
             lock globalLock (fun () ->
-                ErrorMsg.Logger.Debug "W3"
                 try 
                     pools.[key]
 
@@ -141,7 +129,6 @@ type GPUMemory() =
                     r
             )
         
-        ErrorMsg.Logger.Debug "W4"
         pool.Wait()
 
     static member Get key = 
@@ -185,7 +172,6 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
 type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) =     
     inherit GPUValue<VoxImage>() 
     override __.Delete =
-        ErrorMsg.Logger.Debug "DELETE GPUIMAGE"
         GPUMemory.Put (Image { 
             NComponents = nComponents
             BufferType = bufferType
@@ -448,17 +434,15 @@ and GPU(kernelsFilename : string, dimension : int) =
             }
         
         job {
-                let mutable p = None 
-                do! Job.whileDo (fun () -> p = None) <| job {                     
-                        if imageCount < 250 then 
-                            //ErrorMsg.Logger.Debug "N"                     
-                            imageCount <- imageCount + 1
-                            p <- Some <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
-                        else                      
-                            System.Threading.Thread.Sleep 100
-                            let! q = GPUMemory.Get memoryKey
-                            p <- q
-                }
+                ErrorMsg.Logger.DebugOnly "ALLOC"
+                
+                let! p =
+                    if imageCount < 20 then 
+                        imageCount <- imageCount + 1
+                        Alt.always <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+                    else
+                        GPUMemory.Wait memoryKey                    
+                
                             //ErrorMsg.Logger.Debug "O"              
                             //let r = GPUMemory.Wait memoryKey                      
                             //a <- 1
@@ -471,12 +455,13 @@ and GPU(kernelsFilename : string, dimension : int) =
                 // let! p = pw             
                 // ErrorMsg.Logger.Debug <| sprintf "Q%d" a
                 
-                return GPUImage(Option.get p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+                return GPUImage(p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         }
         
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
+            ErrorMsg.Logger.DebugOnly <| sprintf "%A RUN" kernelName
             // System.Threading.Thread.Sleep(10)
 
             // ErrorMsg.Logger.Debug <| sprintf "start %A" kernelName
@@ -521,7 +506,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                         fn localWorkSize'            
                     { EventPointer = event.[0] }                    
                 )
-            let! _ = Job.queue <| job {                
+            let! _ = Job.start <| job {                
                 this.Wait [|res|]     
                 // ErrorMsg.Logger.Debug <| sprintf "finish %A" kernelName
                 do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )
