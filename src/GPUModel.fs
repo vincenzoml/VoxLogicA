@@ -698,7 +698,7 @@ type GPUModel() =
                 job {
                     let bimg = getBaseImg ()
 
-                    let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |])
+                    let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |]) // TODO: leak
                     let! output' = gpu().NewImageOnDevice(bimg, 4, Float32)
                     let mutable output = output'
                     let! tmp' = gpu().NewImageOnDevice(bimg, 4, Float32)
@@ -876,6 +876,7 @@ type GPUModel() =
                             )
 
                     do! (tmp :> IDisposableJob).Dispose
+                    do! (tmpResult :> IDisposableJob).Dispose
                     return GPUModelValue(output,[| resultEvent |])
 
                 }

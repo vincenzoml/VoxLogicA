@@ -5,4 +5,4 @@ export VOXLOGICA_PRINT_LOGS=1
 #(sleep 4 && killall VoxLogicA) &
 rm -rf output-gpu output-gpu.txt
 time VOXLOGICA=/home/vincenzo/data/local/repos/VoxLogicA/src/bin/release/net5.0/linux-x64/VoxLogicA /home/VoxLogicA/scripts/run_analysis.sh BraTS_2019_HGG_Augmented#1case /home/VoxLogicA/specifications/gen_GBM-test-GPU.imgql output-gpu | tee output-gpu.txt
-#time /home/VoxLogicA/scripts/run_analysis.sh BraTS_2019_HGG_Augmented#1case /home/VoxLogicA/specifications/gen_GBM-test-GPU.imgql output-gpu
+time /home/VoxLogicA/scripts/run_analysis.sh BraTS_2019_HGG_Augmented#1case /home/VoxLogicA/specifications/gen_GBM-test-GPU.imgql output-gpu

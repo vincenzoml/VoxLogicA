@@ -60,7 +60,7 @@ type Pool() =
 
     member __.Put (x : nativeint) =
         lock lck (fun () -> 
-                    ErrorMsg.Logger.DebugOnly "PUT"
+                    ErrorMsg.Logger.DebugOnly "PUT"                    
                     match waitingList with
                     | [] -> 
                         queue <- x::queue
@@ -72,6 +72,7 @@ type Pool() =
 
     member __.Get () =
         job {
+            ErrorMsg.Logger.DebugOnly "GET"
             return lock lck (fun () -> 
                 match queue with
                 | [] -> None
@@ -81,6 +82,7 @@ type Pool() =
         }
 
     member __.Wait () =           
+        ErrorMsg.Logger.DebugOnly "WAIT"
         let r = lock lck (fun () -> 
                 match queue with
                 | [] -> 
@@ -107,6 +109,7 @@ type GPUMemory() =
     static let pools = new Dictionary<MemoryKey,Pool>()
     
     static member Put key mem = 
+        ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A" key
         let pool = 
             lock globalLock (fun () -> 
                 try pools.[key]
@@ -118,6 +121,7 @@ type GPUMemory() =
         pool.Put mem        
 
     static member Wait key =
+        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A" key
         let pool =
             lock globalLock (fun () ->
                 try 
@@ -132,6 +136,7 @@ type GPUMemory() =
         pool.Wait()
 
     static member Get key = 
+        ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" key
         lock globalLock (fun () ->
             try 
                 pools.[key].Get()
@@ -435,9 +440,9 @@ and GPU(kernelsFilename : string, dimension : int) =
         
         job {
                 ErrorMsg.Logger.DebugOnly "ALLOC"
-                
+                ErrorMsg.Logger.DebugOnly <| sprintf "Image count: %d" imageCount
                 let! p =
-                    if imageCount < 20 then 
+                    if imageCount < 200 then 
                         imageCount <- imageCount + 1
                         Alt.always <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else

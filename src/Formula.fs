@@ -51,7 +51,15 @@ and FormulaFactory() =
         phi
 
     member this.CreateConst (x,t) = this.Create (new Constant(x,t)) [||]  
-
-
+ 
     member __.Count = uif.Count    
     member __.Item i = uif.[i]
+
+    member this.AsDot =
+        let mutable str = "digraph {"
+        for i = 0 to this.Count-1 do
+            let item = this.[i]            
+            str <- str + sprintf "%d [label=\"%s [%d]\"];\n" item.Uid item.Operator.Name item.Uid
+            for target in item.Arguments do                
+                str <- str + sprintf "%d -> %d;\n" item.Uid target.Uid 
+        str + "\n}"

@@ -165,6 +165,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                             // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: About to save image: %A" <| res.GetHashCode())
                             let info = model.Save filename res
                             ErrorMsg.Report.Save (fname,typ.ToString(), info, rpath)
+                            do! checker.Unref formula // Very important 
                         }
                     evaluate env parsedImports rest (j :: jobs)
                 else
@@ -185,6 +186,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                             let! res = checker.Get formula
                             ErrorMsg.Logger.Result name res
                             ErrorMsg.Report.Print (name,typ.ToString(),res.ToString())
+                            do! checker.Unref formula
                         }
 
                     evaluate env parsedImports rest (j :: jobs)

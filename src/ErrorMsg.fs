@@ -78,3 +78,4 @@ type Logger private () =
     static member DebugExn(exn: exn) =
         Logger.Debug
         <| if isDebug () then exn.ToString() else exn.Message
+
