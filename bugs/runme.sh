@@ -1,5 +1,6 @@
 #!/bin/bash
 
+(cd ../src && make)
 
 for m in cpu gpu; do
 fmla=x

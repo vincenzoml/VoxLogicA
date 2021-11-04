@@ -1,0 +1,20 @@
+let grow(a,b) = (a|touch(b,a))
+let smoothen5(a) = N N N N N I I I I I a
+let smoothen2(a) = N N I I a
+
+load imgPFLAIR$MNAME = "$INPUTDIR/pflair.nii.gz"
+let pflair$MNAME = intensity(imgPFLAIR$MNAME)
+
+let background$MNAME = touch(flair$MNAME <. 0.1,border$MNAME)
+let brain$MNAME = !background$MNAME
+
+let hI$MNAME = pflair$MNAME >. 0.95 
+let vI$MNAME = pflair$MNAME >. 0.86 
+let hyperIntense$MNAME = smoothen5(hI$MNAME)
+let veryIntense$MNAME = smoothen2(vI$MNAME) 
+
+let growTum$MNAME = grow(hyperIntense$MNAME,veryIntense$MNAME)
+
+save "$OUTPUTDIR/growTum$NAME.nii.gz" growTum$MNAME
+
+

@@ -442,7 +442,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                 ErrorMsg.Logger.DebugOnly "ALLOC"
                 ErrorMsg.Logger.DebugOnly <| sprintf "Image count: %d" imageCount
                 let! p =
-                    if imageCount < 200 then 
+                    if imageCount < 3 then 
                         imageCount <- imageCount + 1
                         Alt.always <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else
@@ -495,14 +495,8 @@ and GPU(kernelsFilename : string, dimension : int) =
                     use events'' = fixed events
                     let events' = if events.Length > 0 then events'' else nullPtr
                     let rec fn (localWorkSize' : nativeptr<unativeint>) = 
-                        // try 
-                            checkErr <|                 
-                                API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
-                        // with GPUException c as x -> 
-                            // if c = -4 then 
-                            //     System.Threading.Thread.Sleep(5)
-                            //     fn localWorkSize'
-                            // else raise x
+                        checkErr <|                 
+                            API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
                     match oLocalWorkSize with
                     | None -> fn uNullPtr
                     | Some localWorkSize ->
