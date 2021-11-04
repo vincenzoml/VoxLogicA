@@ -1,0 +1,14 @@
+load img="flair.nii.gz"
+let x=intensity(img) >. 100
+
+save "out-cpu/x.nii.gz" x
+save "out-cpu/1.nii.gz" x
+save "out-cpu/2.nii.gz" N x
+save "out-cpu/3.nii.gz" N N x
+save "out-cpu/4.nii.gz" N N N x
+save "out-cpu/5.nii.gz" N N N N x
+save "out-cpu/6.nii.gz" N N N N N x
+save "out-cpu/7.nii.gz" N N N N N N x
+save "out-cpu/8.nii.gz" N N N N N N N x
+save "out-cpu/9.nii.gz" N N N N N N N N x
+save "out-cpu/10.nii.gz" N N N N N N N N N x
