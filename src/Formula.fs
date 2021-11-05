@@ -46,11 +46,12 @@ and FormulaFactory() =
         let kargs = List.ofArray <| Array.mapi (fun _ (phi : Formula) -> phi.Uid) arguments 
         // kargs is a list as a key instead of an array for consistent hashing; don't change this without changing also the dictionary comparer in UniqueFactory
         let key = (operator.Name,kargs)
-        let (uid,phi) = uif.Add(key,fun uid -> new Formula(operator, arguments, uid))        
+        ErrorMsg.Logger.DebugOnly <| sprintf "FormulaFactory.Create: key: %A" key
+        let (uid,phi) = uif.Add(key,fun uid -> Formula(operator, arguments, uid))        
         assert(uid = phi.Uid)
         phi
 
-    member this.CreateConst (x,t) = this.Create (new Constant(x,t)) [||]  
+    member this.CreateConst (x,t) = this.Create (Constant(x,t)) [||]  
  
     member __.Count = uif.Count    
     member __.Item i = uif.[i]

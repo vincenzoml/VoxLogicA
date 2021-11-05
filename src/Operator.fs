@@ -53,8 +53,8 @@ type Operator(name : string, argtype : array<Type>, rettype : Type, fn : array<o
 
 and Constant(x,t) =
     inherit Operator(
-        (   //ErrorMsg.Logger.DebugOnly(sprintf "Warning: creating a constant calling the ToString() method on an object of type %A; check that the ToString() method is as unique as you want your objects to be." <| x.GetType());
-            x.ToString()),
+        (   ErrorMsg.Logger.DebugOnly(sprintf "Warning: creating a constant calling the GetHashCode() method on an object of type %A; check that there are no duplicates." <| x.GetType());
+            x.GetHashCode().ToString()),
         [||],t,(fun _ -> Job.result (x :> obj)),false,true)
 
 and OperatorFactory() =

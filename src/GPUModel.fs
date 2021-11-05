@@ -101,7 +101,7 @@ type GPUModel() =
         gpuval <-
             match gpuval with
             | None -> Some(GPU(kernelFile, dim))
-            | Some (y) as x -> x
+            | Some (_) as x -> x
 
         let res =
             match baseImg with
