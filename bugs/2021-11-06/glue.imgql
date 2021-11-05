@@ -1,0 +1,6 @@
+load imgPFLAIR$MNAME = "$INPUTDIR/pflair.nii.gz"
+let pflair$MNAME = intensity(imgPFLAIR$MNAME)
+
+save "$OUTPUTDIR/res-$NAME.nii.gz" pflair$MNAME
+
+
