@@ -297,7 +297,7 @@ type VoxImage private (img : Image,uniqueName : string) =
     new (img : VoxImage, pixeltype : PixelIDValueEnum) =        
         new VoxImage(
                 allocate(img.Image,pixeltype),
-                (   Logger.DebugOnly <| sprintf "Allocating image from %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
+                (   Logger.DebugOnly <| sprintf "Allocating image based on %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
                     sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))
 
     new (img : VoxImage, ncomponents : int, pixeltype : PixelIDValueEnum) =

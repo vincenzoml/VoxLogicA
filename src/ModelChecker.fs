@@ -34,16 +34,15 @@ type ModelChecker(model : IModel) =
                     let n = !r - 1
                     r := n
                     (o,n))
-        ErrorMsg.Logger.DebugOnly <| sprintf "arg: %d oldrefs: %d newrefs: %d" i oldrefc newrefc
+        ErrorMsg.Logger.DebugOnly <| sprintf "Model checker deref: %d oldrefs: %d newrefs: %d" i oldrefc newrefc
         if newrefc <= 0 then 
-            ErrorMsg.Logger.DebugOnly <| sprintf "disposing %d" i
+            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker disposing %d" i
             let! y = cache.[i]
-            ErrorMsg.Logger.DebugOnly <| sprintf "read cache: %A" y
+            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker read from cache: %d=%A" i (y.GetHashCode())
             let dispose = 
                 try (y :?> IDisposableJob).Dispose
                 with :? System.InvalidCastException -> job { return () }
-            do! (Job.start dispose)
-            ErrorMsg.Logger.DebugOnly "dispose running"
+            do! (Job.start dispose)            
     }
     let startChecker i (referenceCount : array<ref<int>>) = 
         job {   
@@ -55,7 +54,7 @@ type ModelChecker(model : IModel) =
                         (job {  // cache.[f'.Uid] below never fails !
                                 // because formula uids give a topological sort of the dependency graph
                             let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
-                            ErrorMsg.Logger.DebugOnly (sprintf "About to execute: %s (id: %d)\nArguments: %A\nResults: %A" 
+                            ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
                                                             f.Operator.Name f.Uid 
                                                             (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
                                                             (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
@@ -65,16 +64,11 @@ type ModelChecker(model : IModel) =
                             /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
                             // printfn "about to compute %d" i
                             let! x = op.Eval (Array.ofSeq arguments)  
-                            // printfn "computed %d" i
-
-
-                            /// after this, lock, reference counts of arguments - 1, GC eventually, unlock
                                                                             
-                            ErrorMsg.Logger.DebugOnly (sprintf "Finished: %s (id: %d)" f.Operator.Name f.Uid)
-                            ErrorMsg.Logger.DebugOnly (sprintf "Result: %A" <| x.GetHashCode())                                               
+                            ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                        
                             do! IVar.fill iv x 
-                            for arg in formulaFactory.[i].Arguments do
-                                do! deref i
+                            for uid in Seq.distinct (Seq.map (fun (x : Formula) -> x.Uid) formulaFactory.[i].Arguments) do
+                                do! deref uid
                                 } )
                         (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.FillFailure (iv,exn))  
             cache.[i] <- IVar.read iv }

@@ -60,7 +60,7 @@ type Pool() =
 
     member __.Put (x : nativeint) =
         lock lck (fun () -> 
-                    ErrorMsg.Logger.DebugOnly "PUT"                    
+                    ErrorMsg.Logger.DebugOnly <| sprintf "PUT: %A" x 
                     match waitingList with
                     | [] -> 
                         queue <- x::queue
@@ -75,23 +75,28 @@ type Pool() =
             ErrorMsg.Logger.DebugOnly "GET"
             return lock lck (fun () -> 
                 match queue with
-                | [] -> None
+                | [] -> ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: None"; None
                 | x::xs -> 
                     queue <- xs
+                    ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: %A" x;
                     Some x)
         }
 
     member __.Wait () =           
-        ErrorMsg.Logger.DebugOnly "WAIT"
+        ErrorMsg.Logger.DebugOnly "WAIT started"
         let r = lock lck (fun () -> 
                 match queue with
                 | [] -> 
                     let iv = new IVar<_>()     
-                    waitingList <- iv::waitingList                 
-                    IVar.read iv
+                    waitingList <- iv::waitingList                                     
+                    job {
+                        let! r = IVar.read iv                    
+                        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT returned: %A" r 
+                        return r
+                    }
                 | x::xs ->
                     queue <- xs
-                    Alt.always x)
+                    Job.result x)
         r
 
 type ImageKey = {
@@ -109,7 +114,7 @@ type GPUMemory() =
     static let pools = new Dictionary<MemoryKey,Pool>()
     
     static member Put key mem = 
-        ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A" key
+        ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A %A" key mem
         let pool = 
             lock globalLock (fun () -> 
                 try pools.[key]
@@ -439,12 +444,11 @@ and GPU(kernelsFilename : string, dimension : int) =
             }
         
         job {
-                ErrorMsg.Logger.DebugOnly "ALLOC"
-                ErrorMsg.Logger.DebugOnly <| sprintf "Image count: %d" imageCount
+                ErrorMsg.Logger.DebugOnly <| sprintf "NewImageOnDevice: Image count: %d" imageCount
                 let! p =
-                    if imageCount < 2 then 
+                    if imageCount < 3 then 
                         imageCount <- imageCount + 1
-                        Alt.always <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+                        Job.result <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else
                         GPUMemory.Wait memoryKey                    
                 
@@ -466,7 +470,7 @@ and GPU(kernelsFilename : string, dimension : int) =
 
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
-            ErrorMsg.Logger.DebugOnly <| sprintf "%A RUN" kernelName
+            ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run kernelname %A %A" kernelName args
             // System.Threading.Thread.Sleep(10)
 
             // ErrorMsg.Logger.Debug <| sprintf "start %A" kernelName
@@ -502,12 +506,12 @@ and GPU(kernelsFilename : string, dimension : int) =
                     | Some localWorkSize ->
                         assert (globalWorkSize.Length = localWorkSize.Length)
                         use localWorkSize' = fixed (Array.map unativeint localWorkSize)            
-                        fn localWorkSize'            
+                        fn localWorkSize'
                     { EventPointer = event.[0] }                    
                 )
             let! _ = Job.start <| job {                
                 this.Wait [|res|]     
-                // ErrorMsg.Logger.Debug <| sprintf "finish %A" kernelName
+                ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run finished %A" kernelName
                 do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )
 
             }

@@ -1,0 +1,17 @@
+load img = "Brats17_2013_17_1_flair.nii.gz"
+
+let a = 900 .<= intensity(img)
+
+let f(x) = x .<= intensity(img)
+
+let O(x,y) = through(N N N I I I x,N N N I I I y)
+
+let g(x) = f(x) O f(x .+. 0.1)
+let h(x) = g(x .+. 0.2) O g(x .+. 0.3)
+let i(x) = h(x .+. 0.4) O h(x .+. 0.5)
+let j(x) = i(x .+. 0.6) O i(x .+. 0.7)
+let k(x) = j(x .+. 0.8) O j(x .+. 0.9)
+let l(x) = k(x .+. 1.0) O k(x .+. 1.1)
+let m(x) = l(x .+. 1.1) O l(x .+. 1.2)
+
+save "output/out.nii.gz" m(100)
