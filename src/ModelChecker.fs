@@ -49,7 +49,7 @@ type ModelChecker(model : IModel) =
             let iv = new IVar<_>()
             let f = formulaFactory.[i]
             let op = f.Operator                
-            do! Job.queue <|
+            do! Job.start <|
                     Job.tryWith                                                  
                         (job {  // cache.[f'.Uid] below never fails !
                                 // because formula uids give a topological sort of the dependency graph

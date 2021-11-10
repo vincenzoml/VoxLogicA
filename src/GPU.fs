@@ -15,7 +15,6 @@ exception GPUException of c : int
         override this.Message = sprintf "GPU error. Code: %d %s" this.c (System.Enum.GetName (LanguagePrimitives.EnumOfValue this.c : CLEnum))
         member this.Code = this.c
 
-
 exception GPUCompileException of s : string
     with override this.Message = sprintf "Could not compile GPU kernels:\n%s" this.s
 
@@ -446,11 +445,11 @@ and GPU(kernelsFilename : string, dimension : int) =
         job {
                 ErrorMsg.Logger.DebugOnly <| sprintf "NewImageOnDevice: Image count: %d" imageCount
                 let! p =
-                    if imageCount < 500 then 
+                    if imageCount < 200 then 
                         imageCount <- imageCount + 1
                         Job.result <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else
-                        GPUMemory.Wait memoryKey                    
+                        GPUMemory.Wait memoryKey
                 
                             //ErrorMsg.Logger.Debug "O"              
                             //let r = GPUMemory.Wait memoryKey                      
@@ -509,7 +508,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                         fn localWorkSize'
                     { EventPointer = event.[0] }                    
                 )
-            let! _ = Job.start <| job {                
+            let! _ = Job.queue <| job {                
                 this.Wait [|res|]     
                 ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run finished %A" kernelName
                 do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )

@@ -398,25 +398,36 @@ __kernel void castUInt8ToFloat32(__read_only IMG_T input,
 }
 
 __kernel void volume2D(__read_only image2d_t inputImage,
-                       __write_only image2d_t outputImage, float idx) { // IDX NON SERVE
+                       __write_only image2d_t outputImage,
+                       float idx) { // IDX NON SERVE
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
   unsigned int count = read_imagef(inputImage, sampler, gid).x;
 
-  if ((x % (int)idx * 2) == 0 && (y % (int)idx * 2) == 0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER TUTTE LE DIMENSIONI PRENDE LA SOMMA DEI "VICINI MAGGIORI" E LA SCRIVE NEL PUNTO CON COORDINATE LA META' DELLE SUE IN TUTTE LE DIMENSIONI
-    count = count + read_imagef(inputImage, sampler, (int2)(x, y + idx)).x; // IDX DIVENTA 1
+  if ((x % (int)idx * 2) == 0 &&
+      (y % (int)idx * 2) ==
+          0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER TUTTE LE
+               // DIMENSIONI PRENDE LA SOMMA DEI "VICINI MAGGIORI" E LA SCRIVE
+               // NEL PUNTO CON COORDINATE LA META' DELLE SUE IN TUTTE LE
+               // DIMENSIONI
+    count =
+        count +
+        read_imagef(inputImage, sampler, (int2)(x, y + idx)).x; // IDX DIVENTA 1
     count =
         count + read_imagef(inputImage, sampler, (int2)(x + idx, y + idx)).x;
     count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y)).x;
   }
   // printf("%f", val);
-  write_imagef(outputImage, gid, (float)count); // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
+  write_imagef(
+      outputImage, gid,
+      (float)count); // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE
+                     // LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
 }
 
 __kernel void readFirstPixel2D(__read_only image2d_t image,
-                            __global float result[1]) {                              
-  float f = read_imagef(image, sampler, (int2)(0,0)).x;
+                               __global float result[1]) {
+  float f = read_imagef(image, sampler, (int2)(0, 0)).x;
   result[0] = (float)(f);
 }
 
@@ -521,8 +532,9 @@ __kernel void iterateCCL3D(__read_only image3d_t inputImage1,
         }
       }
     }
-    write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
-  }
+    // write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
+    
+  } else { write_imagef(outImage1, gid, input1); } // TODO: URGENT: check with Laura
 }
 
 __kernel void resetFlag(__global char flag[1]) { flag[0] = 0; }
@@ -565,6 +577,13 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   }
 }
 
+__kernel void tmpREMOVEME(__read_only image3d_t inputImage1,
+                          __write_only image3d_t outImage1) {
+  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);            
+  float4 input1 = read_imagef(inputImage1, sampler, gid);
+  write_imagef(outImage1, gid, input1);
+}
+
 __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
                              __write_only image3d_t outImage1,
                              __global char flag[1]) {
@@ -581,11 +600,12 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
   float orig =
       input1.w; // original boolean image (see the initialization kernel)
 
-  float4 max = (float4)(currentx, currenty, currentz, orig);
+  float4 max = input1;
 
   unsigned int toFlag = 0;
 
-  if (orig == 2) {
+  if (orig == 2) { // we use the value 2 due to clamping using 1 in the alpha
+                   // channel for the result of out-of-border pixel reads
     for (int a = -1; a <= 1; a++)
       for (int b = -1; b <= 1; b++) {
         for (int c = -1; c <= 1; c++) {
@@ -595,7 +615,10 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
               ((tmpb.x > max.x) || (tmpb.x == max.x && tmpb.y > max.y) ||
                (tmpb.x == max.x && tmpb.y == max.y && tmpb.z > max.z)) &&
               (tmpb.w == 2);
-          max = (float4)(tmpcondition * tmpb.x + (!tmpcondition * max.x),
+          max = (float4)(tmpcondition * tmpb.x +
+                             (!tmpcondition *
+                              max.x), // TODO: can this line be changed into "if
+                                      // (tmpcondition) max = ...." ?
                          tmpcondition * tmpb.y + (!tmpcondition * max.y),
                          tmpcondition * tmpb.z + (!tmpcondition * max.z), orig);
           toFlag = toFlag || tmpcondition;
@@ -606,7 +629,7 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
   if (toFlag) {
     flag[0] = 1;
     write_imagef(outImage1, (int4)(currentx, currenty, currentz, 0), max);
-  }
+  } // TODO: note that the pixels in the output image that are not written here, do NOT correspond to the last iteration but to the previous one. Fix this by using a copy kernel before this one.
 }
 
 /********************* THROUGH *********************/
