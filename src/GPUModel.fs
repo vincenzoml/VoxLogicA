@@ -412,7 +412,7 @@ type GPUModel() =
                 return GPUModelValue(output, [||])
             }
 
-        member __.LCC img =
+        member __.LCC img = // TODO: URGENT: see the changes to this in through ; use this instead of the copy in through
             job {
                 let bimg = getBaseImg ()
 

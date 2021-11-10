@@ -493,7 +493,7 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
   }
 }
 
-__kernel void iterateCCL3D(__read_only image3d_t inputImage1,
+__kernel void iterateCCL3D(__read_only image3d_t inputImage1, // TODO: URGENT: make the 2d version similar to this
                            __write_only image3d_t outImage1) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
 
@@ -532,7 +532,7 @@ __kernel void iterateCCL3D(__read_only image3d_t inputImage1,
         }
       }
     }
-    // write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
+    write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
     
   } else { write_imagef(outImage1, gid, input1); } // TODO: URGENT: check with Laura
 }
