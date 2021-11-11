@@ -445,7 +445,7 @@ and GPU(kernelsFilename : string, dimension : int) =
         job {
                 ErrorMsg.Logger.DebugOnly <| sprintf "NewImageOnDevice: Image count: %d" imageCount
                 let! p =
-                    if imageCount < 400 then 
+                    if imageCount < 200 then 
                         imageCount <- imageCount + 1
                         Job.result <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else

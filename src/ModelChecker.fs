@@ -96,7 +96,7 @@ type ModelChecker(model : IModel) =
                 alreadyChecked <- formulaFactory.Count                  }
     member __.Get (f : Formula) =  
         let r = referenceCount.[f.Uid]
-        lock r (fun () -> r := !r + 1)
+        lock r (fun () -> r := !r + 1) 
         cache.[f.Uid]   
 
     member __.Unref (f : Formula) =

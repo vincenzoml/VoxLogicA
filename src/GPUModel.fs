@@ -704,7 +704,7 @@ type GPUModel() =
                 return GPUModelValue(output, gEvt = [| event |])
             }
 
-        member this.Through (img: GPUModelValue) (img2: GPUModelValue) = // TODO: make multiple allocation transactional
+        member this.Through (img: GPUModelValue) (img2: GPUModelValue) = // TODO: URGENT: make multiple allocation transactional
             let lcc (img: GPUModelValue) =
                 job {
                     let bimg = getBaseImg ()
