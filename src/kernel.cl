@@ -167,9 +167,10 @@ __kernel void erode3D(__read_only image3d_t inputImage,
       }
     }
     write_imageui(outputImage, coord, (!found));
-  } else {
-    write_imageui(outputImage, coord, 0);
-  }
+  } 
+  // else {
+  //   write_imageui(outputImage, coord, 0);
+  // }
 }
 
 __kernel void booleanImg(__write_only IMG_T outputImage, float val) {
@@ -493,8 +494,10 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
   }
 }
 
-__kernel void iterateCCL3D(__read_only image3d_t inputImage1, // TODO: URGENT: make the 2d version similar to this
-                           __write_only image3d_t outImage1) {
+__kernel void iterateCCL3D(
+    __read_only image3d_t
+        inputImage1, // TODO: URGENT: make the 2d version similar to this
+    __write_only image3d_t outImage1) {
   int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
 
   float4 input1 = read_imagef(inputImage1, sampler, gid);
@@ -533,8 +536,10 @@ __kernel void iterateCCL3D(__read_only image3d_t inputImage1, // TODO: URGENT: m
       }
     }
     write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
-    
-  } else { write_imagef(outImage1, gid, input1); } // TODO: URGENT: check with Laura
+
+  } else {
+    write_imagef(outImage1, gid, input1);
+  } // TODO: URGENT: check with Laura
 }
 
 __kernel void resetFlag(__global char flag[1]) { flag[0] = 0; }
@@ -577,9 +582,9 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
   }
 }
 
-__kernel void tmpREMOVEME(__read_only image3d_t inputImage1,
-                          __write_only image3d_t outImage1) {
-  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);            
+__kernel void copy(__read_only IMG_T inputImage1,
+                   __write_only IMG_T outImage1) {
+  INIT_GID(gid)
   float4 input1 = read_imagef(inputImage1, sampler, gid);
   write_imagef(outImage1, gid, input1);
 }
@@ -629,7 +634,9 @@ __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
   if (toFlag) {
     flag[0] = 1;
     write_imagef(outImage1, (int4)(currentx, currenty, currentz, 0), max);
-  } // TODO: note that the pixels in the output image that are not written here, do NOT correspond to the last iteration but to the previous one. Fix this by using a copy kernel before this one.
+  } // TODO: note that the pixels in the output image that are not written here,
+    // do NOT correspond to the last iteration but to the previous one. Fix this
+    // by using a copy kernel before this one.
 }
 
 /********************* THROUGH *********************/

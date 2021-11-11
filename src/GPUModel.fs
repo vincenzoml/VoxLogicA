@@ -733,14 +733,27 @@ type GPUModel() =
                         else
                             "reconnectCCL3D"
 
-                    let! evt0 =
+                    let! evt0' =
                         gpu()
                             .Run(
                                 kernelInit,
                                 img.GEvt,
                                 seq {
-                                    img.GVal :> KernelArg
-                                    meaningful :> KernelArg
+                                    img.GVal 
+                                    meaningful
+                                },
+                                bimg.Size,
+                                None
+                            )
+
+                    let! evt0 =
+                        gpu()
+                            .Run(
+                                "copy",
+                                [|evt0'|],
+                                seq {
+                                    img.GVal 
+                                    temporary
                                 },
                                 bimg.Size,
                                 None
