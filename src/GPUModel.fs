@@ -733,7 +733,7 @@ type GPUModel() =
                         else
                             "reconnectCCL3D"
 
-                    let! evt0' =
+                    let! evt0 =
                         gpu()
                             .Run(
                                 kernelInit,
@@ -750,7 +750,7 @@ type GPUModel() =
                         gpu()
                             .Run(
                                 "copy",
-                                [|evt0'|],
+                                [|evt0|],
                                 seq {
                                     img.GVal 
                                     temporary
@@ -818,7 +818,7 @@ type GPUModel() =
 
 
             //Lock.duringJob shamefulLock <| // TODO change this to a multi-image allocation function on the GPU (this is here to avoid starvation)
-            job {
+            let _ = job {
                 let baseImg = getBaseImg ()
 
                 let! tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
@@ -881,8 +881,15 @@ type GPUModel() =
                         do! (tmpResult :> IDisposableJob).Dispose
                         }
 
-                return GPUModelValue(output, [| resultEvent |])
-            }            
+                return tmpResult // GPUModelValue(output, [| resultEvent |])
+            } 
+
+            job {
+                let bimg = getBaseImg()
+                let! tmp = gpu().NewImageOnDevice(bimg,1,UInt8)
+                let! evt0 = gpu().Run("copy",img.GEvt, seq {img.GVal;tmp},bimg.Size,None)
+                return GPUModelValue(tmp,[|evt0|])
+            }           
 
         member __.Interior imgIn =
             job {

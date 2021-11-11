@@ -585,8 +585,8 @@ __kernel void reconnectCCL(__read_only image2d_t inputImage1,
 __kernel void copy(__read_only IMG_T inputImage1,
                    __write_only IMG_T outImage1) {
   INIT_GID(gid)
-  float4 input1 = read_imagef(inputImage1, sampler, gid);
-  write_imagef(outImage1, gid, input1);
+  uint4 input1 = read_imageui(inputImage1, sampler, gid);
+  write_imageui(outImage1, gid, input1);
 }
 
 __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
