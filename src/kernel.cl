@@ -168,9 +168,9 @@ __kernel void erode3D(__read_only image3d_t inputImage,
     }
     write_imageui(outputImage, coord, (!found));
   } 
-  // else {
-  //   write_imageui(outputImage, coord, 0);
-  // }
+  else {
+    write_imageui(outputImage, coord, 0);
+  }
 }
 
 __kernel void booleanImg(__write_only IMG_T outputImage, float val) {
@@ -537,9 +537,10 @@ __kernel void iterateCCL3D(
     }
     write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
 
-  } else {
+  } 
+  else {
     write_imagef(outImage1, gid, input1);
-  } // TODO: URGENT: check with Laura
+  } // TODO: URGENT: check with Laura. This "else", in principle, could be removed.
 }
 
 __kernel void resetFlag(__global char flag[1]) { flag[0] = 0; }
@@ -668,6 +669,7 @@ __kernel void initThrough3D(__read_only image3d_t inputImage1,
 
   if (input1.x > 0 && input2.w == 2)
     write_imageui(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), 1);
+    WHAT DO YOU WRITE HERE??  
 }
 
 // Takes the output of LCC and the temporary output of the

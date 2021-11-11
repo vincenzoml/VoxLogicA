@@ -746,18 +746,18 @@ type GPUModel() =
                                 None
                             )
 
-                    let! evt0 =
-                        gpu()
-                            .Run(
-                                "copy",
-                                [|evt0|],
-                                seq {
-                                    img.GVal 
-                                    temporary
-                                },
-                                bimg.Size,
-                                None
-                            )
+                    // let! evt0 =
+                    //     gpu()
+                    //         .Run(
+                    //             "copy",
+                    //             [|evt0|],
+                    //             seq {
+                    //                 img.GVal 
+                    //                 temporary
+                    //             },
+                    //             bimg.Size,
+                    //             None
+                    //         )
 
                     let rec iterate n evt meaningful temporary = // follows a double-buffering scheme on inp and out
                         job {
@@ -818,7 +818,7 @@ type GPUModel() =
 
 
             //Lock.duringJob shamefulLock <| // TODO change this to a multi-image allocation function on the GPU (this is here to avoid starvation)
-            let _ = job {
+            job {
                 let baseImg = getBaseImg ()
 
                 let! tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
@@ -828,8 +828,8 @@ type GPUModel() =
                 let! tmpResult = lcc img2
                 let lccImg = tmpResult.GVal
 
-                let tmpEvents =
-                    Seq.distinct (Array.append img.GEvt tmpResult.GEvt)
+                let newEvents =
+                    Array.distinct (Array.append img.GEvt tmpResult.GEvt)
 
                 let kernelInit =
                     if dim = 2 then
@@ -842,8 +842,6 @@ type GPUModel() =
                         "finalizeThrough"
                     else
                         "finalizeThrough3D"
-
-                let newEvents = Seq.toArray tmpEvents
 
                 let! event =
                     gpu()
@@ -859,37 +857,31 @@ type GPUModel() =
                             None
                         )
 
-                let! resultEvent =
-                    gpu()
-                        .Run(
-                            kernelFinalize,
-                            [| event |],
-                            seq {
-                                tmp
-                                lccImg
-                                output
-                            },
-                            baseImg.Size,
-                            None
-                        )
+                // let! resultEvent =
+                //     gpu()
+                //         .Run(
+                //             kernelFinalize,
+                //             [| event |],
+                //             seq {
+                //                 tmp
+                //                 lccImg
+                //                 output
+                //             },
+                //             baseImg.Size,
+                //             None
+                //         )
 
-                let! _ =
+                let! _ = 
                     Job.queue
                     <| job {
-                        gpu().Wait [| resultEvent |]
-                        do! (tmp :> IDisposableJob).Dispose
+                       //gpu().Wait [| resultEvent |]
+                        gpu().Wait [| event |]
+                        // do! (tmp :> IDisposableJob).Dispose // TODO: URGENT: put this back in its place
                         do! (tmpResult :> IDisposableJob).Dispose
                         }
 
-                return tmpResult // GPUModelValue(output, [| resultEvent |])
-            } 
-
-            job {
-                let bimg = getBaseImg()
-                let! tmp = gpu().NewImageOnDevice(bimg,1,UInt8)
-                let! evt0 = gpu().Run("copy",img.GEvt, seq {img.GVal;tmp},bimg.Size,None)
-                return GPUModelValue(tmp,[|evt0|])
-            }           
+                return GPUModelValue(tmp,[| event |]) // GPUModelValue(output, [| resultEvent |])
+            }    
 
         member __.Interior imgIn =
             job {
