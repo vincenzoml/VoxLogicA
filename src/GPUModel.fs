@@ -306,6 +306,18 @@ type GPUModel() =
                 let! tmp' = gpu().NewImageOnDevice(img1, 1, Float32)
                 let mutable tmp = tmp'
 
+                let kernelVolume =
+                    if dim = 3 then
+                        "volume3D"
+                    else
+                        "volume2D"
+
+                let kernelRead =
+                    if dim = 3 then
+                        "readFirstPixel3D"
+                    else
+                        "readFirstPixel2D"
+
                 let! evt' =
                     gpu()
                         .Run(
@@ -329,21 +341,20 @@ type GPUModel() =
                     tmp <- output
                     output <- temp
 
+                let mutable currentSize = img1.Size
+
                 // ARRAY DELLE DIMENSIONI, COPIATO COME VARIABILE
                 for i = 0 to iterations - 1 do // WHILE UNA DELLE DIMENSIONI E' MAGGIORE DI 1
-                    let f = gpu().Float32(float32 (pown 2 i))
-
                     let! event =
                         gpu()
                             .Run(
-                                "volume2D",
+                                kernelVolume,
                                 newEvent,
                                 seq {
-                                    tmp :> KernelArg
-                                    output :> KernelArg
-                                    f :> KernelArg
+                                    tmp
+                                    output
                                 },
-                                img1.Size, // VETTORE DELLE DIMENSIONI
+                                currentSize, // VETTORE DELLE DIMENSIONI
                                 None
                             )
 
@@ -352,12 +363,14 @@ type GPUModel() =
                     // x.Save(sprintf "output/iteration-%02d.png" i)
 
                     // AGGIUNGERE UNO ALLE DIMENSIONI DISPARI E DIMEZZARLE
-
                     newEvent <- [| event |]
                     swap ()
+                    for i in 0..currentSize.Length - 1 do
+                        if currentSize.[i] % 2 = 1 then
+                            currentSize.[i] <- currentSize.[i] + 1
+                            currentSize.[i] <- currentSize.[i] / 2
 
                 let mutable res: GPUValue<array<float32>> = gpu().CopyArrayToDevice([| 0f |])
-
                 // gpu().Wait(newEvent)
                 // let x = (VoxImage.Mult (tmp.Get(),float 256))
                 // x.Save("output/tmp.png")
@@ -365,7 +378,7 @@ type GPUModel() =
                 let! ev =
                     (gpu()
                         .Run(
-                            "readFirstPixel2D",
+                            kernelRead,
                             newEvent,
                             seq {
                                 tmp
