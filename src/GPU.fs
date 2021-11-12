@@ -49,7 +49,7 @@ type Pointer = private { Pointer : nativeint }
 
 type Event = private { EventPointer : nativeint }
 
-type Data = private { DataPointer : nativeint }
+type Data = { DataPointer : nativeint } // TODO: this was private
 
 type KArgType = Buffer of Data | Float of float32 
 type Pool() = 
@@ -358,53 +358,7 @@ and GPU(kernelsFilename : string, dimension : int) =
         let vptr = NativePtr.toVoidPtr vptr'
         let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,enum<CLEnum>(32),unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
         new GPUArray<'a>(ptr,v.Length,{ Pointer = queue }) :> GPUValue<array<'a>>
-
-    member this.CopyImageToDevice (hImgSource: VoxImage) =   
-        this.NewImageOnDevice(hImgSource,hImgSource.NComponents,hImgSource.BufferType)     
-        // let dimension =            
-        //     match hImgSource.Dimension with 
-        //     | 2 -> CLEnum.MemObjectImage2D
-        //     | 3 -> CLEnum.MemObjectImage3D
-        //     | d -> raise <| UnsupportedImageDimensionException(hImgSource.Dimension)
-        
-        // let channelOrder =
-        //     match hImgSource.NComponents with
-        //     | 1 -> CLEnum.Intensity
-        //     | 4 -> CLEnum.Rgba 
-        //     | c -> raise <| UnsupportedNumberOfComponentsPerPixelException c
-
-        // let channelDataType =
-        //     match hImgSource.BufferType with
-        //     | UInt8 -> CLEnum.UnsignedInt8
-        //     | Float32 -> CLEnum.Float                
-        
-        // let imgFormat = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
-        // use imgFormatPtr' = fixed [|imgFormat|]
-        // let imgFormatPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatPtr')
-        
-        // let (width,height,depth) = hImgSource.Size.[0],hImgSource.Size.[1],if hImgSource.Size.Length >= 3 then hImgSource.Size.[2] else 1
-        // let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
-        // use imgDescPtr' = fixed [|imgDesc|]
-        // let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
-        
-        // let ptr =
-        //     hImgSource.GetBufferAsFloat
-        //         (fun buf -> 
-        //             let imgPtr = NativePtr.toVoidPtr buf.Pointer            
-        //             checkErrPtr (fun p -> 
-        //                 API.CreateImage(
-        //                         context,
-        //                         //CLEnum.MemUseHostPtr,
-        //                         enum<CLEnum>(32), 
-        //                         // 32 = UseHostPointer
-        //                         // change the numeric constant to a symbolic one once https://github.com/dotnet/Silk.NET/issues/428 makes it to release (10th of April?)
-        //                         imgFormatPtr,
-        //                         imgDescPtr,
-        //                         imgPtr,
-        //                         p)))
-
-        // GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
-
+    
     member __.NewImageOnDevice (img: VoxImage,nComponents,bufferType) =
         let dimension =            
             match img.Dimension with 
@@ -460,7 +414,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                     //         0         
 
                     // if (uint64 c) * (uint64 nComponents) * (uint64 bufferType.Size) * (uint64 img.Width) * (uint64 img.Height) * (uint64 img.Depth) < 2000000000UL then 
-                    if c < 10 then
+                    if c < 20 then
                         ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
                         imageCount.[memoryKey] <- c + 1
                         Job.result <| 
@@ -480,6 +434,88 @@ and GPU(kernelsFilename : string, dimension : int) =
         }
         
 
+    member this.CopyImageToDevice (hImgSource: VoxImage) =         
+        // let dimension =            
+        //     match hImgSource.Dimension with 
+        //     | 2 -> CLEnum.MemObjectImage2D
+        //     | 3 -> CLEnum.MemObjectImage3D
+        //     | d -> raise <| UnsupportedImageDimensionException(hImgSource.Dimension)
+        
+        // let channelOrder =
+        //     match hImgSource.NComponents with
+        //     | 1 -> CLEnum.Intensity
+        //     | 4 -> CLEnum.Rgba 
+        //     | c -> raise <| UnsupportedNumberOfComponentsPerPixelException c
+
+        // let channelDataType =
+        //     match hImgSource.BufferType with
+        //     | UInt8 -> CLEnum.UnsignedInt8
+        //     | Float32 -> CLEnum.Float                
+        
+        // let imgFormat = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
+        // use imgFormatPtr' = fixed [|imgFormat|]
+        // let imgFormatPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatPtr') 
+        
+        // let (width,height,depth) = hImgSource.Size.[0],hImgSource.Size.[1],if hImgSource.Size.Length >= 3 then hImgSource.Size.[2] else 1
+        // let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
+        // use imgDescPtr' = fixed [|imgDesc|]
+        // let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
+        
+        // let ptr =
+        //     hImgSource.GetBufferAsFloat
+        //         (fun buf -> 
+        //             let imgPtr = NativePtr.toVoidPtr buf.Pointer            
+        //             checkErrPtr (fun p -> 
+        //                 API.CreateImage(
+        //                         context,
+        //                         //CLEnum.MemUseHostPtr,
+        //                         enum<CLEnum>(32), 
+        //                         // 32 = UseHostPointer
+        //                         // change the numeric constant to a symbolic one once https://github.com/dotnet/Silk.NET/issues/428 makes it to release (10th of April?)
+        //                         imgFormatPtr,
+        //                         imgDescPtr,
+        //                         imgPtr,
+        //                         p)))
+
+        use startPtr = fixed [|0un;0un;0un|]
+        use endPtr = fixed [|unativeint hImgSource.Size.[0];unativeint hImgSource.Size.[1];unativeint (if hImgSource.Size.Length >= 3 then hImgSource.Size.[2] else 1)|]            
+        
+        job {
+            let! res = this.NewImageOnDevice(hImgSource,hImgSource.NComponents,hImgSource.BufferType)     
+            let dataPointer = 
+                match res.Value with
+                | Buffer buf -> buf.DataPointer
+
+            match hImgSource.BufferType with
+            | UInt8 ->
+                hImgSource.GetBufferAsUInt8
+                    (fun buf -> 
+                        let ptr = NativePtr.toVoidPtr buf.Pointer
+                        checkErr <| API.EnqueueWriteImage(queue,dataPointer,true,startPtr,endPtr,0un,0un,ptr,0ul,nullPtr,nullPtr))                            
+            | Float32 ->
+                hImgSource.GetBufferAsFloat
+                    (fun buf -> 
+                        let ptr = NativePtr.toVoidPtr buf.Pointer
+                        checkErr <| API.EnqueueWriteImage(
+                                        queue,
+                                        dataPointer,
+                                        true,
+                                        startPtr,
+                                        endPtr,
+                                        0un,
+                                        0un,
+                                        ptr,
+                                        0ul,
+                                        nullPtr,
+                                        nullPtr))
+
+     
+            return res
+        }
+
+        // GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+
+  
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
             ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run kernelname %A %A" kernelName args
