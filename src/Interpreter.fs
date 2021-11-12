@@ -159,7 +159,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                         job {
                             let! res = checker.Get formula
                             let filename = System.IO.Path.GetFullPath fname
-                            let rpath = System.IO.Path.GetRelativePath(System.IO.Directory.GetCurrentDirectory(),filename)
+                            let rpath = Path.GetRelativePath(System.IO.Directory.GetCurrentDirectory(),filename)
                             let dirname = System.IO.Path.GetDirectoryName filename
                             ignore <| Directory.CreateDirectory(dirname)
                             // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: About to save image: %A" <| res.GetHashCode())

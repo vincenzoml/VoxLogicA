@@ -19,7 +19,13 @@ open itk.simple
 open System.IO
 open ErrorMsg
 
-type PixelType = UInt8 | Float32 
+type PixelType = 
+    UInt8 | Float32 
+    member this.Size =
+        match this with
+        | UInt8 -> 1
+        | Float32 -> 4
+
 
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s

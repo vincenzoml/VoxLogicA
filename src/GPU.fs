@@ -456,7 +456,8 @@ and GPU(kernelsFilename : string, dimension : int) =
                     //     with _ ->
                     //         imageCount.[memoryKey] <- 0
                     //         0         
-                    if c < 50 then 
+                    // if (uint64 c) * (uint64 nComponents) * (uint64 bufferType.Size) * (uint64 img.Width) * (uint64 img.Height) * (uint64 img.Depth) < 2000000000UL then 
+                    if c < 10 then
                         ErrorMsg.Logger.Debug <| sprintf "ALLOC %A %A" nComponents bufferType
                         imageCount.[memoryKey] <- c + 1
                         Job.result <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))

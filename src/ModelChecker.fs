@@ -23,6 +23,7 @@ type IWait =
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
+    //let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()
     let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0
     let mutable referenceCount = Array.init 0 (fun i -> ref 0)
@@ -112,6 +113,7 @@ type ModelChecker(model : IModel) =
             }
 
     member __.Get (f : Formula) =  
+        ErrorMsg.Logger.Debug <| sprintf "GET %A" f.Uid
         let r = referenceCount.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1) 
         cache.[f.Uid]   
