@@ -29,7 +29,7 @@ type Expression =
 
 type ParsedItem = 
     | Declaration of string * (string list) * Expression
-    | ModelLoad of string * string
+    // | ModelLoad of string * string
     | ModelSave of Position * string * Expression 
     | Print of Position * string * Expression
     | Import of string
@@ -76,7 +76,7 @@ let private parseExpression =
 
 let private command requireSpace s args =  attempt (skipString s) >>. (if requireSpace then spacesOrComment1 else spacesOrComment) >>. args .>> spacesOrComment
 let private lhs = ide <|> operator
-let private loadCommand = command true "load" ide .>> defeq .>>. strConst |>> ModelLoad
+// let private loadCommand = command true "load" ide .>> defeq .>>. strConst |>> ModelLoad
 let private saveCommand = getPosition .>>. command false "save" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> ModelSave (x,y,z))
 let private printCommand = getPosition .>>. command false "print" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Print (x,y,z))
 
@@ -84,7 +84,8 @@ let private importCommand = command false "import" strConst |>> Import
 let private letCommand = command true "let" (lhs .>>. optlst farglist .>>. (defeq >>. parseExpression)) |>> (fun ((x,y),z) -> Declaration (x,y,z))    
 let private file contents = spacesOrComment >>. contents .>> eof
 let private import = file <| many (importCommand <|> letCommand) 
-let private program = file <| many (choice [loadCommand; saveCommand; printCommand; importCommand; letCommand])
+//let private program = file <| many (choice [ loadCommand; saveCommand; printCommand; importCommand; letCommand])
+let private program = file <| many (choice [ saveCommand; printCommand; importCommand; letCommand])
 let private getResult res = 
     match res with  
         | Success (result,_,_) -> result

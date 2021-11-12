@@ -135,16 +135,16 @@ type Interpreter(model: IModel, checker: ModelChecker) =
     let interpreterJob libdir filename (model: #IModel) (checker: ModelChecker) (s: System.IO.Stream) =
         let rec evaluate (env: Env) (parsedImports: Set<string>) syn jobs =
             match syn with
-            | ModelLoad (ide, filename) :: rest -> job {
-                    let filename = System.IO.Path.GetFullPath filename
-                    // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelLoad \"%s\"" filename
-                    let! v = model.Load filename
-                    let fmla =
-                        checker.FormulaFactory.CreateConst(v, TModel)                 
-                    // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: loaded image %A name %s from file %s fmla uid %d" (v.GetHashCode()) ide filename fmla.Uid)
-                    let env = env.Add(ide, Form fmla)
-                    return! evaluate env parsedImports rest jobs 
-                }
+            // | ModelLoad (ide, filename) :: rest -> job {
+            //         let filename = System.IO.Path.GetFullPath filename
+            //         // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelLoad \"%s\"" filename
+            //         let! v = model.Load filename
+            //         let fmla =
+            //             checker.FormulaFactory.CreateConst(v, TModel)                 
+            //         // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: loaded image %A name %s from file %s fmla uid %d" (v.GetHashCode()) ide filename fmla.Uid)
+            //         let env = env.Add(ide, Form fmla)
+            //         return! evaluate env parsedImports rest jobs 
+            //     }
             | Declaration (ide, fargs, body) :: rest ->
                 // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: Declaration \"%s\"" ide
                 evaluate (env.Add(ide, Fun(fargs, body, env))) parsedImports rest jobs
