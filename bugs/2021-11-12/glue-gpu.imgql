@@ -18,5 +18,4 @@ let growTum$MNAME = grow(hyperIntense$MNAME,veryIntense$MNAME)
 //save "$OUTPUTDIR/growTum$MNAME.nii.gz" growTum$MNAME  
 // save "$OUTPUTDIR/false$MNAME.nii.gz" growTum$MNAME & ! growTum$MNAME 
 
-save "$OUTPUTDIR/growTum$MNAME.nii.gz" pflair$MNAME
-
+save "$OUTPUTDIR/growTum$MNAME.nii.gz" growTum$MNAME

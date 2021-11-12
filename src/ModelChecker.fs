@@ -99,7 +99,7 @@ type ModelChecker(model : IModel) =
                 for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount      
-                    if i % 1 = 0 then // TODO: URGENT: study this
+                    if i % 1 = 0 then // TODO: URGENT: deserialize!
                             ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
                             let! x = cache.[i]
                             ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Starting to wait for Uid %A" i

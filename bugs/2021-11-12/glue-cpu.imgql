@@ -1,3 +1,4 @@
+
 let grow(a,b) = (a|touch(b,a))
 let smoothen5(a) = N N N N N I I I I I a
 let smoothen2(a) = N N I I a
@@ -18,5 +19,4 @@ let growTum$MNAME = grow(hyperIntense$MNAME,veryIntense$MNAME)
 //save "$OUTPUTDIR/growTum$MNAME.nii.gz" growTum$MNAME  
 // save "$OUTPUTDIR/false$MNAME.nii.gz" growTum$MNAME & ! growTum$MNAME 
 
-save "$OUTPUTDIR/growTum$MNAME.nii.gz" pflair$MNAME
-
+save "$OUTPUTDIR/growTum$MNAME.nii.gz" growTum$MNAME

@@ -1,4 +1,4 @@
-DATASET=/ramdisk/1cases
+DATASET=/ramdisk/10cases
 
 
 
@@ -6,10 +6,10 @@ DATASET=/ramdisk/1cases
 SRC=../../src
 CLASSIC=../../../VoxLogicA.classic
 
-CONF=Debug      
+# CONF=Debug      
 BUILD=build-dbg 
-# CONF=release      
-# BUILD=build 
+CONF=release      
+BUILD=build 
 
 
 OUTPREFIX=/ramdisk/vince

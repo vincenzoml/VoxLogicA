@@ -138,7 +138,7 @@ type GPUModel() =
 
             ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())
 
-            let! img = (gpu().CopyImageToDevice res) 
+            let! img = (gpu().CopyImageToDevice res)         
 
             return GPUModelValue(img, [| |],gpu()) :> obj
         }
@@ -160,16 +160,17 @@ type GPUModel() =
     interface IImageModel<GPUModelValue> with
         member __.Intensity(imgIn: GPUModelValue) =
             ErrorMsg.Logger.Warning
-                "NOTE: Intensity must be changed in order to accommodate the special case in which it is the identity"
+                "NOTE: Intensity must be changed in order to accommodate the special case in which it is the identity"            
 
             job {
                 let img = getBaseImg ()
+                
                 let! output = gpu().NewImageOnDevice(img, 1, Float32)
 
                 let! event =
                     gpu()
                         .Run(
-                            "intensity",
+                            "copy",
                             imgIn.GEvt,
                             seq {
                                 imgIn.GVal
