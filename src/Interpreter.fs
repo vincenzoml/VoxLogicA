@@ -236,7 +236,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                 evaluate (emptyEnv ()) (Set.empty) (Import "stdlib.imgql" :: p) []
 
             ErrorMsg.Logger.Debug "Starting computation..."
-            do! checker.Check
+            do! Job.queue checker.Check // in parallel
             do! Util.Concurrent.conIgnore (Array.ofList jobs)
             ErrorMsg.Logger.Debug "... done."
         }

@@ -23,8 +23,8 @@ type IWait =
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
-    //let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()
-    let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
+    let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()
+    //let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
     let mutable alreadyChecked = 0
     let mutable referenceCount = Array.init 0 (fun i -> ref 0)
     let deref i = job {
@@ -40,7 +40,7 @@ type ModelChecker(model : IModel) =
         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker deref: %d oldrefs: %d newrefs: %d" i oldrefc newrefc
         if newrefc <= 0 then 
             ErrorMsg.Logger.Debug <| sprintf "Model checker disposing %d" i
-            let! y = cache.[i]
+            let! (y : obj) = IVar.read cache.[i]
             ErrorMsg.Logger.DebugOnly <| sprintf "Model checker read from cache: %d=%A" i (y.GetHashCode())
             let dispose = 
                 try (y :?> IDisposableJob).Dispose
@@ -49,7 +49,7 @@ type ModelChecker(model : IModel) =
     }
     let startChecker i (referenceCount : array<ref<int>>) = 
         job {   
-            let iv = new IVar<_>()
+            let iv = cache.[i]
             let f = formulaFactory.[i]
             let op = f.Operator                
             do! Job.start <|
@@ -74,7 +74,7 @@ type ModelChecker(model : IModel) =
                                 do! deref uid
                                 } )
                         (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.FillFailure (iv,exn))  
-            cache.[i] <- IVar.read iv }
+            cache.[i] <- iv }
                     
     member __.OperatorFactory = operatorFactory    
     member __.FormulaFactory = formulaFactory
@@ -88,8 +88,10 @@ type ModelChecker(model : IModel) =
         System.IO.File.WriteAllText("DebugFormulas.dot",this.FormulaFactory.AsDot)
         referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
         for i = 0 to formulaFactory.Count - 1 do            
+            cache.[i] <- new IVar<_>()
             for x in formulaFactory.[i].Arguments do
                 referenceCount.[x.Uid].Value <- referenceCount.[x.Uid].Value + 1
+
         // for i = 0 to formulaFactory.Count - 1 do
             // let f = formulaFactory.[i]
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
@@ -116,7 +118,7 @@ type ModelChecker(model : IModel) =
         ErrorMsg.Logger.Debug <| sprintf "GET %A" f.Uid
         let r = referenceCount.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1) 
-        cache.[f.Uid]   
+        IVar.read cache.[f.Uid]   
 
     member __.Unref (f : Formula) =
         deref f.Uid
