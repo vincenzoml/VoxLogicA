@@ -142,7 +142,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
 
                 let fmla =
                     checker.FormulaFactory.CreateConst(v, TModel)                 
-                ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: loaded image %A name %s from file %s fmla uid %d" (v.GetHashCode()) ide filename fmla.Uid)
+                // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: loaded image %A name %s from file %s fmla uid %d" (v.GetHashCode()) ide filename fmla.Uid)
                 let env = env.Add(ide, Form fmla)
                 evaluate env parsedImports rest jobs
             | Declaration (ide, fargs, body) :: rest ->

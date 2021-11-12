@@ -67,7 +67,7 @@ type ModelChecker(model : IModel) =
                             // printfn "about to compute %d" i
                             let! x = op.Eval (Array.ofSeq arguments)  
                                                                             
-                            ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                        
+                            ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                                                    
                             do! IVar.fill iv x 
                             for uid in Seq.distinct (Seq.map (fun (x : Formula) -> x.Uid) formulaFactory.[i].Arguments) do
                                 do! deref uid
@@ -96,11 +96,17 @@ type ModelChecker(model : IModel) =
                 for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount      
-                    if i % 30 = 0 then
-                            let! x = cache.[i]
-                            do! 
-                                try (x :?> IWait).Wait
-                                with :? System.InvalidCastException -> Job.result ()
+                    // if i % 100 = 0 then
+                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
+                    //         let! x = cache.[i]
+                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Starting to wait for Uid %A" i
+                    //         do! 
+                    //             try 
+                    //                 job {
+                    //                     do! (x :?> IWait).Wait
+                    //                     ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Finished waiting for Uid %A" i                        
+                    //                 }
+                    //             with :? System.InvalidCastException -> Job.result ()
                                                            
                 alreadyChecked <- formulaFactory.Count                  
             }

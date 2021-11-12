@@ -29,7 +29,7 @@ type GPUModelValue(gVal: GPUValue<VoxImage>, gEvt: array<Event>, gpu : GPU) =
         member __.Dispose = (gVal :> IDisposableJob).Dispose
     
     interface IWait with
-        member __.Wait = Job.result <| (printfn "wating on %A" gEvt; gpu.Wait(gEvt); printfn "done %A" gEvt)
+        member __.Wait = Job.result <| gpu.Wait(gEvt)
 
     member __.GVal = gVal
     member __.GEvt = gEvt
