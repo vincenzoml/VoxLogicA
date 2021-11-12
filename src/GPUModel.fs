@@ -800,7 +800,7 @@ type GPUModel() =
                                     None
                                 )                                   
 
-                        gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS // TODO: URGENT: evt2
+                        gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
                         meaningful <- t // double buffering again
                         temporary <- m // double buffering again 
                         
@@ -812,7 +812,7 @@ type GPUModel() =
                         else
                            terminated <- true                  
 
-                    do! (temporary :> IDisposableJob).Dispose // restore this dispose; // can be disposed here, as we waited for the event already to read the flag TODO: URGENT: restore this line
+                    do! (temporary :> IDisposableJob).Dispose // can be disposed here, as we waited for the event already to read the flag TODO: URGENT: restore this line
                     return GPUModelValue(meaningful, gEvt = [| |]) 
                 }
 
@@ -821,15 +821,18 @@ type GPUModel() =
             job {
                 let baseImg = getBaseImg ()
 
-                let! tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
+                // let! tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
 
-                let! output = gpu().NewImageOnDevice(baseImg, 1, UInt8)
-
-                let! tmpResult = lcc img2
-                let lccImg = tmpResult.GVal
+                let! tmpResult = (this :> IBooleanModel<_>).BConst false
+                let tmp = tmpResult.GVal
+                let! outputResult = (this :> IBooleanModel<_>).BConst false
+                let output = outputResult.GVal
+            
+                let! lccResult = lcc img2
+                let lccImg = lccResult.GVal                
 
                 let newEvents =
-                    Array.distinct (Array.append img.GEvt tmpResult.GEvt)
+                    Array.distinct (Array.concat [|img.GEvt; lccResult.GEvt; tmpResult.GEvt; outputResult.GEvt|])
 
                 let kernelInit =
                     if dim = 2 then
@@ -857,30 +860,29 @@ type GPUModel() =
                             None
                         )
 
-                // let! resultEvent =
-                //     gpu()
-                //         .Run(
-                //             kernelFinalize,
-                //             [| event |],
-                //             seq {
-                //                 tmp
-                //                 lccImg
-                //                 output
-                //             },
-                //             baseImg.Size,
-                //             None
-                //         )
+                let! resultEvent =
+                    gpu()
+                        .Run(
+                            kernelFinalize,
+                            [| event |],
+                            seq {
+                                tmp
+                                lccImg
+                                output
+                            },
+                            baseImg.Size,
+                            None
+                        )
 
                 let! _ = 
                     Job.queue
                     <| job {
-                       //gpu().Wait [| resultEvent |]
-                        gpu().Wait [| event |]
-                        // do! (tmp :> IDisposableJob).Dispose // TODO: URGENT: put this back in its place
-                        do! (tmpResult :> IDisposableJob).Dispose
+                        gpu().Wait [| resultEvent |]
+                        do! (tmp :> IDisposableJob).Dispose 
+                        do! (lccResult :> IDisposableJob).Dispose
                         }
 
-                return GPUModelValue(tmp,[| event |]) // GPUModelValue(output, [| resultEvent |])
+                return GPUModelValue(output, [| resultEvent |])
             }    
 
         member __.Interior imgIn =

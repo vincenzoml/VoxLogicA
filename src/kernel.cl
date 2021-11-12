@@ -590,6 +590,11 @@ __kernel void copy(__read_only IMG_T inputImage1,
   write_imageui(outImage1, gid, input1);
 }
 
+__kernel void fill(__write_only IMG_T outImage1,int value) {
+  INIT_GID(gid)
+  write_imageui(outImage1,gid,value);
+}
+
 __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
                              __write_only image3d_t outImage1,
                              __global char flag[1]) {
@@ -669,7 +674,7 @@ __kernel void initThrough3D(__read_only image3d_t inputImage1,
 
   if (input1.x > 0 && input2.w == 2)
     write_imageui(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), 1);
-    WHAT DO YOU WRITE HERE??  
+    // TODO: URGENT
 }
 
 // Takes the output of LCC and the temporary output of the
