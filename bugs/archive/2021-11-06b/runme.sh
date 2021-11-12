@@ -1,4 +1,6 @@
-(cd ../../src && make)|| exit 1
+SRC=../../../src
+
+(cd $SRC && make)|| exit 1
 
 #ITER=3
 
@@ -27,13 +29,13 @@ rm -rf output* input.imgql
 #     echo $?
 # done
 
-(../../src/bin/release/net5.0/linux-x64/VoxLogicA input.imgql && mv output output-gpu) || exit 1
+($SRC/bin/release/net5.0/linux-x64/VoxLogicA input.imgql && mv output output-gpu) || exit 1
 
 # dot -Tpdf DebugFormulas.dot  > DebugFormulas.pdf
 
 git checkout experimental || exit 1
-(cd ../../src && make)|| exit 1
-../../src/bin/release/net5.0/linux-x64/VoxLogicA input.imgql || (git checkout gpu-new; exit 1)
+(cd $SRC && make)|| exit 1
+$SRC/bin/release/net5.0/linux-x64/VoxLogicA input.imgql || (git checkout gpu-new; exit 1)
 mv output output-cpu
 
 git checkout gpu-new

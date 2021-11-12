@@ -92,8 +92,11 @@ type ModelChecker(model : IModel) =
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
         job {   for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
-                    do! startChecker i referenceCount                   
+                    do! startChecker i referenceCount      
+                    if i % 10 = 0 then
+                        ignore cache.[i]             
                 alreadyChecked <- formulaFactory.Count                  }
+
     member __.Get (f : Formula) =  
         let r = referenceCount.[f.Uid]
         lock r (fun () -> r := !r + 1) 
