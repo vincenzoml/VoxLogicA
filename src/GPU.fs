@@ -230,7 +230,8 @@ type Kernel =
         Pointer : Pointer     }    
 
 and GPU(kernelsFilename : string, dimension : int) =
-    static let mutable imageCount = 0
+    static let imageCount = Dictionary<_,_>(10)
+
     let mutex = ref ()
 
     let mutable dimensionIndex = 0
@@ -444,14 +445,24 @@ and GPU(kernelsFilename : string, dimension : int) =
             }
         
         job {
-                ErrorMsg.Logger.DebugOnly <| sprintf "NewImageOnDevice: Image count: %d" imageCount
                 let! p =
-                    if imageCount < 200 then 
-                        imageCount <- imageCount + 1
+                    let c = 
+                        if imageCount.ContainsKey memoryKey then 
+                            imageCount.[memoryKey] 
+                        else 
+                            imageCount.[memoryKey] <- 0
+                            0
+                    //     try imageCount.[memoryKey] // TODO: URGENT: this breaks memory, fsharp bug
+                    //     with _ ->
+                    //         imageCount.[memoryKey] <- 0
+                    //         0         
+                    if c < 50 then 
+                        ErrorMsg.Logger.Debug <| sprintf "ALLOC %A %A" nComponents bufferType
+                        imageCount.[memoryKey] <- c + 1
                         Job.result <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else
-                        GPUMemory.Wait memoryKey
-                
+                        ErrorMsg.Logger.Debug <| sprintf "WAIT %A %A" nComponents bufferType
+                        GPUMemory.Wait memoryKey                   
                             //ErrorMsg.Logger.Debug "O"              
                             //let r = GPUMemory.Wait memoryKey                      
                             //a <- 1
