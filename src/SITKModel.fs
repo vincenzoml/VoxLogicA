@@ -54,28 +54,30 @@ type SITKModel() =
         //JSonOutput.Info(min = 0.0, max = 1.0)
 
     override __.Load s =
-        let img = new VoxImage(s) 
-        let res = 
-            match baseImg with
-            | None -> 
-                baseImg <- Some img
-                img 
-            | Some img1 ->
-                if VoxImage.SamePhysicalSpace img1 img
-                then img
-                else 
-                    if img.NPixels = img1.NPixels
-                        && img.Dimension = img1.Dimension
-                    then 
-                        if img.NComponents = img1.NComponents then 
-                            ErrorMsg.Logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
-                            img.ChangePhysicalSpace img1                             
-                        else 
-                            ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
-                            raise (DifferentPhysicalAndLogicalSpaceException s) 
-                    else raise (DifferentPhysicalAndLogicalSpaceException s)
-        ErrorMsg.Logger.DebugOnly (sprintf "loaded image: %A" <| res.GetHashCode())
-        res :> obj     
+        job {
+            let img = new VoxImage(s) 
+            let res = 
+                match baseImg with
+                | None -> 
+                    baseImg <- Some img
+                    img 
+                | Some img1 ->
+                    if VoxImage.SamePhysicalSpace img1 img
+                    then img
+                    else 
+                        if img.NPixels = img1.NPixels
+                            && img.Dimension = img1.Dimension
+                        then 
+                            if img.NComponents = img1.NComponents then 
+                                ErrorMsg.Logger.Warning (sprintf "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected." s)
+                                img.ChangePhysicalSpace img1                             
+                            else 
+                                ErrorMsg.Logger.Warning (sprintf "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit." s)                        
+                                raise (DifferentPhysicalAndLogicalSpaceException s) 
+                        else raise (DifferentPhysicalAndLogicalSpaceException s)
+            ErrorMsg.Logger.DebugOnly (sprintf "loaded image: %A" <| res.GetHashCode())
+            return res :> obj     
+        }
 
     interface IBoundedModel<VoxImage> with
         member __.Border = job { return VoxImage.Border (getBaseImg()) }

@@ -97,47 +97,51 @@ type GPUModel() =
         // JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))
         JSonOutput.Info(min = 0.0, max = 0.0)
 
-    override __.Load s =
-        let img = new VoxImage(s)
-        dim <- img.Dimension
+    override __.Load s = 
+        job {
+            let img = new VoxImage(s)
+            dim <- img.Dimension
 
-        gpuval <-
-            match gpuval with
-            | None -> Some(GPU(kernelFile, dim))
-            | Some (_) as x -> x
+            gpuval <-
+                match gpuval with
+                | None -> Some(GPU(kernelFile, dim))
+                | Some (_) as x -> x
 
-        let res =
-            match baseImg with
-            | None ->
-                baseImg <- Some img
-                img
-            | Some img1 ->
-                if VoxImage.SamePhysicalSpace img1 img then
+            let res =
+                match baseImg with
+                | None ->
+                    baseImg <- Some img
                     img
-                else if img.NPixels = img1.NPixels
-                        && img.Dimension = img1.Dimension then
-                    if img.NComponents = img1.NComponents then
-                        ErrorMsg.Logger.Warning(
-                            sprintf
-                                "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected."
-                                s
-                        )
+                | Some img1 ->
+                    if VoxImage.SamePhysicalSpace img1 img then
+                        img
+                    else if img.NPixels = img1.NPixels
+                            && img.Dimension = img1.Dimension then
+                        if img.NComponents = img1.NComponents then
+                            ErrorMsg.Logger.Warning(
+                                sprintf
+                                    "Image \"%s\" has different physical space, but same logical structure than previously loaded images; physical space corrected."
+                                    s
+                            )
 
-                        img.ChangePhysicalSpace img1
+                            img.ChangePhysicalSpace img1
+                        else
+                            ErrorMsg.Logger.Warning(
+                                sprintf
+                                    "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit."
+                                    s
+                            )
+
+                            raise (DifferentPhysicalAndLogicalSpaceException s)
                     else
-                        ErrorMsg.Logger.Warning(
-                            sprintf
-                                "Image \"%s\"correcting physical space with different number of components is not currently supported; going to exit."
-                                s
-                        )
-
                         raise (DifferentPhysicalAndLogicalSpaceException s)
-                else
-                    raise (DifferentPhysicalAndLogicalSpaceException s)
 
-        ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())
+            ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())
 
-        GPUModelValue((gpu().CopyImageToDevice res), [||],gpu()) :> obj
+            let! img = (gpu().CopyImageToDevice res) // TODO: this can be made asynchronous now
+
+            return GPUModelValue(img, [| |],gpu()) :> obj
+        }
 
     interface IBoundedModel<GPUModelValue> with
         member __.Border =
@@ -393,7 +397,7 @@ type GPUModel() =
 
                 let result = VoxImage.MaxVol cpuImg
 
-                let output = gpu().CopyImageToDevice result
+                let! output = gpu().CopyImageToDevice result
 
                 return GPUModelValue(output, [||],gpu())
             }
@@ -410,7 +414,7 @@ type GPUModel() =
                 let result =
                     VoxImage.Percentiles cpuImg cpuMask correction
 
-                let output = gpu().CopyImageToDevice result
+                let! output = gpu().CopyImageToDevice result
 
                 return GPUModelValue(output, [||],gpu())
             }
@@ -919,7 +923,7 @@ type GPUModel() =
 
                 let result = VoxImage.Dt cpuImg
 
-                let output = gpu().CopyImageToDevice result
+                let! output = gpu().CopyImageToDevice result
 
                 return GPUModelValue(output, [||],gpu())
             }

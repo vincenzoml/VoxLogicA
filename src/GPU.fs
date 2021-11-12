@@ -181,7 +181,7 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
 type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) =     
     inherit GPUValue<VoxImage>() 
     override __.Delete =
-        ErrorMsg.Logger.Debug <| sprintf "PUT %A %A" nComponents bufferType
+        ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A %A" nComponents bufferType
         GPUMemory.Put (Image { 
             NComponents = nComponents
             BufferType = bufferType
@@ -359,50 +359,51 @@ and GPU(kernelsFilename : string, dimension : int) =
         let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,enum<CLEnum>(32),unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
         new GPUArray<'a>(ptr,v.Length,{ Pointer = queue }) :> GPUValue<array<'a>>
 
-    member __.CopyImageToDevice (hImgSource: VoxImage) =        
-        let dimension =            
-            match hImgSource.Dimension with 
-            | 2 -> CLEnum.MemObjectImage2D
-            | 3 -> CLEnum.MemObjectImage3D
-            | d -> raise <| UnsupportedImageDimensionException(hImgSource.Dimension)
+    member this.CopyImageToDevice (hImgSource: VoxImage) =   
+        this.NewImageOnDevice(hImgSource,hImgSource.NComponents,hImgSource.BufferType)     
+        // let dimension =            
+        //     match hImgSource.Dimension with 
+        //     | 2 -> CLEnum.MemObjectImage2D
+        //     | 3 -> CLEnum.MemObjectImage3D
+        //     | d -> raise <| UnsupportedImageDimensionException(hImgSource.Dimension)
         
-        let channelOrder =
-            match hImgSource.NComponents with
-            | 1 -> CLEnum.Intensity
-            | 4 -> CLEnum.Rgba 
-            | c -> raise <| UnsupportedNumberOfComponentsPerPixelException c
+        // let channelOrder =
+        //     match hImgSource.NComponents with
+        //     | 1 -> CLEnum.Intensity
+        //     | 4 -> CLEnum.Rgba 
+        //     | c -> raise <| UnsupportedNumberOfComponentsPerPixelException c
 
-        let channelDataType =
-            match hImgSource.BufferType with
-            | UInt8 -> CLEnum.UnsignedInt8
-            | Float32 -> CLEnum.Float                
+        // let channelDataType =
+        //     match hImgSource.BufferType with
+        //     | UInt8 -> CLEnum.UnsignedInt8
+        //     | Float32 -> CLEnum.Float                
         
-        let imgFormat = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
-        use imgFormatPtr' = fixed [|imgFormat|]
-        let imgFormatPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatPtr')
+        // let imgFormat = ImageFormat(uint32 channelOrder,uint32 channelDataType)   
+        // use imgFormatPtr' = fixed [|imgFormat|]
+        // let imgFormatPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatPtr')
         
-        let (width,height,depth) = hImgSource.Size.[0],hImgSource.Size.[1],if hImgSource.Size.Length >= 3 then hImgSource.Size.[2] else 1
-        let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
-        use imgDescPtr' = fixed [|imgDesc|]
-        let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
+        // let (width,height,depth) = hImgSource.Size.[0],hImgSource.Size.[1],if hImgSource.Size.Length >= 3 then hImgSource.Size.[2] else 1
+        // let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
+        // use imgDescPtr' = fixed [|imgDesc|]
+        // let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
         
-        let ptr =
-            hImgSource.GetBufferAsFloat
-                (fun buf -> 
-                    let imgPtr = NativePtr.toVoidPtr buf.Pointer            
-                    checkErrPtr (fun p -> 
-                        API.CreateImage(
-                                context,
-                                //CLEnum.MemUseHostPtr,
-                                enum<CLEnum>(32), 
-                                // 32 = UseHostPointer
-                                // change the numeric constant to a symbolic one once https://github.com/dotnet/Silk.NET/issues/428 makes it to release (10th of April?)
-                                imgFormatPtr,
-                                imgDescPtr,
-                                imgPtr,
-                                p)))
+        // let ptr =
+        //     hImgSource.GetBufferAsFloat
+        //         (fun buf -> 
+        //             let imgPtr = NativePtr.toVoidPtr buf.Pointer            
+        //             checkErrPtr (fun p -> 
+        //                 API.CreateImage(
+        //                         context,
+        //                         //CLEnum.MemUseHostPtr,
+        //                         enum<CLEnum>(32), 
+        //                         // 32 = UseHostPointer
+        //                         // change the numeric constant to a symbolic one once https://github.com/dotnet/Silk.NET/issues/428 makes it to release (10th of April?)
+        //                         imgFormatPtr,
+        //                         imgDescPtr,
+        //                         imgPtr,
+        //                         p)))
 
-        GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+        // GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
 
     member __.NewImageOnDevice (img: VoxImage,nComponents,bufferType) =
         let dimension =            
@@ -451,30 +452,29 @@ and GPU(kernelsFilename : string, dimension : int) =
                             imageCount.[memoryKey] 
                         else 
                             imageCount.[memoryKey] <- 0
-                            0
-                    //     try imageCount.[memoryKey] // TODO: URGENT: this breaks memory, fsharp bug
+                            0                
+                    // The above should be:
+                    //     try imageCount.[memoryKey] // TODO: this breaks memory, report this fsharp bug
                     //     with _ ->
                     //         imageCount.[memoryKey] <- 0
                     //         0         
+
                     // if (uint64 c) * (uint64 nComponents) * (uint64 bufferType.Size) * (uint64 img.Width) * (uint64 img.Height) * (uint64 img.Depth) < 2000000000UL then 
                     if c < 10 then
-                        ErrorMsg.Logger.Debug <| sprintf "ALLOC %A %A" nComponents bufferType
+                        ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
                         imageCount.[memoryKey] <- c + 1
-                        Job.result <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
+                        Job.result <| 
+                            checkErrPtr (fun p -> 
+                                API.CreateImage(
+                                    context,
+                                    CLEnum.MemReadWrite,
+                                    imgFormatOUTPtr,
+                                    imgDescPtr,
+                                    vNullPtr,
+                                    p))
                     else
-                        ErrorMsg.Logger.Debug <| sprintf "WAIT %A %A" nComponents bufferType
+                        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A %A" nComponents bufferType
                         GPUMemory.Wait memoryKey                   
-                            //ErrorMsg.Logger.Debug "O"              
-                            //let r = GPUMemory.Wait memoryKey                      
-                            //a <- 1
-                            //r
-                //let mutable a = 0 // TODO: REMOVE THIS, IT'S FOR DEBUGGING PURPOSES 
-                // let pw = 
-                //     let mutable tmp = None                    
-                   
-                // ErrorMsg.Logger.Debug <| sprintf "P%d" a
-                // let! p = pw             
-                // ErrorMsg.Logger.Debug <| sprintf "Q%d" a
                 
                 return GPUImage(p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         }

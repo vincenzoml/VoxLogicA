@@ -39,7 +39,7 @@ type ModelChecker(model : IModel) =
                     (o,n))
         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker deref: %d oldrefs: %d newrefs: %d" i oldrefc newrefc
         if newrefc <= 0 then 
-            ErrorMsg.Logger.Debug <| sprintf "Model checker disposing %d" i
+            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker disposing %d" i
             let! (y : obj) = IVar.read cache.[i]
             ErrorMsg.Logger.DebugOnly <| sprintf "Model checker read from cache: %d=%A" i (y.GetHashCode())
             let dispose = 
@@ -97,7 +97,7 @@ type ModelChecker(model : IModel) =
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
         job {   
                 for i = alreadyChecked to formulaFactory.Count - 1 do                                           
-                    ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
+                    ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount      
                     if i % 1 = 0 then // TODO: URGENT: study this
                             ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
