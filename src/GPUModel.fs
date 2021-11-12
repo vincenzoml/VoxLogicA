@@ -138,7 +138,7 @@ type GPUModel() =
 
             ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())
 
-            let! img = (gpu().CopyImageToDevice res) // TODO: this can be made asynchronous now
+            let! img = (gpu().CopyImageToDevice res) 
 
             return GPUModelValue(img, [| |],gpu()) :> obj
         }

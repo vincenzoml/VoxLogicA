@@ -41,7 +41,7 @@ type ModelChecker(model : IModel) =
         if newrefc <= 0 then 
             ErrorMsg.Logger.DebugOnly <| sprintf "Model checker disposing %d" i
             let! (y : obj) = IVar.read cache.[i]
-            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker read from cache: %d=%A" i (y.GetHashCode())
+            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker read from cache for disposal: %d=%A" i (y.GetHashCode())
             let dispose = 
                 try (y :?> IDisposableJob).Dispose
                 with :? System.InvalidCastException -> job { return () }
