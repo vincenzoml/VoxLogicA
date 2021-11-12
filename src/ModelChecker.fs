@@ -18,6 +18,8 @@ namespace VoxLogicA
 
 open Hopac  
 
+type IWait =  
+    abstract member Wait : Job<unit>
 type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
@@ -86,20 +88,26 @@ type ModelChecker(model : IModel) =
         referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
         for i = 0 to formulaFactory.Count - 1 do            
             for x in formulaFactory.[i].Arguments do
-                referenceCount.[x.Uid] := !referenceCount.[x.Uid] + 1
+                referenceCount.[x.Uid].Value <- referenceCount.[x.Uid].Value + 1
         // for i = 0 to formulaFactory.Count - 1 do
             // let f = formulaFactory.[i]
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
-        job {   for i = alreadyChecked to formulaFactory.Count - 1 do                                           
+        job {   
+                for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount      
-                    if i % 10 = 0 then
-                        ignore cache.[i]             
-                alreadyChecked <- formulaFactory.Count                  }
+                    if i % 30 = 0 then
+                            let! x = cache.[i]
+                            do! 
+                                try (x :?> IWait).Wait
+                                with :? System.InvalidCastException -> Job.result ()
+                                                           
+                alreadyChecked <- formulaFactory.Count                  
+            }
 
     member __.Get (f : Formula) =  
         let r = referenceCount.[f.Uid]
-        lock r (fun () -> r := !r + 1) 
+        lock r (fun () -> r.Value <- r.Value + 1) 
         cache.[f.Uid]   
 
     member __.Unref (f : Formula) =
