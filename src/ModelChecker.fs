@@ -32,13 +32,13 @@ type ModelChecker(model : IModel) =
                 referenceCount.[i] 
                 (fun () -> 
                     let r = referenceCount.[i]
-                    let o = !r 
-                    let n = !r - 1
-                    r := n
+                    let o = r.Value 
+                    let n = r.Value - 1
+                    r.Value <- n
                     (o,n))
         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker deref: %d oldrefs: %d newrefs: %d" i oldrefc newrefc
         if newrefc <= 0 then 
-            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker disposing %d" i
+            ErrorMsg.Logger.Debug <| sprintf "Model checker disposing %d" i
             let! y = cache.[i]
             ErrorMsg.Logger.DebugOnly <| sprintf "Model checker read from cache: %d=%A" i (y.GetHashCode())
             let dispose = 
@@ -83,8 +83,8 @@ type ModelChecker(model : IModel) =
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
-        if ErrorMsg.isDebug() then
-            System.IO.File.WriteAllText("DebugFormulas.dot",this.FormulaFactory.AsDot)
+        // if ErrorMsg.isDebug() then
+        System.IO.File.WriteAllText("DebugFormulas.dot",this.FormulaFactory.AsDot)
         referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
         for i = 0 to formulaFactory.Count - 1 do            
             for x in formulaFactory.[i].Arguments do
@@ -94,19 +94,19 @@ type ModelChecker(model : IModel) =
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
         job {   
                 for i = alreadyChecked to formulaFactory.Count - 1 do                                           
-                    //ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
+                    ErrorMsg.Logger.Debug (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount      
-                    // if i % 100 = 0 then
-                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
-                    //         let! x = cache.[i]
-                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Starting to wait for Uid %A" i
-                    //         do! 
-                    //             try 
-                    //                 job {
-                    //                     do! (x :?> IWait).Wait
-                    //                     ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Finished waiting for Uid %A" i                        
-                    //                 }
-                    //             with :? System.InvalidCastException -> Job.result ()
+                    if i % 1 = 0 then // TODO: URGENT: study this
+                            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
+                            let! x = cache.[i]
+                            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Starting to wait for Uid %A" i
+                            do! job {                   
+                                        do! 
+                                            try (x :?> IWait).Wait
+                                            with _ -> Job.result ()
+                                           
+                                        ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Finished waiting for Uid %A" i                        
+                                    }                                
                                                            
                 alreadyChecked <- formulaFactory.Count                  
             }

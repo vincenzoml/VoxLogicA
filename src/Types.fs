@@ -91,15 +91,15 @@ type RefCount() =
     default this.Reference () = job {
         lock refcount (fun () -> 
             // ErrorMsg.Logger.Debug <| sprintf "reference value %d->%d %A" !refcount (!refcount+1) (this.GetHashCode())
-            if !refcount >= 0 then refcount := !refcount + 1
+            if refcount.Value >= 0 then refcount.Value <- refcount.Value + 1
             else raise <| RefCountException !refcount)
     }
     abstract member Dereference : unit -> Job<unit>
     default this.Dereference() = job {         
         do! lock refcount (fun () ->
             // ErrorMsg.Logger.Debug <| sprintf"dereference value %d->%d %A" !refcount (!refcount-1) (this.GetHashCode())
-            refcount := !refcount - 1            
-            if !refcount = 0 && toDispose && not disposed then 
+            refcount.Value <- refcount.Value - 1            
+            if refcount.Value = 0 && toDispose && not disposed then 
                 disposed <- true
                 this.Delete
             else

@@ -69,17 +69,17 @@ type Pool() =
                         IVar.fill y x) 
         
 
-    member __.Get () =
-        job {
-            ErrorMsg.Logger.DebugOnly "GET"
-            return lock lck (fun () -> 
-                match queue with
-                | [] -> ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: None"; None
-                | x::xs -> 
-                    queue <- xs
-                    ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: %A" x;
-                    Some x)
-        }
+    // member __.Get () =
+    //     job {
+    //         ErrorMsg.Logger.DebugOnly "GET"
+    //         return lock lck (fun () -> 
+    //             match queue with
+    //             | [] -> ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: None"; None
+    //             | x::xs -> 
+    //                 queue <- xs
+    //                 ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: %A" x;
+    //                 Some x)
+    //     }
 
     member __.Wait () =           
         ErrorMsg.Logger.DebugOnly "WAIT started"
@@ -139,13 +139,13 @@ type GPUMemory() =
         
         pool.Wait()
 
-    static member Get key = 
-        ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" key
-        lock globalLock (fun () ->
-            try 
-                pools.[key].Get()
-            with :? KeyNotFoundException -> 
-                job { return None })
+    // static member Get key = 
+    //     ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" key
+    //     lock globalLock (fun () ->
+    //         try 
+    //             pools.[key].Get()
+    //         with :? KeyNotFoundException -> 
+    //             job { return None })
 
 [<AbstractClass>]
 type KernelArg() =
@@ -181,6 +181,7 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
 type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) =     
     inherit GPUValue<VoxImage>() 
     override __.Delete =
+        ErrorMsg.Logger.Debug <| sprintf "PUT %A %A" nComponents bufferType
         GPUMemory.Put (Image { 
             NComponents = nComponents
             BufferType = bufferType
@@ -229,7 +230,7 @@ type Kernel =
         Pointer : Pointer     }    
 
 and GPU(kernelsFilename : string, dimension : int) =
-    static let mutable imageCount = 0
+    static let mutable imageCount = Dictionary<_,_>(10)
     let mutex = ref ()
 
     let mutable dimensionIndex = 0
@@ -420,8 +421,7 @@ and GPU(kernelsFilename : string, dimension : int) =
             | UInt8 -> CLEnum.UnsignedInt8
             | Float32 -> CLEnum.Float                    
             
-        let imgFormatOUT = ImageFormat(uint32 channelOrder,uint32 channelDataType)
-        
+        let imgFormatOUT = ImageFormat(uint32 channelOrder,uint32 channelDataType)        
         use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
         let imgFormatOUTPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatOUTPtr') 
 
@@ -443,12 +443,19 @@ and GPU(kernelsFilename : string, dimension : int) =
             }
         
         job {
-                ErrorMsg.Logger.DebugOnly <| sprintf "NewImageOnDevice: Image count: %d" imageCount
-                let! p =
-                    if imageCount < 200 then 
-                        imageCount <- imageCount + 1
+                let! p =                // TODO: URGENT: this is not locked, concurrency may harm
+                    let c = 
+                        try imageCount.[memoryKey]
+                        with _ ->
+                            imageCount.[memoryKey] <- 0
+                            0                            
+
+                    if c < 50 then 
+                        ErrorMsg.Logger.Debug <| sprintf "ALLOC %A %A" nComponents bufferType
+                        imageCount.[memoryKey] <- c + 1
                         Job.result <| checkErrPtr (fun p -> API.CreateImage(context,CLEnum.MemReadWrite,imgFormatOUTPtr,imgDescPtr,vNullPtr,p))
                     else
+                        ErrorMsg.Logger.Debug <| sprintf "WAIT %A %A" nComponents bufferType
                         GPUMemory.Wait memoryKey
                 
                             //ErrorMsg.Logger.Debug "O"              
@@ -512,7 +519,6 @@ and GPU(kernelsFilename : string, dimension : int) =
                 this.Wait [|res|]     
                 ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run finished %A" kernelName
                 do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )
-
             }
             // ErrorMsg.Logger.Debug <| sprintf "exit %A" kernelName
             return res

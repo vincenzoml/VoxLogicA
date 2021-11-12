@@ -62,5 +62,5 @@ and FormulaFactory() =
             let item = this.[i]            
             str <- str + sprintf "%d [label=\"%s [%d]\"];\n" item.Uid item.Operator.Name item.Uid
             for target in item.Arguments do                
-                str <- str + sprintf "%d -> %d;\n" item.Uid target.Uid 
+                str <- str + sprintf "%d -> %d;\n" target.Uid item.Uid 
         str + "\n}"
