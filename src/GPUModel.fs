@@ -97,7 +97,9 @@ type GPUModel(performanceTest) =
             JSonOutput.Info(min = 0.0, max = 0.0)            
         else
             img.Save(filename)
-            JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))            
+            // JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))         
+            JSonOutput.Info(min = 0.0, max = 0.0)            
+
 
     override __.Load s = 
         job {
@@ -401,8 +403,10 @@ type GPUModel(performanceTest) =
                         ))
 
                 gpu().Wait([| ev |])
+                do! (tmp' :> IDisposableJob).Dispose
+                do! (output' :> IDisposableJob).Dispose
                 let result = res.Get()
-                return float result.[0]
+                return float result.[0] // TODO: this could be made asynchronous when the problem of passing floats is solved
             }
 
         // ON CPU

@@ -10,4 +10,5 @@ High-grade-Glioblastoma_BRATS/output
 examples/*/output
 src/tests/*/output
 src/tests/*/output-gpu
-src/tests/*/output-cpu
+src/tests/*/output-cpu.config
+.vscode/
