@@ -34,7 +34,7 @@ type GPUModelValue(gVal: GPUValue<VoxImage>, gEvt: array<Event>, gpu : GPU) =
     member __.GVal = gVal
     member __.GEvt = gEvt
 
-type GPUModel() =
+type GPUModel(performanceTest) =
     inherit IModel()
 
     let kernelFile =
@@ -93,26 +93,29 @@ type GPUModel() =
         gpu().Wait <| gmv.GEvt
         let img = gmv.GVal.Get()
         ErrorMsg.Logger.DebugOnly(sprintf "saving image: %A" <| img.GetHashCode())
-        img.Save(filename)
-        // JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))
-        JSonOutput.Info(min = 0.0, max = 0.0)
+        if performanceTest then
+            JSonOutput.Info(min = 0.0, max = 0.0)            
+        else
+            img.Save(filename)
+            JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))            
 
     override __.Load s = 
         job {
-            let img = new VoxImage(s)
-            dim <- img.Dimension
-
-            gpuval <-
-                match gpuval with
-                | None -> Some(GPU(kernelFile, dim))
-                | Some (_) as x -> x
-
             let res =
-                match baseImg with
-                | None ->
+                match (baseImg,performanceTest) with
+                | None,_ ->
+                    let img = new VoxImage(s)
+                    dim <- img.Dimension
                     baseImg <- Some img
+                    gpuval <-
+                        match gpuval with
+                        | None -> Some(GPU(kernelFile, dim))
+                        | Some (_) as x -> x
                     img
-                | Some img1 ->
+                | Some img1,true ->
+                    img1
+                | Some img1,false ->
+                    let img = new VoxImage(s)
                     if VoxImage.SamePhysicalSpace img1 img then
                         img
                     else if img.NPixels = img1.NPixels

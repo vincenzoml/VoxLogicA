@@ -264,7 +264,7 @@ type VoxImage private (img : Image,uniqueName : string) =
     new (filename : string) = 
         // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
         let loadedImg =
-            Logger.Debug <| sprintf "Loading file %s" filename
+            Logger.DebugOnly <| sprintf "Loading file %s" filename
             let img = SimpleITK.ReadImage(filename)
             let fname = System.IO.Path.GetFileName(filename)
             let sz = img.GetSize()
@@ -355,7 +355,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                             SimpleITK.Multiply(img,255.0)                            
                     else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
                 else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
-        Logger.Debug <| sprintf "Saving file %s" filename        
+        Logger.DebugOnly <| sprintf "Saving file %s" filename        
         SimpleITK.WriteImage(tmp,filename)
         
     member __.Dimension = int (img.GetDimension())

@@ -99,17 +99,17 @@ type ModelChecker(model : IModel) =
                 for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount      
-                    if i % 1 = 0 then // TODO: URGENT: deserialize!
-                            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
-                            let! x = cache.[i]
-                            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Starting to wait for Uid %A" i
-                            do! job {                   
-                                        do! 
-                                            try (x :?> IWait).Wait
-                                            with _ -> Job.result ()
+                    // if i % 1 = 0 then // TODO: URGENT: deserialize!
+                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
+                    //         let! x = IVar.read cache.[i]
+                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Starting to wait for Uid %A" i
+                    //         do! job {                   
+                    //                     do! 
+                    //                         try (x :?> IWait).Wait
+                    //                         with _ -> Job.result ()
                                            
-                                        ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Finished waiting for Uid %A" i                        
-                                    }                                
+                    //                     ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Finished waiting for Uid %A" i                        
+                    //                 }                                
                                                            
                 alreadyChecked <- formulaFactory.Count                  
             }

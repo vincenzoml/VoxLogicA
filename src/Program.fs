@@ -24,6 +24,8 @@ type LoadFlags = { fname: string; numCores: int }
 type CmdLine =
     | [<UniqueAttribute>] Ops
     | [<UniqueAttribute>] JSon
+    | [<UniqueAttribute>] Sequential
+    | [<UniqueAttribute>] PerformanceTest
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
@@ -31,6 +33,10 @@ type CmdLine =
             | Ops -> "display a list of all the internal operators, with their types and a brief description"
             | JSon _ ->
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
+            | Sequential ->
+                "wait for each thread to complete before starting a new one; useful for debugging"
+            | PerformanceTest _ ->
+                "do not load or save actual images; always use the given file instead; useful to measure raw speed" 
             | Filename _ -> "VoxLogicA session file"
 
 [<EntryPoint>]
@@ -60,7 +66,8 @@ let main (argv: string array) =
         else 
             ErrorMsg.Logger.LogToStdout ()
             ignore
-    let model = GPUModel() :> IModel // SITKModel() :> IModel
+    let performance = parsed.Contains PerformanceTest        
+    let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
     let checker = ModelChecker model
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning
