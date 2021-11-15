@@ -51,13 +51,13 @@ $SRC/bin/$CONF/net5.0/linux-x64/VoxLogicA input-gpu.imgql | tee out.log && mv $O
 $CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA input-cpu.imgql || exit 1
 mv $OUTPUT $OUTPREFIX/output-cpu
 
-echo --- CPU ---
-md5sum $OUTPREFIX/output-cpu/*
-echo --- GPU ---
-md5sum $OUTPREFIX/output-gpu/*
-echo --- END ---
+# echo --- CPU ---
+# md5sum $OUTPREFIX/output-cpu/*
+# echo --- GPU ---
+# md5sum $OUTPREFIX/output-gpu/*
+# echo --- END ---
 
-diff -q $OUTPREFIX/output-cpu $OUTPREFIX/output-gpu
-echo $?
+# diff -q $OUTPREFIX/output-cpu $OUTPREFIX/output-gpu
+# echo $?
 
 #diff <(grep 'Starting task' out.log|cut -f 2 -d k|cut -b 2-|sort -n) <(grep disposing out.log |cut -f 2 -d g | cut -b 2- |sort -n)|grep '^<'
