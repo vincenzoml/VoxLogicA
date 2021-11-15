@@ -1,7 +1,7 @@
 DATASET=/ramdisk/100cases
 
 
-
+#PERFORMANCETEST=--performancetest
 
 SRC=../../src
 CLASSIC=../../../VoxLogicA.classic
@@ -19,8 +19,6 @@ rm -rf $OUTPUT/* $OUTPREFIX/output-cpu* $OUTPREFIX/output-gpu* input.imgql
 (cd $SRC && make $BUILD)|| exit 1
 
 #ITER=3
-
-#git checkout gpu-new
 
 /home/VoxLogicA/scripts/glue_analysis.sh $DATASET ./glue-gpu.imgql  ./input-gpu.imgql $OUTPUT  || exit 1
 /home/VoxLogicA/scripts/glue_analysis.sh $DATASET ./glue-cpu.imgql  ./input-cpu.imgql $OUTPUT  || exit 1
@@ -44,11 +42,11 @@ rm -rf $OUTPUT/* $OUTPREFIX/output-cpu* $OUTPREFIX/output-gpu* input.imgql
 #     echo $?
 # done
 
-$SRC/bin/$CONF/net5.0/linux-x64/VoxLogicA --performancetest input-gpu.imgql | tee out.log && mv $OUTPUT $OUTPREFIX/output-gpu
+$SRC/bin/$CONF/net5.0/linux-x64/VoxLogicA $PERFORMANCETEST input-gpu.imgql | tee out.log && mv $OUTPUT $OUTPREFIX/output-gpu
 #dot -Tpdf DebugFormulas.dot  > DebugFormulas.pdf
 
-(cd $CLASSIC/src && git pull && git checkout tmp2 && make)|| exit 1
-$CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA --performancetest input-cpu.imgql || exit 1
+(cd $CLASSIC/src && git checkout tmp2 && git pull && make)|| exit 1
+$CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA $PERFORMANCETEST input-cpu.imgql || exit 1
 mv $OUTPUT $OUTPREFIX/output-cpu
 
 # echo --- CPU ---
