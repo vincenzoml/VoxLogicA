@@ -62,6 +62,7 @@ type SITKModel(performanceTest) =
             | None,_ -> 
                 let img = new VoxImage(s) 
                 baseImg <- Some img
+                if performanceTest then ErrorMsg.Logger.Debug "Start measuring performance from here"
                 img 
             | Some img1,true ->
                 new VoxImage(img1)
