@@ -162,8 +162,8 @@ type GPUModel(performanceTest) =
 
     interface IImageModel<GPUModelValue> with
         member __.Intensity(imgIn: GPUModelValue) =
-            ErrorMsg.Logger.Warning
-                "NOTE: Intensity must be changed in order to accommodate the special case in which it is the identity"            
+            // ErrorMsg.Logger.Warning
+            //     "NOTE: Intensity must be changed in order to accommodate the special case in which it is the identity"            
 
             job {
                 let img = getBaseImg ()

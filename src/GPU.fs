@@ -413,8 +413,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                     //         imageCount.[memoryKey] <- 0
                     //         0         
 
-                    // if (uint64 c) * (uint64 nComponents) * (uint64 bufferType.Size) * (uint64 img.Width) * (uint64 img.Height) * (uint64 img.Depth) < 2000000000UL then 
-                    if c < 20 then
+                    if c < 40 then
                         ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
                         imageCount.[memoryKey] <- c + 1
                         Job.result <| 
@@ -512,15 +511,11 @@ and GPU(kernelsFilename : string, dimension : int) =
      
             return res
         }
-
-        // GPUImage(ptr,hImgSource,hImgSource.NComponents,hImgSource.BufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
-
   
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
             ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run kernelname %A %A" kernelName args
-            // System.Threading.Thread.Sleep(10)
-
+            
             // ErrorMsg.Logger.Debug <| sprintf "start %A" kernelName
             let args = Seq.cache args
             do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Reference()) (Seq.distinct args) )
@@ -531,7 +526,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                     let mutable dimIdx = 0
                     let events = Array.map (fun (x : Event) -> x.EventPointer) events
                     for (idx,arg) in args' do
-                        dimIdx <- idx          
+                        dimIdx <- idx   
                         match arg.Value with
                         | Buffer d -> 
                             use a' = fixed [| d.DataPointer |] 

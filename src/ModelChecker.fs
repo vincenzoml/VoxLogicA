@@ -84,8 +84,8 @@ type ModelChecker(model : IModel) =
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
-        // if ErrorMsg.isDebug() then
-        System.IO.File.WriteAllText("DebugFormulas.dot",this.FormulaFactory.AsDot)
+        if ErrorMsg.isDebug() then
+            System.IO.File.WriteAllText("DebugFormulas.dot",this.FormulaFactory.AsDot)
         referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
         for i = 0 to formulaFactory.Count - 1 do            
             cache.[i] <- new IVar<_>()
@@ -115,7 +115,7 @@ type ModelChecker(model : IModel) =
             }
 
     member __.Get (f : Formula) =  
-        ErrorMsg.Logger.Debug <| sprintf "GET %A" f.Uid
+        ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" f.Uid
         let r = referenceCount.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1) 
         IVar.read cache.[f.Uid]   
