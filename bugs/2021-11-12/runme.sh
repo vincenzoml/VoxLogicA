@@ -1,4 +1,4 @@
-DATASET=/ramdisk/259cases
+DATASET=/ramdisk/100cases
 
 
 
@@ -47,17 +47,17 @@ rm -rf $OUTPUT/* $OUTPREFIX/output-cpu* $OUTPREFIX/output-gpu* input.imgql
 $SRC/bin/$CONF/net5.0/linux-x64/VoxLogicA input-gpu.imgql | tee out.log && mv $OUTPUT $OUTPREFIX/output-gpu
 #dot -Tpdf DebugFormulas.dot  > DebugFormulas.pdf
 
-# (cd $CLASSIC/src && make)|| exit 1
-# $CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA input-cpu.imgql || exit 1
-# mv $OUTPUT $OUTPREFIX/output-cpu
+(cd $CLASSIC/src && git pull && git checkout tmp2 && make)|| exit 1
+$CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA input-cpu.imgql || exit 1
+mv $OUTPUT $OUTPREFIX/output-cpu
 
-# echo --- CPU ---
-# md5sum $OUTPREFIX/output-cpu/*
-# echo --- GPU ---
-# md5sum $OUTPREFIX/output-gpu/*
-# echo --- END ---
+echo --- CPU ---
+md5sum $OUTPREFIX/output-cpu/*
+echo --- GPU ---
+md5sum $OUTPREFIX/output-gpu/*
+echo --- END ---
 
-# diff -q $OUTPREFIX/output-cpu $OUTPREFIX/output-gpu
-# echo $?
+diff -q $OUTPREFIX/output-cpu $OUTPREFIX/output-gpu
+echo $?
 
 #diff <(grep 'Starting task' out.log|cut -f 2 -d k|cut -b 2-|sort -n) <(grep disposing out.log |cut -f 2 -d g | cut -b 2- |sort -n)|grep '^<'
