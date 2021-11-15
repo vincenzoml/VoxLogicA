@@ -28,7 +28,7 @@ module Lifts =
 
 open Lifts
 
-type SITKModel() =    
+type SITKModel(performanceTest) =    
     inherit IModel()
     let mutable baseImg : option<VoxImage> = None
     let getBaseImg() = match baseImg with None -> raise NoModelLoadedException | Some img -> img
@@ -49,18 +49,24 @@ type SITKModel() =
     override __.Save filename v =
         let img = v :?> VoxImage
         ErrorMsg.Logger.DebugOnly (sprintf "saving image: %A" <| img.GetHashCode())
-        //img.Save(filename)
-        (0.0,0.0)// (VoxImage.Min (VoxImage.Intensity img),VoxImage.Max (VoxImage.Intensity img))
+        if performanceTest then
+            (0.0,0.0)
+        else
+            img.Save(filename)
+            (VoxImage.Min (VoxImage.Intensity img),VoxImage.Max (VoxImage.Intensity img))
         
 
     override __.Load s =
-        let img = new VoxImage(s) 
         let res = 
-            match baseImg with
-            | None -> 
+            match baseImg,performanceTest with
+            | None,_ -> 
+                let img = new VoxImage(s) 
                 baseImg <- Some img
                 img 
-            | Some img1 ->
+            | Some img1,true ->
+                img1
+            | Some img1,false ->
+                let img = new VoxImage(s) 
                 if VoxImage.SamePhysicalSpace img1 img
                 then img
                 else 
