@@ -64,7 +64,7 @@ type SITKModel(performanceTest) =
                 baseImg <- Some img
                 img 
             | Some img1,true ->
-                img1
+                new VoxImage(img1)
             | Some img1,false ->
                 let img = new VoxImage(s) 
                 if VoxImage.SamePhysicalSpace img1 img
