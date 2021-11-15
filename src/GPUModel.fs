@@ -101,16 +101,17 @@ type GPUModel(performanceTest) =
 
     override __.Load s = 
         job {
-            let res =
+            let res = // TODO: URGENT: does this require locking?
                 match (baseImg,performanceTest) with
                 | None,_ ->
-                    let img = new VoxImage(s)
+                    let img = new VoxImage(s)                    
                     dim <- img.Dimension
                     baseImg <- Some img
                     gpuval <-
                         match gpuval with
                         | None -> Some(GPU(kernelFile, dim))
                         | Some (_) as x -> x
+                    if performanceTest then ErrorMsg.Logger.Debug "Start measuring performance from here"
                     img
                 | Some img1,true ->
                     img1
