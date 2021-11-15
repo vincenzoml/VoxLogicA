@@ -1,4 +1,4 @@
-DATASET=/ramdisk/100cases
+DATASET=/ramdisk/259cases
 
 
 
@@ -47,9 +47,9 @@ rm -rf $OUTPUT/* $OUTPREFIX/output-cpu* $OUTPREFIX/output-gpu* input.imgql
 $SRC/bin/$CONF/net5.0/linux-x64/VoxLogicA --performancetest input-gpu.imgql | tee out.log && mv $OUTPUT $OUTPREFIX/output-gpu
 #dot -Tpdf DebugFormulas.dot  > DebugFormulas.pdf
 
-(cd $CLASSIC/src && git pull && git checkout tmp2 && make)|| exit 1
-$CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA --performancetest input-cpu.imgql || exit 1
-mv $OUTPUT $OUTPREFIX/output-cpu
+# (cd $CLASSIC/src && git pull && git checkout tmp2 && make)|| exit 1
+# $CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA --performancetest input-cpu.imgql || exit 1
+# mv $OUTPUT $OUTPREFIX/output-cpu
 
 # echo --- CPU ---
 # md5sum $OUTPREFIX/output-cpu/*
