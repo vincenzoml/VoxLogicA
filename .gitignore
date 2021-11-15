@@ -12,3 +12,4 @@ src/tests/*/output
 src/tests/*/output-gpu
 src/tests/*/output-cpu.config
 .vscode/
+.config
