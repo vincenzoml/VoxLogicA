@@ -167,8 +167,7 @@ __kernel void erode3D(__read_only image3d_t inputImage,
       }
     }
     write_imageui(outputImage, coord, (!found));
-  } 
-  else {
+  } else {
     write_imageui(outputImage, coord, 0);
   }
 }
@@ -399,36 +398,66 @@ __kernel void castUInt8ToFloat32(__read_only IMG_T input,
 }
 
 __kernel void volume2D(__read_only image2d_t inputImage,
-                       __write_only image2d_t outputImage,
-                       float idx) { // IDX NON SERVE
+                       __write_only image2d_t outputImage) { // IDX NON SERVE
   int2 gid = (int2)(get_global_id(0), get_global_id(1));
   int x = gid.x;
   int y = gid.y;
   unsigned int count = read_imagef(inputImage, sampler, gid).x;
 
-  if ((x % (int)idx * 2) == 0 &&
-      (y % (int)idx * 2) ==
-          0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER TUTTE LE
-               // DIMENSIONI PRENDE LA SOMMA DEI "VICINI MAGGIORI" E LA SCRIVE
-               // NEL PUNTO CON COORDINATE LA META' DELLE SUE IN TUTTE LE
-               // DIMENSIONI
+  if ((x % 2) == 0 &&
+      (y % 2) == 0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER
+                      // TUTTE LE DIMENSIONI PRENDE LA SOMMA DEI "VICINI
+                      // MAGGIORI" E LA SCRIVE NEL PUNTO CON COORDINATE LA META'
+                      // DELLE SUE IN TUTTE LE DIMENSIONI
     count =
         count +
-        read_imagef(inputImage, sampler, (int2)(x, y + idx)).x; // IDX DIVENTA 1
-    count =
-        count + read_imagef(inputImage, sampler, (int2)(x + idx, y + idx)).x;
-    count = count + read_imagef(inputImage, sampler, (int2)(x + idx, y)).x;
+        read_imagef(inputImage, sampler, (int2)(x, y + 1)).x; // IDX DIVENTA 1
+    count = count + read_imagef(inputImage, sampler, (int2)(x + 1, y + 1)).x;
+    count = count + read_imagef(inputImage, sampler, (int2)(x + 1, y)).x;
+    write_imagef(outputImage, (int2)(x / 2, y / 2), (float)count);
   }
   // printf("%f", val);
-  write_imagef(
-      outputImage, gid,
-      (float)count); // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE
-                     // LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
+  // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE
+  // LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
+}
+
+__kernel void volume3D(__read_only image3d_t inputImage,
+                       __write_only image3d_t outputImage) { // IDX NON SERVE
+  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
+  int x = gid.x;
+  int y = gid.y;
+  int z = gid.z;
+  unsigned int count = read_imagef(inputImage, sampler, gid).x;
+
+  if ((x % 2) == 0 && (y % 2) == 0 &&
+      (z % 2) == 0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER
+                      // TUTTE LE DIMENSIONI PRENDE LA SOMMA DEI "VICINI
+                      // MAGGIORI" E LA SCRIVE NEL PUNTO CON COORDINATE LA META'
+                      // DELLE SUE IN TUTTE LE DIMENSIONI
+    count = count + read_imagef(inputImage, sampler, (int4)(x, y + 1, z, 0)).x; // IDX DIVENTA 1
+    count = count + read_imagef(inputImage, sampler, (int4)(x + 1, y + 1, z, 0)).x; 
+    count = count + read_imagef(inputImage, sampler, (int4)(x + 1, y, z, 0)).x;
+    count = count + read_imagef(inputImage, sampler, (int4)(x, y, z + 1, 0)).x;
+    count = count + read_imagef(inputImage, sampler, (int4)(x + 1, y, z + 1, 0)).x;
+    count = count + read_imagef(inputImage, sampler, (int4)(x, y + 1, z + 1, 0)).x;
+    count = count + read_imagef(inputImage, sampler, (int4)(x + 1, y + 1, z + 1, 0)).x;
+
+    write_imagef(outputImage, (int4)(x / 2, y / 2, z / 2, 0), (float)count);
+  }
+  // printf("%f", val);
+  // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE
+  // LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
 }
 
 __kernel void readFirstPixel2D(__read_only image2d_t image,
                                __global float result[1]) {
   float f = read_imagef(image, sampler, (int2)(0, 0)).x;
+  result[0] = (float)(f);
+}
+
+__kernel void readFirstPixel3D(__read_only image3d_t image,
+                               __global float result[1]) {
+  float f = read_imagef(image, sampler, (int4)(0, 0, 0, 0)).x;
   result[0] = (float)(f);
 }
 
@@ -537,10 +566,10 @@ __kernel void iterateCCL3D(
     }
     write_imagef(outImage1, gid, (float4)(maxx, maxy, maxz, orig));
 
-  } 
-  else {
+  } else {
     write_imagef(outImage1, gid, input1);
-  } // TODO: URGENT: check with Laura. This "else", in principle, could be removed.
+  } // TODO: URGENT: check with Laura. This "else", in principle, could be
+    // removed.
 }
 
 __kernel void resetFlag(__global char flag[1]) { flag[0] = 0; }
@@ -590,9 +619,9 @@ __kernel void copy(__read_only IMG_T inputImage1,
   write_imageui(outImage1, gid, input1);
 }
 
-__kernel void fill(__write_only IMG_T outImage1,int value) {
+__kernel void fill(__write_only IMG_T outImage1, int value) {
   INIT_GID(gid)
-  write_imageui(outImage1,gid,value);
+  write_imageui(outImage1, gid, value);
 }
 
 __kernel void reconnectCCL3D(__read_only image3d_t inputImage1,
@@ -674,7 +703,7 @@ __kernel void initThrough3D(__read_only image3d_t inputImage1,
 
   if (input1.x > 0 && input2.w == 2)
     write_imageui(tempOutput, (int4)(input2.x, input2.y, input2.z, 0), 1);
-    // TODO: URGENT
+  // TODO: URGENT
 }
 
 // Takes the output of LCC and the temporary output of the
