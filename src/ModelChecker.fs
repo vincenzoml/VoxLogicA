@@ -99,6 +99,8 @@ type ModelChecker(model : IModel) =
                 for i = alreadyChecked to formulaFactory.Count - 1 do                                           
                     ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount      
+                    // TODO: URGENT: test the following strategy:
+                    // wait for the task to complete whenever the task has no sucessors in the graph (so that the memory can be freed)
                     // if i % 1 = 0 then // TODO: URGENT: deserialize!
                     //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
                     //         let! x = IVar.read cache.[i]

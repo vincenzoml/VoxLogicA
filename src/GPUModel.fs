@@ -98,7 +98,7 @@ type GPUModel(performanceTest) =
         else
             img.Save(filename)
             // JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))         
-            JSonOutput.Info(min = 0.0, max = 0.0)            
+            JSonOutput.Info(min = 0.0, max = 0.0)
 
 
     override __.Load s = 

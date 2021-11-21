@@ -1,15 +1,19 @@
-DATASET=/ramdisk/10cases
+DATASET=/ramdisk/100cases
 
 
-PERFORMANCETEST=--performancetest
+#PERFORMANCETEST=--performancetest
 
 SRC=../../src
 CLASSIC=../../../VoxLogicA.classic
 
-#CONF=Debug      
-#BUILD=build-dbg 
-CONF=release      
-BUILD=build 
+#CONF=Debug
+CONF=release
+
+if [ "$CONF" == "Debug" ]; then
+    BUILD=build-dbg 
+else
+    BUILD=build 
+fi
 
 
 OUTPREFIX=/ramdisk/vince
@@ -48,16 +52,16 @@ rm -rf $OUTPUT/* $OUTPREFIX/output-{c,g}pu* $OUTPREFIX/log-*.txt $input.imgql
 (cd $CLASSIC/src && git checkout tmp2 && git pull && make)|| exit 1
 ($CLASSIC/src/bin/release/net5.0/linux-x64/VoxLogicA $PERFORMANCETEST input-cpu.imgql | tee $OUTPREFIX/log-cpu.txt) || exit 1
 
-# echo --- CPU ---
-# md5sum $OUTPREFIX/output-cpu/*
-# echo --- GPU ---
-# md5sum $OUTPREFIX/output-gpu/*
-# echo --- END ---
+echo --- CPU ---
+md5sum $OUTPREFIX/output-cpu/*
+echo --- GPU ---
+md5sum $OUTPREFIX/output-gpu/*
+echo --- END ---
 
 # diff -q $OUTPREFIX/output-cpu $OUTPREFIX/output-gpu
 # echo $?
 
 #diff <(grep 'Starting task' out.log|cut -f 2 -d k|cut -b 2-|sort -n) <(grep disposing out.log |cut -f 2 -d g | cut -b 2- |sort -n)|grep '^<'
 
-diff <(grep user $OUTPREFIX/log-gpu.txt|cut -b 16- |sort) <(grep user $OUTPREFIX/log-cpu.txt | cut -b 16- |sort)
-echo $?
+# diff <(grep user $OUTPREFIX/log-gpu.txt|cut -b 16- |sort) <(grep user $OUTPREFIX/log-cpu.txt | cut -b 16- |sort)
+# echo $?

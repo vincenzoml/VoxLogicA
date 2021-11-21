@@ -520,7 +520,9 @@ __kernel void iterateCCL(__read_only image2d_t inputImage1,
       }
     }
     write_imagef(outImage1, gid, (float4)(maxx, maxy, 0, orig));
-  }
+  } else {
+    write_imagef(outImage1, gid, input1);
+  } 
 }
 
 __kernel void iterateCCL3D(

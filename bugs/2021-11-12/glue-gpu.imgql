@@ -16,13 +16,13 @@ let pflair$MNAME = intensity(imgPFLAIR$MNAME)
 
 let hI$MNAME = pflair$MNAME >. 0.93
 let vI$MNAME = pflair$MNAME >. 0.89 
-let hyperIntense$MNAME = smoothen(5,hI$MNAME) // smoothen5(hI$MNAME)
-let veryIntense$MNAME = smoothen(2,vI$MNAME) // smoothen2(vI$MNAME)
+let hyperIntense$MNAME = smoothen5(hI$MNAME)
+let veryIntense$MNAME = smoothen2(vI$MNAME)
 
 let growTum$MNAME = grow(hyperIntense$MNAME,veryIntense$MNAME)
 
 //save "$OUTPUTDIR/growTum$MNAME.nii.gz" growTum$MNAME  
 // save "$OUTPUTDIR/false$MNAME.nii.gz" growTum$MNAME & ! growTum$MNAME 
 
-// save "$OUTPUTDIR/growTum$MNAME.nii.gz" growTum$MNAME
-print "Dice $NAME:" dice(manualContouringGTV$MNAME,growTum$MNAME) 
+save "$OUTPUTDIR/growTum$MNAME.nii.gz" growTum$MNAME
+// print "Dice $NAME:" dice(manualContouringGTV$MNAME,growTum$MNAME) 

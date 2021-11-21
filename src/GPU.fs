@@ -230,7 +230,7 @@ type Kernel =
         Pointer : Pointer     }    
 
 and GPU(kernelsFilename : string, dimension : int) =
-    static let imageCount = Dictionary<_,_>(10)
+    static let imageCount = Dictionary<_,_>()
 
     let mutex = ref ()
 
@@ -413,7 +413,7 @@ and GPU(kernelsFilename : string, dimension : int) =
                     //         imageCount.[memoryKey] <- 0
                     //         0         
 
-                    if c < 40 then
+                    if c < 40 then // TODO: URGENT: PROVISIONAL
                         ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
                         imageCount.[memoryKey] <- c + 1
                         Job.result <| 
