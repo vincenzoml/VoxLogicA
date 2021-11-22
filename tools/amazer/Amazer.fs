@@ -1,6 +1,10 @@
 open System
 open System.Text.RegularExpressions
 
+type coord = {| x : int; y : int; z : int|}
+type t = 
+    {| coord: coord; atoms: seq<char>; xplus : bool; yplus : bool; zplus : bool |}    
+
 let (|Regex|_|) pattern input =
         let m = Regex.Match(input, pattern)
         if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
@@ -31,7 +35,13 @@ let findAllIndexes pred s =
         [] |>
     Seq.rev
 
-let processOddLine line =                
+let rec splitBy2 s =    
+    Seq.pairwise s |>
+    number |>
+    Seq.filter (fun (n,x) -> n % 2 = 0) |>
+    Seq.map snd 
+
+let processEvenLine line =                
     let nodoids = splitPred (fun (_,c) -> c = '[' || c = '(' ) (number line)
     seq {
         for nodoid in nodoids do
@@ -48,7 +58,7 @@ let processOddLine line =
             start,finish,(Seq.map snd atoms),zlink,xlink
     }
     
-let processEvenLine line startEndIds =    
+let processOddLine line startEndIds =    
     let idxs = Seq.toList <| findAllIndexes (fun c -> c = '|') line
     let rec consume idxs tuples acc =
         match (idxs,tuples,acc) with
@@ -61,7 +71,7 @@ let processEvenLine line startEndIds =
     Seq.rev <| consume idxs startEndIds []
 
 
-let p = processOddLine "[fda]----(ba)   [c][]"
+let p = processEvenLine "[fda]----(ba)   [c][]"
 
 
 [<EntryPoint>]
@@ -71,7 +81,7 @@ let main argv =
     let floors =
         IO.File.ReadAllLines(argv.[0]) |>        
         List.ofArray |>        
-        List.filter (fun s -> s.StartsWith "//") |>
+        List.filter (fun s -> not <| Regex.IsMatch(s,"^\s*//")) |>
         List.fold 
             (fun floors line -> 
             match line,floors with
@@ -84,15 +94,54 @@ let main argv =
             | _,floor::moreFloors -> 
                 (line::floor)::moreFloors) 
             [] |>
-        List.rev    
+        Seq.map Seq.rev |>
+        Seq.rev
 
-    let mutable ctx = seq []
+    let firstPass = seq {        
+        for (fid,floor) in number floors do  
+            for (lid,(even,odd)) in number (splitBy2 (Seq.append floor (seq {""}))) do   
+                let nctx = number <| processEvenLine even                      
+                let xtc = Set.ofSeq <| processOddLine odd (Seq.toList (Seq.map (fun (i,(s,f,_,_,_)) -> (s,f,i)) nctx))
+                for (cid,(_,_,a,z,x)) in nctx do
+                    yield {| coord = {| x = cid; y = lid; z = fid |}; atoms = a; xplus = x; yplus = Set.contains cid xtc; zplus = z |}
+    }    
+    
+    let nx (a : coord) = {| a with x = a.x + 1 |}
+    let ny (a : coord) = {| a with y = a.y + 1 |}
+    let nz (a : coord) = {| a with z = a.z + 1 |}
+    let px (a : coord) = {| a with x = a.x - 1 |}
+    let py (a : coord) = {| a with y = a.y - 1 |}
+    let pz (a : coord) = {| a with z = a.z - 1 |}
+        
+    let links = 
+        seq { 
+            for (x : t) in firstPass do                                                
+                for (t,v) in
+                    seq {
+                        (x.xplus,{| source = x.coord; target = nx x.coord |})
+                        (x.yplus,{| source = x.coord; target = ny x.coord |})
+                        (x.zplus,{| source = x.coord; target = nz x.coord |})
+                    } do
+                    yield (t,v)
 
-    for (fid,floor) in number floors do
-        for (lid,line) in number floor do            
-            if lid % 2 = 0 then 
-                ctx <- processOddLine line                
-            else 
-                printfn "%A" <| processEvenLine line (Seq.toList (Seq.map (fun (i,(s,f,a,x,z)) -> (s,f,i)) (number ctx)))
-            
+        } |>
+        Seq.filter (fun (t,v) -> t) |>
+        Seq.map snd
+
+    let linkSet = Set.ofSeq links 
+
+    let nodes =
+        seq {
+            for node in firstPass do
+                yield {| node with 
+                            xminus = Set.contains {| source = px node.coord; target = node.coord |} linkSet
+                            yminus = Set.contains {| source = py node.coord; target = node.coord |} linkSet
+                            zminus = Set.contains {| source = pz node.coord; target = node.coord |} linkSet |}
+        }
+
+    let result = {| nodes = nodes; links = links |}
+
+    printfn "%s" <| Newtonsoft.Json.JsonConvert.SerializeObject(result,Newtonsoft.Json.Formatting.Indented)
+
     0
+
