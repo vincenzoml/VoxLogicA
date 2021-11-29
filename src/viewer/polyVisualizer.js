@@ -225,6 +225,7 @@ function setupModel () {
                 break;
         }
     });
+    console.log( edgesCoordinates )
 
 
     // draw points
@@ -232,6 +233,7 @@ function setupModel () {
         color: 0xffffff,
         vertexColors: THREE.VertexColors
     } );
+    console.log( pointsCoordinates );
     const pointBufferGeometry = new THREE.BufferGeometry().setFromPoints( pointsCoordinates );
     UTILS.addColorAttribute(pointBufferGeometry);
     pointObject = new THREE.Points( pointBufferGeometry, pointMaterial );
