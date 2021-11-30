@@ -841,6 +841,8 @@ const sampler_t dtSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_E
 
 __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_T outputImage)
 {
+#define _DT_USE_DISTANCE_SQUARED 0
+
 #if (DIM == 2)
 	#define _DT_DISTANCE(P, Q) distance(P, Q)
 
@@ -860,7 +862,12 @@ __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_
 			if (offset.x==0 && offset.y==0) continue;
 			const int2   nCoord    = gid + (istep * offset);
 			const float2 nSample   = (read_imagef(inputImage, dtSampler, nCoord)).xy;
+			#if _DT_USE_DISTANCE_SQUARED
+			const float2 nDiff     = sample - nSample;
+			const float  nDistance = dot(nDiff, nDiff);
+			#else
 			const float  nDistance = _DT_DISTANCE(sample, nSample);
+			#endif
 			if (nDistance < nearestDistance)
 			{
 				nearestSample   = nSample;
@@ -892,7 +899,12 @@ __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_
 			{
 				const int3   nCoord    = gid.xyz + (istep * offset);
 				const float3 nSample   = (read_imagef(inputImage, dtSampler, (int4)(nCoord, 0))).xyz;
+				#if _DT_USE_DISTANCE_SQUARED
+				const float3 nDiff     = sample - nSample;
+				const float  nDistance = dot(nDiff, nDiff);
+				#else
 				const float  nDistance = _DT_DISTANCE(sample, nSample);
+				#endif
 				if (nDistance < nearestDistance)
 				{
 					nearestSample   = nSample;
@@ -908,6 +920,8 @@ __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_
 #else
 	#error "only dimensions 2 and 3 are currently supported."
 #endif
+
+#undef _DT_USE_DISTANCE_SQUARED
 }
 
 __kernel void dtFinalize(__read_only IMG_T inputImage, __write_only IMG_T outputImage)
