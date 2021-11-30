@@ -1385,7 +1385,7 @@ type GPUModel(performanceTest) =
                 let! tmp1 = gpu().NewImageOnDevice(img, 4, Float32)
                 let! tmp2 = gpu().NewImageOnDevice(img, 4, Float32)
                 let coordinate = [|tmp1; tmp2|]
-                let! output = gpu().NewImageOnDevice(img, 4, Float32)
+                let! output = gpu().NewImageOnDevice(img, 1, Float32)
                 
                 let! event1 =
                     gpu()
