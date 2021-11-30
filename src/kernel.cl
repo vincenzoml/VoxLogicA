@@ -877,7 +877,7 @@ __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_
 
 	INIT_GID(gid);
 
-	float3 sample          = (float2)((float)gid.x, (float)gid.y, (float)gid.z);
+	float3 sample          = (float3)((float)gid.x, (float)gid.y, (float)gid.z);
 	float3 nearestSample   = (read_imagef(inputImage, dtSampler, gid)).xyz;
 	float  nearestDistance = _DT_DISTANCE(sample, nearestSample);
 
@@ -890,8 +890,8 @@ __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_
 		{
 			for (offset.z=-1; offset.z<=+1; ++offset.z)
 			{
-				const int3   nCoord    = gid + (istep * offset);
-				const float3 nSample   = (read_imagef(inputImage, dtSampler, nCoord)).xyz;
+				const int3   nCoord    = gid.xyz + (istep * offset);
+				const float3 nSample   = (read_imagef(inputImage, dtSampler, (int4)(nCoord, 0))).xyz;
 				const float  nDistance = _DT_DISTANCE(sample, nSample);
 				if (nDistance < nearestDistance)
 				{
