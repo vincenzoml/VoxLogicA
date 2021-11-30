@@ -948,7 +948,7 @@ type GPUModel(performanceTest) =
                 let! output = gpu().CopyImageToDevice result
 
                 return GPUModelValue(output, [||],gpu())
-            }
+            }    
 
     interface IQuantitativeModel<GPUModelValue> with
         member __.Const value =
@@ -1377,6 +1377,20 @@ type GPUModel(performanceTest) =
 
                 return GPUModelValue(output, [| event |],gpu())
             }
+
+    [<OperatorAttribute("dt2","valuation(bool)","valuation(number)","Euclidean distance transform of its argument: replaces each voxel with the positive (or 0) distance from the nearest voxel which is true in the argument.")>]
+    member __.Dt2 (img : GPUModelValue) =
+        job {
+            gpu().Wait img.GEvt
+
+            let cpuImg = img.GVal.Get()
+
+            let result = VoxImage.Dt cpuImg
+
+            let! output = gpu().CopyImageToDevice result
+
+            return GPUModelValue(output, [||],gpu())
+        }    
 
 // member __.Min imgIn =
 //     job {

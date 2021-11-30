@@ -784,3 +784,106 @@ __kernel void iterateCCLNew(__read_only image2d_t inputImage1,
   // TODO: optimize by assuming input and output are copies of each other
   // (requires change in initialization?)
 }
+
+/********************* BEGIN distance transform (jump flooding) *********************/
+
+/*
+	// example usage
+
+	inputImage     : 1 x float1 image   (input )
+	coordImages[2] : 2 x float2 images  (temp  )
+	outputImage    : 1 x float1 image   (output)
+
+	int current = 0;
+	dtInitialize(inputImage, coordImages[current]);
+	dtStep(coordImages[current], 1, coordImages[1 - current]);
+	for (int k=(max(r.width(), r.height())/2); k>0; k/=2)
+	{
+		current = 1 - current;
+		dtStep(coordImages[current], k, coordImages[1 - current]);
+	}
+	dtFinalize(coordImages[1 - current], outputImage);
+	return outputImage;
+*/
+
+__constant int2 _DT_offsets[8] =
+{
+	(int2)( -1, -1 ),
+	(int2)(  0, -1 ),
+	(int2)(  1, -1 ),
+	(int2)( -1,  0 ),
+	(int2)(  1,  0 ),
+	(int2)( -1,  1 ),
+	(int2)(  0,  1 ),
+	(int2)(  1,  1 )
+};
+
+__kernel void dtInitialize(__read_only IMG_T inputImage, __write_only IMG_T outputImage)
+{
+#if (DIM == 2)
+	#define _DT_MARKED(S) (S.x != ((float)0)
+	#define _DT_FAR_AWAY  ((float4)MAXFLOAT)
+
+	INIT_GID(gid);
+
+	float4 inputSample  = read_imagef(inputImage, sampler, gid);
+	float4 outputSample = _DT_MARKED(inputSample) ? ((float4)gid) : (_DT_FAR_AWAY);
+	write_imagef(outputImage, gid, outputSample);
+
+	#undef _DT_MARKED
+	#undef _DT_FAR_AWAY
+#else
+  #error "only dimension 2 is currently supported."
+#endif
+}
+
+__kernel void dtStep(__read_only IMG_T inputImage, __read_only int step, __write_only IMG_T outputImage)
+{
+#if (DIM == 2)
+	#define _DT_DISTANCE(P, Q) distance(P, Q)
+
+	INIT_GID(gid);
+
+	float2 sample          = (float2)gid;
+	float2 nearestSample   = (read_imagef(inputImage, sampler, gid)).xy;
+	float  nearestDistance = _DT_DISTANCE(sample, nearestSample);
+
+	for (int i=0; i<8; ++i)
+	{
+		const int2   nCoord    = gid + step * _DT_offsets[i];
+		const float2 nSample   = (read_imagef(inputImage, sampler, nCoord)).xy;
+		const float  nDistance = _DT_DISTANCE(sample, nSample);
+		if (nDistance < nearestDistance)
+		{
+			nearestSample   = nSample;
+			nearestDistance = nDistance;
+		}
+	}
+
+	write_imagef(outputImage, gid, (float4)nearestSample);
+
+	#undef _DT_DISTANCE
+#else
+	#error "only dimension 2 is currently supported."
+#endif
+}
+
+__kernel void dtFinalize(__read_only IMG_T inputImage, __write_only IMG_T outputImage)
+{
+#if (DIM == 2)
+	#define _DT_DISTANCE(P, Q) distance(P, Q)
+
+	INIT_GID(gid);
+
+	float2 sample        = (float2)gid;
+	float2 nearestSample = (read_imagef(inputImage, sampler, gid)).xy;
+
+	write_imagef(outputImage, gid, (float4)nearestSample);
+
+	#undef _DT_DISTANCE
+#else
+	#error "only dimension 2 is currently supported."
+#endif
+}
+
+/********************* END distance transform (jump flooding) *********************/
