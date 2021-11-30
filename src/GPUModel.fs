@@ -1422,7 +1422,11 @@ type GPUModel(performanceTest) =
 
                 let mutable event2 = event'
 
-                let mutable k = (max img.Width img.Height) / 2 // TODO: fix for 3d
+                let mutable k =
+                    if dim = 3 then
+                        (max img.Depth (max img.Width img.Height)) / 2
+                    else
+                        (max img.Width img.Height) / 2
 
                 while k > 0 do
                     swap() 
