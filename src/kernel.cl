@@ -821,13 +821,13 @@ __constant int2 _DT_offsets[8] =
 __kernel void dtInitialize(__read_only IMG_T inputImage, __write_only IMG_T outputImage)
 {
 #if (DIM == 2)
-	#define _DT_MARKED(S) (S.x != ((float)0)
-	#define _DT_FAR_AWAY  ((float4)MAXFLOAT)
+	#define _DT_MARKED(S) (S.x > 0)
+	#define _DT_FAR_AWAY  ((float4)(MAXFLOAT, MAXFLOAT, (float)0, (float)0))
 
 	INIT_GID(gid);
 
-	float4 inputSample  = read_imagef(inputImage, sampler, gid);
-	float4 outputSample = _DT_MARKED(inputSample) ? ((float4)gid) : (_DT_FAR_AWAY);
+	uint4  inputSample  = read_imageui(inputImage, sampler, gid);
+	float4 outputSample = _DT_MARKED(inputSample) ? ((float4)((float)gid.x, (float)gid.y, (float)0, (float)0)) : (_DT_FAR_AWAY);
 	write_imagef(outputImage, gid, outputSample);
 
 	#undef _DT_MARKED
@@ -837,14 +837,14 @@ __kernel void dtInitialize(__read_only IMG_T inputImage, __write_only IMG_T outp
 #endif
 }
 
-__kernel void dtStep(__read_only IMG_T inputImage, __read_only int step, __write_only IMG_T outputImage)
+__kernel void dtStep(__read_only IMG_T inputImage, int step, __write_only IMG_T outputImage)
 {
 #if (DIM == 2)
 	#define _DT_DISTANCE(P, Q) distance(P, Q)
 
 	INIT_GID(gid);
 
-	float2 sample          = (float2)gid;
+	float2 sample          = (float2)((float)gid.x, (float)gid.y);
 	float2 nearestSample   = (read_imagef(inputImage, sampler, gid)).xy;
 	float  nearestDistance = _DT_DISTANCE(sample, nearestSample);
 
@@ -860,7 +860,7 @@ __kernel void dtStep(__read_only IMG_T inputImage, __read_only int step, __write
 		}
 	}
 
-	write_imagef(outputImage, gid, (float4)nearestSample);
+	write_imagef(outputImage, gid, (float4)(nearestSample.xy, (float)0, (float)0));
 
 	#undef _DT_DISTANCE
 #else
@@ -875,10 +875,10 @@ __kernel void dtFinalize(__read_only IMG_T inputImage, __write_only IMG_T output
 
 	INIT_GID(gid);
 
-	float2 sample        = (float2)gid;
-	float2 nearestSample = (read_imagef(inputImage, sampler, gid)).xy;
+	float2 sample        = (float2)((float)gid.x, (float)gid.y);
+	float4 nearestSample = read_imagef(inputImage, sampler, gid);
 
-	write_imagef(outputImage, gid, (float4)nearestSample);
+	write_imagef(outputImage, gid, nearestSample);
 
 	#undef _DT_DISTANCE
 #else
