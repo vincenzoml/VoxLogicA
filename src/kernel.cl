@@ -860,7 +860,7 @@ __kernel void dtStep(__read_only IMG_T inputImage, int step, __write_only IMG_T 
 		}
 	}
 
-	write_imagef(outputImage, gid, (float4)(nearestSample.xy, (float)0, (float)0));
+	write_imagef(outputImage, gid, (float4)(nearestSample, (float)0, (float)0));
 
 	#undef _DT_DISTANCE
 #else
@@ -876,9 +876,10 @@ __kernel void dtFinalize(__read_only IMG_T inputImage, __write_only IMG_T output
 	INIT_GID(gid);
 
 	float2 sample        = (float2)((float)gid.x, (float)gid.y);
-	float4 nearestSample = read_imagef(inputImage, sampler, gid);
+	float2 nearestSample = (read_imagef(inputImage, sampler, gid)).xy;
+	float  dist          = _DT_DISTANCE(sample, nearestSample);
 
-	write_imagef(outputImage, gid, nearestSample);
+	write_imagef(outputImage, gid, (float4)(dist, (float)0, (float)0, (float)0));
 
 	#undef _DT_DISTANCE
 #else
