@@ -837,7 +837,7 @@ __kernel void dtInitialize(__read_only IMG_T inputImage, __write_only IMG_T outp
 #endif
 }
 
-__kernel void dtStep(__read_only IMG_T inputImage, int step, __write_only IMG_T outputImage)
+__kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_T outputImage)
 {
 #if (DIM == 2)
 	#define _DT_DISTANCE(P, Q) distance(P, Q)
@@ -848,9 +848,11 @@ __kernel void dtStep(__read_only IMG_T inputImage, int step, __write_only IMG_T 
 	float2 nearestSample   = (read_imagef(inputImage, sampler, gid)).xy;
 	float  nearestDistance = _DT_DISTANCE(sample, nearestSample);
 
+  int istep = (int)step;
+
 	for (int i=0; i<8; ++i)
 	{
-		const int2   nCoord    = gid + step * _DT_offsets[i];
+		const int2   nCoord    = gid + (istep * _DT_offsets[i]);
 		const float2 nSample   = (read_imagef(inputImage, sampler, nCoord)).xy;
 		const float  nDistance = _DT_DISTANCE(sample, nSample);
 		if (nDistance < nearestDistance)

@@ -1,0 +1,5 @@
+load tmp = "test1.png"
+
+let img = intensity(tmp) >. 0
+
+save "result.nii.gz" dt(img)
