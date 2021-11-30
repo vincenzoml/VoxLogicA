@@ -859,7 +859,6 @@ __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_
 	{
 		for (offset.y=-1; offset.y<=+1; ++offset.y)
 		{
-			if (offset.x==0 && offset.y==0) continue;
 			const int2   nCoord    = gid + (istep * offset);
 			const float2 nSample   = (read_imagef(inputImage, dtSampler, nCoord)).xy;
 			#if _DT_USE_DISTANCE_SQUARED
