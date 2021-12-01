@@ -1425,7 +1425,7 @@ type GPUModel(performanceTest) =
                 let mutable k =
                     if dim = 3 then
                         (max img.Depth (max img.Width img.Height)) / 2
-                    else
+                    else    
                         (max img.Width img.Height) / 2
 
                 while k > 0 do

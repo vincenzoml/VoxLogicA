@@ -841,7 +841,7 @@ const sampler_t dtSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_E
 
 __kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_T outputImage)
 {
-#define _DT_USE_DISTANCE_SQUARED 0
+#define _DT_USE_DISTANCE_SQUARED 0 // TODO: benchmark this with _DT_USE_DISTANCE_SQUARED=1
 
 #if (DIM == 2)
 	#define _DT_DISTANCE(P, Q) distance(P, Q)
