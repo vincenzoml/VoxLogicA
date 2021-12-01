@@ -135,6 +135,10 @@ type Interpreter(model: IModel, checker: ModelChecker) =
     let interpreterJob libdir filename (model: #IModel) (checker: ModelChecker) (s: System.IO.Stream) =
         let rec evaluate (env: Env) (parsedImports: Set<string>) syn jobs =
             match syn with
+            | ModelLoad (ide,filename)::rest ->
+                let p = FParsec.Position("generated",0L,0L,0L)
+                let lexpr = Call(p,"load",[String filename])
+                evaluate env parsedImports (Declaration (ide,[],lexpr)::rest) jobs 
             // | ModelLoad (ide, filename) :: rest -> job {
             //         let filename = System.IO.Path.GetFullPath filename
             //         // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelLoad \"%s\"" filename
