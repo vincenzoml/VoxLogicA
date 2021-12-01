@@ -784,3 +784,174 @@ __kernel void iterateCCLNew(__read_only image2d_t inputImage1,
   // TODO: optimize by assuming input and output are copies of each other
   // (requires change in initialization?)
 }
+
+/********************* BEGIN distance transform (jump flooding) *********************/
+
+/*
+	// example usage
+
+	inputImage     : 1 x float1 image   (input )
+	coordImages[2] : 2 x float2 images  (temp  )
+	outputImage    : 1 x float1 image   (output)
+
+	int current = 0;
+	dtInitialize(inputImage, coordImages[current]);
+	dtStep(coordImages[current], 1, coordImages[1 - current]);
+	for (int k=(max(r.width(), r.height())/2); k>0; k/=2)
+	{
+		current = 1 - current;
+		dtStep(coordImages[current], k, coordImages[1 - current]);
+	}
+	dtFinalize(coordImages[1 - current], outputImage);
+	return outputImage;
+*/
+
+__kernel void dtInitialize(__read_only IMG_T inputImage, __write_only IMG_T outputImage)
+{
+#if (DIM == 2)
+	#define _DT_MARKED(S) (S.x > 0)
+	#define _DT_FAR_AWAY  ((float4)(MAXFLOAT, MAXFLOAT, (float)0, (float)0))
+
+	INIT_GID(gid);
+
+	uint4  inputSample  = read_imageui(inputImage, sampler, gid);
+	float4 outputSample = _DT_MARKED(inputSample) ? ((float4)((float)gid.x, (float)gid.y, (float)0, (float)0)) : (_DT_FAR_AWAY);
+	write_imagef(outputImage, gid, outputSample);
+
+	#undef _DT_MARKED
+	#undef _DT_FAR_AWAY
+#elif (DIM == 3)
+	#define _DT_MARKED(S) (S.x > 0)
+	#define _DT_FAR_AWAY  ((float4)(MAXFLOAT, MAXFLOAT, MAXFLOAT, (float)0))
+
+	INIT_GID(gid);
+
+	uint4  inputSample  = read_imageui(inputImage, sampler, gid);
+	float4 outputSample = _DT_MARKED(inputSample) ? ((float4)((float)gid.x, (float)gid.y, (float)gid.z, (float)0)) : (_DT_FAR_AWAY);
+	write_imagef(outputImage, gid, outputSample);
+
+	#undef _DT_MARKED
+	#undef _DT_FAR_AWAY
+#else
+	#error "only dimensions 2 and 3 are currently supported."
+#endif
+}
+
+const sampler_t dtSampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
+
+__kernel void dtStep(__read_only IMG_T inputImage, float step, __write_only IMG_T outputImage)
+{
+#define _DT_USE_DISTANCE_SQUARED 0 // TODO: benchmark this with _DT_USE_DISTANCE_SQUARED=1
+
+#if (DIM == 2)
+	#define _DT_DISTANCE(P, Q) distance(P, Q)
+
+	INIT_GID(gid);
+
+	float2 sample          = (float2)((float)gid.x, (float)gid.y);
+	float2 nearestSample   = (read_imagef(inputImage, dtSampler, gid)).xy;
+	float  nearestDistance = _DT_DISTANCE(sample, nearestSample);
+
+	int  istep = (int)step;
+	int2 offset;
+
+	for (offset.x=-1; offset.x<=+1; ++offset.x)
+	{
+		for (offset.y=-1; offset.y<=+1; ++offset.y)
+		{
+			const int2   nCoord    = gid + (istep * offset);
+			const float2 nSample   = (read_imagef(inputImage, dtSampler, nCoord)).xy;
+			#if _DT_USE_DISTANCE_SQUARED
+			const float2 nDiff     = sample - nSample;
+			const float  nDistance = dot(nDiff, nDiff);
+			#else
+			const float  nDistance = _DT_DISTANCE(sample, nSample);
+			#endif
+			if (nDistance < nearestDistance)
+			{
+				nearestSample   = nSample;
+				nearestDistance = nDistance;
+			}
+		}
+	}
+
+	write_imagef(outputImage, gid, (float4)(nearestSample, (float)0, (float)0));
+
+	#undef _DT_DISTANCE
+#elif (DIM == 3)
+	#define _DT_DISTANCE(P, Q) distance(P, Q)
+
+	INIT_GID(gid);
+
+	float3 sample          = (float3)((float)gid.x, (float)gid.y, (float)gid.z);
+	float3 nearestSample   = (read_imagef(inputImage, dtSampler, gid)).xyz;
+	float  nearestDistance = _DT_DISTANCE(sample, nearestSample);
+
+	int  istep = (int)step;
+	int3 offset;
+
+	for (offset.x=-1; offset.x<=+1; ++offset.x)
+	{
+		for (offset.y=-1; offset.y<=+1; ++offset.y)
+		{
+			for (offset.z=-1; offset.z<=+1; ++offset.z)
+			{
+				const int3   nCoord    = gid.xyz + (istep * offset);
+				const float3 nSample   = (read_imagef(inputImage, dtSampler, (int4)(nCoord, 0))).xyz;
+				#if _DT_USE_DISTANCE_SQUARED
+				const float3 nDiff     = sample - nSample;
+				const float  nDistance = dot(nDiff, nDiff);
+				#else
+				const float  nDistance = _DT_DISTANCE(sample, nSample);
+				#endif
+				if (nDistance < nearestDistance)
+				{
+					nearestSample   = nSample;
+					nearestDistance = nDistance;
+				}
+			}
+		}
+	}
+
+	write_imagef(outputImage, gid, (float4)(nearestSample, (float)0));
+
+	#undef _DT_DISTANCE
+#else
+	#error "only dimensions 2 and 3 are currently supported."
+#endif
+
+#undef _DT_USE_DISTANCE_SQUARED
+}
+
+__kernel void dtFinalize(__read_only IMG_T inputImage, __write_only IMG_T outputImage)
+{
+#if (DIM == 2)
+	#define _DT_DISTANCE(P, Q) distance(P, Q)
+
+	INIT_GID(gid);
+
+	float2 sample        = (float2)((float)gid.x, (float)gid.y);
+	float2 nearestSample = (read_imagef(inputImage, dtSampler, gid)).xy;
+	float  dist          = _DT_DISTANCE(sample, nearestSample);
+
+	write_imagef(outputImage, gid, (float4)(dist, (float)0, (float)0, (float)0));
+
+	#undef _DT_DISTANCE
+#elif (DIM == 3)
+	#define _DT_DISTANCE(P, Q) distance(P, Q)
+
+	INIT_GID(gid);
+
+	float3 sample        = (float3)((float)gid.x, (float)gid.y, (float)gid.z);
+	float3 nearestSample = (read_imagef(inputImage, dtSampler, gid)).xyz;
+	float  dist          = _DT_DISTANCE(sample, nearestSample);
+
+	write_imagef(outputImage, gid, (float4)(dist, (float)0, (float)0, (float)0));
+
+	#undef _DT_DISTANCE
+#else
+	#error "only dimensions 2 and 3 are currently supported."
+#endif
+}
+
+/********************* END distance transform (jump flooding) *********************/

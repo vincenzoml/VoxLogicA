@@ -369,6 +369,7 @@ and GPU(kernelsFilename : string, dimension : int) =
         let channelOrder =            
             match nComponents  with
             | 1 -> CLEnum.R
+            // | 2 -> CLEnum.RG TODO: handle the 2-components case and use it in connected components and dt kernels in the 2D
             | 4 -> CLEnum.Rgba
             | x -> raise <| UnsupportedNumberOfComponentsPerPixelException x
 
