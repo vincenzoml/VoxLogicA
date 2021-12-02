@@ -936,19 +936,19 @@ type GPUModel(performanceTest) =
                 return GPUModelValue(output, [| event |],gpu())
             }
 
-    interface IDistanceModel<GPUModelValue> with
-        member __.DT img =
-            job {
-                gpu().Wait img.GEvt
+    // interface IDistanceModel<GPUModelValue> with
+    //     member __.DT img =
+    //         job {
+    //             gpu().Wait img.GEvt
 
-                let cpuImg = img.GVal.Get()
+    //             let cpuImg = img.GVal.Get()
 
-                let result = VoxImage.Dt cpuImg
+    //             let result = VoxImage.Dt cpuImg
 
-                let! output = gpu().CopyImageToDevice result
+    //             let! output = gpu().CopyImageToDevice result
 
-                return GPUModelValue(output, [||],gpu())
-            }    
+    //             return GPUModelValue(output, [||],gpu())
+    //         }    
 
     interface IQuantitativeModel<GPUModelValue> with
         member __.Const value =
@@ -1378,64 +1378,39 @@ type GPUModel(performanceTest) =
                 return GPUModelValue(output, [| event |],gpu())
             }
 
-    [<OperatorAttribute("dt2","valuation(bool)","valuation(number)","Euclidean distance transform of its argument: replaces each voxel with the positive (or 0) distance from the nearest voxel which is true in the argument.")>]
-    member __.Dt2 (imgIn : GPUModelValue) =
-        job {
-                let img = getBaseImg ()
-                let! tmp1 = gpu().NewImageOnDevice(img, 4, Float32)
-                let! tmp2 = gpu().NewImageOnDevice(img, 4, Float32)
-                let coordinate = [|tmp1; tmp2|]
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                
-                let! event1 =
-                    gpu()
-                        .Run(
-                            "dtInitialize",
-                            imgIn.GEvt,
-                            seq {
-                                imgIn.GVal :> KernelArg
-                                coordinate.[0] :> KernelArg
-                            },
-                            img.Size,
-                            None
-                        )
+    interface IDistanceModel<GPUModelValue> with
+        member __.DT (imgIn : GPUModelValue) =
+            job {
+                    let img = getBaseImg ()
+                    let! tmp1 = gpu().NewImageOnDevice(img, 4, Float32)
+                    let! tmp2 = gpu().NewImageOnDevice(img, 4, Float32)
+                    let coordinate = [|tmp1; tmp2|]
+                    let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                    
+                    let! event1 =
+                        gpu()
+                            .Run(
+                                "dtInitialize",
+                                imgIn.GEvt,
+                                seq {
+                                    imgIn.GVal :> KernelArg
+                                    coordinate.[0] :> KernelArg
+                                },
+                                img.Size,
+                                None
+                            )
 
-                let swap() =
-                    let tmp = coordinate.[0]
-                    coordinate.[1] <- coordinate.[0]
-                    coordinate.[0] <- tmp                 
+                    let swap() =
+                        let tmp = coordinate.[0]
+                        coordinate.[1] <- coordinate.[0]
+                        coordinate.[0] <- tmp                 
 
-                let f = gpu().Float32(1f)
-                let! event' = 
-                    gpu()
-                        .Run(
-                            "dtStep",
-                            [| event1 |],
-                            seq {
-                                coordinate.[0] :> KernelArg
-                                f :> KernelArg
-                                coordinate.[1] :> KernelArg
-                            },
-                            img.Size,
-                            None
-                        )     
-
-                let mutable event2 = event'
-
-                let mutable k =
-                    if dim = 3 then
-                        (max img.Depth (max img.Width img.Height)) / 2
-                    else    
-                        (max img.Width img.Height) / 2
-
-                while k > 0 do
-                    swap() 
-                    let f = gpu().Float32(float32 k) 
-                    let! event' =
+                    let f = gpu().Float32(1f)
+                    let! event' = 
                         gpu()
                             .Run(
                                 "dtStep",
-                                [| event2 |],
+                                [| event1 |],
                                 seq {
                                     coordinate.[0] :> KernelArg
                                     f :> KernelArg
@@ -1444,25 +1419,58 @@ type GPUModel(performanceTest) =
                                 img.Size,
                                 None
                             )     
-                    event2 <- event'
-                    k <- k/2
-                     
 
-                let! event =
-                    gpu()
-                        .Run(
-                            "dtFinalize",
-                            [| event2 |],
-                            seq {
-                                coordinate.[1] :> KernelArg
-                                output :> KernelArg
-                            },
-                            img.Size,
-                            None
-                        )
+                    let mutable event2 = event'
 
-                return GPUModelValue(output, [| event |],gpu())
-        }    
+                    let mutable k =
+                        if dim = 3 then
+                            (max img.Depth (max img.Width img.Height)) / 2
+                        else    
+                            (max img.Width img.Height) / 2
+
+                    while k > 0 do
+                        swap() 
+                        let f = gpu().Float32(float32 k) 
+                        let! event' =
+                            gpu()
+                                .Run(
+                                    "dtStep",
+                                    [| event2 |],
+                                    seq {
+                                        coordinate.[0] :> KernelArg
+                                        f :> KernelArg
+                                        coordinate.[1] :> KernelArg
+                                    },
+                                    img.Size,
+                                    None
+                                )     
+                        event2 <- event'
+                        k <- k/2
+                        
+
+                    let! event =
+                        gpu()
+                            .Run(
+                                "dtFinalize",
+                                [| event2 |],
+                                seq {
+                                    coordinate.[1] :> KernelArg
+                                    output :> KernelArg
+                                },
+                                img.Size,
+                                None
+                            )
+
+                    let! _ = 
+                        Job.queue
+                        <| job {
+                            gpu().Wait [| event |]
+                            do! (coordinate.[0] :> IDisposableJob).Dispose 
+                            do! (coordinate.[1] :> IDisposableJob).Dispose
+                            }
+
+                    return GPUModelValue(output, [| event |],gpu())
+            }    
 
 // member __.Min imgIn =
 //     job {
