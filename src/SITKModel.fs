@@ -50,8 +50,7 @@ type SITKModel() =
         let img = v :?> VoxImage
         ErrorMsg.Logger.DebugOnly (sprintf "saving image: %A" <| img.GetHashCode())
         img.Save(filename)
-        JSonOutput.Info(min = VoxImage.Min (VoxImage.Intensity img), max = VoxImage.Max (VoxImage.Intensity img))
-        //JSonOutput.Info(min = 0.0, max = 1.0)
+        (VoxImage.Min (VoxImage.Intensity img),VoxImage.Max (VoxImage.Intensity img)) //JSonOutput.Info(min = 0.0, max = 1.0)
 
     override __.Load s =
         job {

@@ -30,7 +30,7 @@ type Report private () =
     static let mutable save = []
 
     static member Print (name : string,typ : string, res : string) = lock print (fun () -> print <- (name,typ,res)::print)
-    static member Save (name : string,typ : string, info : JSonOutput.Info, path :string) = lock save (fun () -> save <- (name,typ,info,path)::save)
+    static member Save (name : string,typ : string, min : float, max : float, path :string) = lock save (fun () -> save <- (name,typ,min,max,path)::save)
     static member Get () = (List.rev print,List.rev save)
 
 type Logger private () =

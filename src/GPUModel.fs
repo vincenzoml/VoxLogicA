@@ -94,11 +94,11 @@ type GPUModel(performanceTest) =
         let img = gmv.GVal.Get()
         ErrorMsg.Logger.DebugOnly(sprintf "saving image: %A" <| img.GetHashCode())
         if performanceTest then
-            JSonOutput.Info(min = 0.0, max = 0.0)            
+            (0.0,0.0)        
         else
             img.Save(filename)
             // JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))         
-            JSonOutput.Info(min = 0.0, max = 0.0)
+            (VoxImage.Min (VoxImage.Intensity img),VoxImage.Max (VoxImage.Intensity img))
 
 
     override __.Load s = 

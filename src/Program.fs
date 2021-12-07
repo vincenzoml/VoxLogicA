@@ -57,11 +57,45 @@ let main (argv: string array) =
             fun oExn ->
                 let (print,save) = ErrorMsg.Report.Get()
                 let log = readLog()
-                let json = JSonOutput.Root(                                
-                            print = List.toArray (List.map (fun (name,typ,res) -> JSonOutput.Print(name = name, typ = typ, value = res)) print),
-                            layers = List.toArray (List.map (fun (name,typ,info,path) -> JSonOutput.Layer(name = name, typ = typ, info = info, path = path)) save), // 
-                            error = FSharp.Data.JsonValue.String (match oExn with None -> "" | Some exn -> exn.ToString()),  
-                            log = FSharp.Data.JsonValue.String log)
+                let json =
+                    JSonOutput.Root(
+                        print =
+                            List.toArray (
+                                List.map
+                                    (fun (name, typ, res) -> JSonOutput.Print(name = name, vltype = typ, value = res))
+                                    print
+                            ),
+                        layers =
+                            List.toArray (
+                                List.map
+                                    (fun (name, vltype, min, max, path: string) ->
+                                        let mutable ext = System.IO.Path.GetExtension path
+
+                                        let mutable fname =
+                                            System.IO.Path.GetFileNameWithoutExtension path
+
+                                        if ext = ".gz" then
+                                            let ext2 = System.IO.Path.GetExtension fname
+                                            ext <- ext2 + ext
+                                            fname <- System.IO.Path.GetFileNameWithoutExtension fname
+
+                                        JSonOutput.Layer(
+                                            vltype = vltype,
+                                            min = min,
+                                            max = max,
+                                            name = fname,
+                                            extension = ext
+                                        ))
+                                    save
+                            ), //
+                        error =
+                            FSharp.Data.JsonValue.String(
+                                match oExn with
+                                | None -> ""
+                                | Some exn -> exn.ToString()
+                            ),
+                        log = FSharp.Data.JsonValue.String log
+                    )
                 printf "%s" <| json.ToString()                 
         else 
             ErrorMsg.Logger.LogToStdout ()

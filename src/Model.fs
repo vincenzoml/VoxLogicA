@@ -21,5 +21,5 @@ type IModel() =
     inherit Coreops()
     [<OperatorAttribute("load","string","model","load an image")>]
     abstract member Load : string -> Hopac.Job<obj>
-    abstract member Save : string -> obj -> JSonOutput.Info
+    abstract member Save : string -> obj -> (float * float)
     abstract member CanSave : Type -> string -> bool
