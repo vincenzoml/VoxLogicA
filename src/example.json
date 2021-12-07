@@ -1,19 +1,19 @@
+
+  
 {
   "layers": [
     {
       "name": "gtv",
-      "typ": "boolean",
-      "info": {
-        "min": "2e40",
-        "max": "2e40"
-      },
-      "path": "gtv.nii.gz"
+      "extension": ".nii.gz",
+      "vltype": "boolean",      
+      "min": "2e40",
+      "max": "2e40"
     }
   ],
   "print": [
     {
       "name": "layer1",
-      "typ": "string",
+      "vltype": "string",
       "value": "something"
     }
   ],
