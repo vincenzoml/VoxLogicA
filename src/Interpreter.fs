@@ -189,9 +189,13 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                     let j =
                         job {
                             let! res = checker.Get formula
-                            ErrorMsg.Logger.Result name res
-                            ErrorMsg.Report.Print (name,typ.ToString(),res.ToString())
-                            do! checker.Unref formula
+                            ErrorMsg.Logger.Result name res                            
+                            if typ = TNumber then
+                                let nfi = System.Globalization.NumberFormatInfo()
+                                nfi.NumberDecimalSeparator <- "."                            
+                                ErrorMsg.Report.Print (name,typ.ToString(),(res :?> float).ToString(nfi))
+                            else
+                                ErrorMsg.Report.Print (name,typ.ToString(),res.ToString())
                         }
 
                     evaluate env parsedImports rest (j :: jobs)
