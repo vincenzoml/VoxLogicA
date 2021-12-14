@@ -1,6 +1,6 @@
 # VoxLogicA
 
-*The latest release of VoxLogicA is 1.0, released on 2021-12-14, available at https://github.com/vincenzoml/VoxLogicA/releases/tag/v1.0-experimental*
+## NOTE: The latest release of VoxLogicA is 1.0, released on 2021-12-14, available at https://github.com/vincenzoml/VoxLogicA/releases/tag/v1.0-experimental
 
 Welcome to the "landing" branch of VoxLogicA. Please see the links below for more information, source code, papers, download. 
 
