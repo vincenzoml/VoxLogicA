@@ -473,6 +473,25 @@ type VoxImage private (img : Image,uniqueName : string) =
                         else 0uy)
         res
 
+    
+    static member coord n (img : VoxImage) = 
+        // TODO: make this faster by defining the obvious "increaseDecodedCoord" function instead of decoding each time
+        let sz = img.Size   
+        let res = VoxImage.CreateFloat(img,0f)
+        if n < sz.Length then // OTHERWISE: res already contains 0 in each pixel so it's fine as a result if n is outside its allowed range.
+            res.GetBufferAsFloat 
+                (fun buf ->               
+                    let coords = Array.create sz.Length 0  
+                    buf.Replace <|
+                        fun i ->
+                            decode sz i coords
+                            float32 <| coords.[n])
+        res 
+
+    static member X = VoxImage.coord 0
+    static member Y = VoxImage.coord 1
+    static member Z = VoxImage.coord 2
+
     static member Logand (img1 : VoxImage) (img2 : VoxImage) = new VoxImage(SimpleITK.And(img1.Image,img2.Image))
     static member Logor (img1 : VoxImage) (img2 : VoxImage) = new VoxImage(SimpleITK.Or(img1.Image,img2.Image))
     static member Lognot (img : VoxImage) = new VoxImage(SimpleITK.Not(img.Image))

@@ -80,6 +80,9 @@ type SITKModel() =
         member __.Border = job { return VoxImage.Border (getBaseImg()) }
     
     interface IImageModel<VoxImage> with
+        member __.X = job { return VoxImage.X (getBaseImg()) }
+        member __.Y = job { return VoxImage.Y (getBaseImg()) }
+        member __.Z = job { return VoxImage.Z (getBaseImg()) }
         member __.Intensity (img : VoxImage) = lift VoxImage.Intensity img
         member __.Red (img : VoxImage) = lift VoxImage.Red img
         member __.Green (img : VoxImage) = lift VoxImage.Green img

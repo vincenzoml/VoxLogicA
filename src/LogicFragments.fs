@@ -106,6 +106,12 @@ type IBoundedModel<'Value when 'Value : equality> =
 
 type IImageModel<'Value when 'Value : equality> =
     inherit ILogicModel<'Value>
+    [<OperatorAttribute("x",[||],"valuation(number)","The x coordinate at each point")>]
+    abstract member X : Job<'Value>
+    [<OperatorAttribute("y",[||],"valuation(number)","The y coordinate at each point")>]
+    abstract member Y : Job<'Value>
+    [<OperatorAttribute("z",[||],"valuation(number)","The z coordinate at each point")>]
+    abstract member Z : Job<'Value>
     [<OperatorAttribute("intensity","model","valuation(number)","The intensity  of an image. For RGB images this is computed with the well known colorimetric formula.")>]
     abstract member Intensity : 'Value -> Job<'Value>
     [<OperatorAttribute("red","model","valuation(number)","The red component of an image. For grayscale images this is equal to the intensity")>]
