@@ -29,6 +29,7 @@ type LoadFlags = {
 type CmdLine = 
     | Ops 
     | Sequential
+    | Convert of string * string
     | [<MainCommandAttribute;UniqueAttribute>] Filename of string    
 with
     interface Argu.IArgParserTemplate with
@@ -36,6 +37,7 @@ with
             match s with
             | Ops ->  "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
+            | Convert _ ->  "Convert from an image to a json"
             | Sequential ->  "Run on one CPU only"
     
 [<EntryPoint>]
@@ -54,6 +56,45 @@ let main (argv : string array) =
         if parsed.Contains Ops
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
+            exit 0
+        if parsed.Contains Convert then 
+            match parsed.GetResult Convert with
+                (imgf,jsonf) -> 
+                    let img = new SITKUtil.VoxImage(imgf)  
+                    Printf.printf "%A" img
+
+                    exit 1                 
+                    let s = 
+                        let t = Array.ofSeq <| Seq.map int (img.Image.GetSize())
+                        if Array.length t = 3 then t 
+                        else Array.append t [| 1 |]
+                    System.IO.File.WriteAllText(jsonf,FSharp.Json.Json.serialize {  
+                        Graph.nodes = List.ofSeq <| seq { 
+                            for i in 0..(s.[0]-1) do 
+                            for j in 0..(s.[1]-1) do 
+                            for k in 0..(s.[2]-1) do { 
+                                Graph.id = string (i,j,k);                                
+                                Graph.atoms = [ "STUB" ] 
+                            } 
+                        };
+                        Graph.arcs = List.ofSeq <| seq { 
+                            for i in 0..(s.[0]-1) do 
+                            for j in 0..(s.[1]-1) do 
+                            for k in 0..(s.[2]-1) do
+                            for a in -1..1 do
+                            for b in -1..1 do
+                            for c in -1..1 do
+                            let d = i+a
+                            let e = j+b
+                            let f = k+c
+                            if 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
+                                Graph.source = string (i,j,k); 
+                                Graph.target = string (d,e,f)
+                            }
+                        }
+                    })
+
+                    
             exit 0
         let sequential = parsed.Contains Sequential        
         // if sequential
