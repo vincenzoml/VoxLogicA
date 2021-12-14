@@ -1465,8 +1465,8 @@ type GPUModel(performanceTest) =
                         Job.queue
                         <| job {
                             gpu().Wait [| event |]
-                            do! (coordinate.[0] :> IDisposableJob).Dispose 
-                            do! (coordinate.[1] :> IDisposableJob).Dispose
+                            do! (tmp1:> IDisposableJob).Dispose 
+                            do! (tmp2 :> IDisposableJob).Dispose
                             }
 
                     return GPUModelValue(output, [| event |],gpu())
