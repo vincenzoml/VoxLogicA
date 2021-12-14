@@ -57,24 +57,29 @@ let main (argv : string array) =
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-        if parsed.Contains Convert then 
+        if parsed.Contains Convert then             
             match parsed.GetResult Convert with
-                (imgf,jsonf) -> 
-                    let img = new SITKUtil.VoxImage(imgf)  
-                    Printf.printf "%A" img
-
-                    exit 1                 
-                    let s = 
-                        let t = Array.ofSeq <| Seq.map int (img.Image.GetSize())
-                        if Array.length t = 3 then t 
-                        else Array.append t [| 1 |]
+            | (imgf,jsonf) -> 
+                let img = new SITKUtil.VoxImage(imgf)                  
+                if img.NComponents < 3 then failwith "Image must be RGB or RGBA"
+                let s = 
+                    let t = img.Size
+                    if Array.length t = 3 then t 
+                    else Array.append t [| 1 |]
+                img.GetBufferAsFloat (fun buf ->
                     System.IO.File.WriteAllText(jsonf,FSharp.Json.Json.serialize {  
                         Graph.nodes = List.ofSeq <| seq { 
                             for i in 0..(s.[0]-1) do 
                             for j in 0..(s.[1]-1) do 
                             for k in 0..(s.[2]-1) do { 
                                 Graph.id = string (i,j,k);                                
-                                Graph.atoms = [ "STUB" ] 
+                                Graph.atoms = [ 
+                                    let start = img.NComponents * (i + (j*s.[0]) + (k*s.[1]))
+                                    let r = buf.Get start
+                                    let g = buf.Get (start+1)
+                                    let b = buf.Get (start+2)
+                                    sprintf "#%02X%02X%02X" (int r) (int g) (int b)
+                                    ] 
                             } 
                         };
                         Graph.arcs = List.ofSeq <| seq { 
@@ -92,10 +97,11 @@ let main (argv : string array) =
                                 Graph.target = string (d,e,f)
                             }
                         }
-                    })
-
-                    
+                    })                 
+                )
+                ErrorMsg.Logger.Debug "Conversion done."
             exit 0
+            
         let sequential = parsed.Contains Sequential        
         // if sequential
         // then 

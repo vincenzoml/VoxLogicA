@@ -19,6 +19,14 @@ open itk.simple
 open System.IO
 open ErrorMsg
 
+type PixelType = 
+    UInt8 | Float32 
+    member this.Size =
+        match this with
+        | UInt8 -> 1
+        | Float32 -> 4
+
+
 exception UnsupportedImageTypeException of s : string
     with override this.Message = sprintf "Unsupported image type: %s" this.s
 
@@ -45,7 +53,7 @@ open Microsoft.FSharp.NativeInterop
 let private allocate (img : Image, pixeltype : PixelIDValueEnum) = // Does not guarantee the memory is cleared.
     match (img.GetNumberOfComponentsPerPixel(),img.GetPixelID() = pixeltype) with
         | (1ul,true) -> new Image(img)
-        | (_,true) -> SimpleITK.VectorIndexSelectionCast(img,0ul)            
+        | (_,true) -> SimpleITK.VectorIndexSelectionCast(img,0ul)
         | (1ul,false) -> SimpleITK.Cast(img,pixeltype)    
         | (_,_) -> SimpleITK.VectorIndexSelectionCast(img,0ul,pixeltype)
             
@@ -115,7 +123,7 @@ let private hyperrectangle (size : array<int>) (hyperRadius : array<int>) =
                 x
     (indices,faces)        
 
-/// <summary>Computes cross-correlation between two histograms; the first argument can be curried for a speedup</summary
+/// <summary>Computes cross-correlation between two histograms; the first argument can be curried for a speedup</summary>
 /// <remarks>The histograms must have the same length</remarks>
 let private r : array<int> -> array<int> -> float = 
     fun h2 ->
@@ -246,8 +254,7 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     override __.Finalize () = dispose()
 
-    // TODO: make private!
-    member __.Image = img
+    member private __.Image = img
 
     override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
@@ -257,7 +264,7 @@ type VoxImage private (img : Image,uniqueName : string) =
     new (filename : string) = 
         // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
         let loadedImg =
-            Logger.Debug <| sprintf "Loading file %s" filename
+            Logger.DebugOnly <| sprintf "Loading file %s" filename
             let img = SimpleITK.ReadImage(filename)
             let fname = System.IO.Path.GetFileName(filename)
             let sz = img.GetSize()
@@ -292,12 +299,34 @@ type VoxImage private (img : Image,uniqueName : string) =
                     res
                 | (x,y) -> img.Dispose(); raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
         new VoxImage(loadedImg,sprintf "file:%s" filename)  // TODO: canonicize filename and / or use the file hash
-    
+
     new (img : VoxImage, pixeltype : PixelIDValueEnum) =        
         new VoxImage(
                 allocate(img.Image,pixeltype),
-                (   Logger.DebugOnly <| sprintf "Allocating image from %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
+                (   Logger.DebugOnly <| sprintf "Allocating image based on %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
                     sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))
+
+    new (img : VoxImage, ncomponents : int, pixeltype : PixelIDValueEnum) =
+        match ncomponents with
+        | 1 -> new VoxImage(img)
+        | 3 -> 
+            let r = new VoxImage(img,pixeltype)
+            let g = new VoxImage(img,pixeltype)
+            let b = new VoxImage(img,pixeltype)
+            let flt = new ComposeImageFilter()
+            let res = flt.Execute(r.Image,g.Image,b.Image)
+            new VoxImage(res,sprintf "allocate:(%s)[%s][%s]" (ncomponents.ToString()) (img.ToString()) (pixeltype.ToString()))
+        | 4 -> 
+            let r = new VoxImage(img,pixeltype)
+            let g = new VoxImage(img,pixeltype)
+            let b = new VoxImage(img,pixeltype)
+            let a = new VoxImage(img,pixeltype)
+            let flt = new ComposeImageFilter()
+            let res = flt.Execute(r.Image,g.Image,b.Image,a.Image)
+            new VoxImage(res,sprintf "allocate:(%s)[%s][%s]" (ncomponents.ToString()) (img.ToString()) (pixeltype.ToString()))
+        | x -> 
+            let _ = raise <| UnsupportedNumberOfComponentsPerPixelException(x)
+            new VoxImage(img.Image,"")
 
     new (img : VoxImage) = new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
     
@@ -312,28 +341,45 @@ type VoxImage private (img : Image,uniqueName : string) =
                     if img.GetSize().Count = 2 then 
                         if img.GetPixelID() <> PixelIDValueEnum.sitkUInt8 then
                             // TODO: double-check that "nearest integer" in the message below is correct
-                            Logger.Warning (sprintf "saving to %s\nrequires cast to uint8. For each component, only values between 0 and 255 are preserved, rounded to the nearest integer; the behaviour on values outside this range is unspecified." fname)                    
-                            let ncomp = img.GetNumberOfComponentsPerPixel()
+                            Logger.Warning (sprintf "saving to %s\nrequires cast to uint16. For each component, only values between 0 and 65535 are preserved, rounded to the nearest integer; the behaviour on values outside this range is unspecified." fname)                    
+                            let ncomp = img.GetNumberOfComponentsPerPixel()                             
                             if ncomp = 1ul
-                            then SimpleITK.Cast(img,PixelIDValueEnum.sitkUInt8)
+                            then SimpleITK.Cast(img,PixelIDValueEnum.sitkUInt16)
                             else // TODO: why simply casting the image doesn't work here? It works in load
-                                let comps = Array.init (int ncomp) (fun i -> SimpleITK.VectorIndexSelectionCast(img,uint32 i,PixelIDValueEnum.sitkUInt8))
+                                let comps = Array.init (int ncomp) (fun i -> SimpleITK.VectorIndexSelectionCast(img,uint32 i,PixelIDValueEnum.sitkUInt16))
                                 use flt = new ComposeImageFilter()
                                 use v = new VectorOfImage(comps)
-                                flt.Execute(v)                            
+                                flt.Execute(v)                                    
                         else
                             Logger.Warning (sprintf "saving boolean image to %s; value 'true' is set to 255, not 1"  fname)
                             SimpleITK.Multiply(img,255.0)                            
                     else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
                 else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
-        Logger.Debug <| sprintf "Saving file %s" filename        
-        SimpleITK.WriteImage(tmp,filename)  
-
+        Logger.DebugOnly <| sprintf "Saving file %s" filename        
+        SimpleITK.WriteImage(tmp,filename)
+        
     member __.Dimension = int (img.GetDimension())
+
+    member __.Size = Array.ofSeq <| Seq.map int (img.GetSize())
+
+    member __.Depth = max (int <| img.GetDepth()) 1
+  
+    member __.Width = int <| img.GetWidth()
+    
+    member __.Height = int <| img.GetHeight()
 
     member __.NPixels = int (img.GetNumberOfPixels())
 
     member __.NComponents = int (img.GetNumberOfComponentsPerPixel())
+
+    member __.BufferType = 
+        let pid = img.GetPixelID() 
+        if pid = PixelIDValueEnum.sitkUInt8 || pid = PixelIDValueEnum.sitkVectorUInt8
+        then UInt8
+        else
+            if  pid = PixelIDValueEnum.sitkFloat32 || pid = PixelIDValueEnum.sitkVectorFloat32 
+            then Float32
+            else raise <| UnsupportedImageTypeException(pid.ToString())
 
     member this.GetBufferAsUInt8 fn = 
         use vect = new NativeArray<uint8>(NativePtr.ofNativeInt niBuffer,(int <| img.GetNumberOfPixels()) * (int <| img.GetNumberOfComponentsPerPixel()),this)
@@ -468,6 +514,7 @@ type VoxImage private (img : Image,uniqueName : string) =
     static member Add (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Add(img1.Image,img2.Image))
     static member Add (img1 : VoxImage,k : float) = new VoxImage(SimpleITK.Add(img1.Image,k))
     static member Mult (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Multiply(img1.Image,img2.Image))
+    static member Div (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Divide(img1.Image,img2.Image))
     static member Mult (img1 : VoxImage,k : float) = new VoxImage(SimpleITK.Multiply(img1.Image,k))
     static member Div (k : float, img2 : VoxImage) = new VoxImage(SimpleITK.Divide(k,img2.Image))
 
@@ -507,7 +554,7 @@ type VoxImage private (img : Image,uniqueName : string) =
         use tmp = tmp
         new VoxImage(SimpleITK.Cast(tmp.Image,PixelIDValueEnum.sitkFloat32))
 
-    static member Through (img1 : VoxImage) (img2 : VoxImage) =  // x satisfies (through phi1 phi2) iff there is path p and index l s.t. p(l) satisfies phi1, and for all k in [0,l] p(k) satisfies phi2
+    static member Through (img1 : VoxImage) (img2 : VoxImage) =  // x satisfies (through phi1 phi2) iff the connected component of phi2 containing x also contains a point of phi1
         let (cc,k) = VoxImage.LabelConnectedComponents img2
         use cc2 = cc
         let ccs = Array.create (k+1) 0uy
@@ -535,7 +582,16 @@ type VoxImage private (img : Image,uniqueName : string) =
             fun b ->
                 for i = 0 to b.Length - 1 do
                     res <- res + (if b.UGet i > 0uy then 1 else 0))
-        float res                
+        float res  
+
+    static member Otsu (img : VoxImage, mask: VoxImage, nbins : float) =
+        use flt = new OtsuThresholdImageFilter()        
+        flt.SetInsideValue(0uy)
+        flt.SetOutsideValue(1uy)
+        flt.SetNumberOfHistogramBins(uint32 nbins)
+        flt.SetMaskOutput(true)
+        flt.SetMaskValue(1uy)        
+        new VoxImage(flt.Execute(img.Image,mask.Image))        
 
     static member MaxVol (img : VoxImage) =
         let (ccs,k) = VoxImage.LabelConnectedComponents img
