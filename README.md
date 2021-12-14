@@ -7,7 +7,7 @@ Welcome to the "landing" branch of VoxLogicA. Please see the links below for mor
 
 VoxLogicA is a novel image analysis tool designed for domain experts, not for programmers. No libraries to download, no project files to create, no compilers to run, just describe your tasks using short text files, and run them in seconds!
 
-Website: http://www.voxlogica.com
+## Website: http://www.voxlogica.com
 
 
 TACAS 2019 presentation paper: https://link.springer.com/chapter/10.1007/978-3-030-17462-0_16
