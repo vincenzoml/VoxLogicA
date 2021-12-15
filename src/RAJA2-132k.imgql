@@ -1,0 +1,23 @@
+// https://support.shapeways.com/hc/en-us/articles/360022742294-Polygon-reduction-with-MeshLab
+
+load model = "RAJA2-132k.json"
+
+let blueish = (ap("b3")|ap("b2")) & (ap("r0")| ap("r1"))
+let cyan = ap("r2") & (ap("g0"))
+
+let liverCore = ap("b3") & (ap("r1")) & ap("g1")
+let liverOver = ap("b3") & (ap("r2")|ap("r1")) & ap("g1")
+let hearthOrLiverOrKidneys = ap("r2") & (ap("g1"))
+
+let vein = through(blueish,liverCore) 
+let liverWithError = (liverOver | through(liverOver,vein))
+let hearth = through(hearthOrLiverOrKidneys & (not(liverWithError)),vein)
+let liver = liverWithError & (!hearth)
+
+save "vein" vein
+save "liver" liver
+save "hearth" hearth
+save "hearthOrLiverOrKidneys" hearthOrLiverOrKidneys
+
+let selectedVein = vein & (!through(vein,hearth))
+save "selectedVein" selectedVein
