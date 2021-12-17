@@ -85,14 +85,15 @@ let main (argv : string array) =
                         Graph.arcs = List.ofSeq <| seq { 
                             for i in 0..(s.[0]-1) do 
                             for j in 0..(s.[1]-1) do 
-                            for k in 0..(s.[2]-1) do
+                            for k in 0..(s.[2]-1) do                            
                             for a in -1..1 do
                             for b in -1..1 do
                             for c in -1..1 do
                             let d = i+a
                             let e = j+b
                             let f = k+c
-                            if 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
+                            // if 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
+                            if (List.length (List.filter (fun x -> x <> 0) [a;b;c])) = 1 && 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
                                 Graph.source = string (i,j,k); 
                                 Graph.target = string (d,e,f)
                             }
