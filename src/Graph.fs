@@ -8,7 +8,7 @@ type IntNode = { id : string; atoms : string list }
 type IntArc = { source : string; target: string }
 type IntFileGraph = { nodes : IntNode list; arcs : IntArc list } 
 
-let private loadFileGraph filename = 
+let loadFileGraph filename = 
     Json.deserialize<IntFileGraph>(System.IO.File.ReadAllText(filename))    
 
 type Graph =

@@ -59,48 +59,59 @@ let main (argv : string array) =
             exit 0
         if parsed.Contains Convert then             
             match parsed.GetResult Convert with
-            | (imgf,jsonf) -> 
-                let img = new SITKUtil.VoxImage(imgf)                  
-                if img.NComponents < 3 then failwith "Image must be RGB or RGBA"
-                let s = 
-                    let t = img.Size
-                    if Array.length t = 3 then t 
-                    else Array.append t [| 1 |]
-                img.GetBufferAsFloat (fun buf ->
-                    System.IO.File.WriteAllText(jsonf,FSharp.Json.Json.serialize {  
-                        Graph.nodes = List.ofSeq <| seq { 
-                            for i in 0..(s.[0]-1) do 
-                            for j in 0..(s.[1]-1) do 
-                            for k in 0..(s.[2]-1) do { 
-                                Graph.id = string (i,j,k);                                
-                                Graph.atoms = [ 
-                                    let start = img.NComponents * (i + (j*s.[0]) + (k*s.[1]))
-                                    let r = buf.Get start
-                                    let g = buf.Get (start+1)
-                                    let b = buf.Get (start+2)
-                                    sprintf "#%02X%02X%02X" (int r) (int g) (int b)
-                                    ] 
-                            } 
-                        };
-                        Graph.arcs = List.ofSeq <| seq { 
-                            for i in 0..(s.[0]-1) do 
-                            for j in 0..(s.[1]-1) do 
-                            for k in 0..(s.[2]-1) do                            
-                            for a in -1..1 do
-                            for b in -1..1 do
-                            for c in -1..1 do
-                            let d = i+a
-                            let e = j+b
-                            let f = k+c
-                            // if 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
-                            if (List.length (List.filter (fun x -> x <> 0) [a;b;c])) = 1 && 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
-                                Graph.source = string (i,j,k); 
-                                Graph.target = string (d,e,f)
+            | (s1,s2) ->
+                match (System.IO.Path.GetExtension s1,System.IO.Path.GetExtension s2) with
+                | _,"json" ->
+                    let (imgf,jsonf) = (s1,s2)
+                    let img = new SITKUtil.VoxImage(imgf)                  
+                    if img.NComponents < 3 then failwith "Image must be RGB or RGBA"
+                    let s = 
+                        let t = img.Size
+                        if Array.length t = 3 then t 
+                        else Array.append t [| 1 |]
+                    img.GetBufferAsFloat (fun buf ->
+                        System.IO.File.WriteAllText(jsonf,FSharp.Json.Json.serialize {  
+                            Graph.nodes = List.ofSeq <| seq { 
+                                for i in 0..(s.[0]-1) do 
+                                for j in 0..(s.[1]-1) do 
+                                for k in 0..(s.[2]-1) do { 
+                                    Graph.id = string (i,j,k);                                
+                                    Graph.atoms = [ 
+                                        let start = img.NComponents * (i + (j*s.[0]) + (k*s.[1]))
+                                        let r = buf.Get start
+                                        let g = buf.Get (start+1)
+                                        let b = buf.Get (start+2)
+                                        sprintf "#%02X%02X%02X" (int r) (int g) (int b)
+                                        ] 
+                                } 
+                            };
+                            Graph.arcs = List.ofSeq <| seq { 
+                                for i in 0..(s.[0]-1) do 
+                                for j in 0..(s.[1]-1) do 
+                                for k in 0..(s.[2]-1) do                            
+                                for a in -1..1 do
+                                for b in -1..1 do
+                                for c in -1..1 do
+                                let d = i+a
+                                let e = j+b
+                                let f = k+c
+                                // if 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
+                                if (List.length (List.filter (fun x -> x <> 0) [a;b;c])) = 1 && 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then { 
+                                    Graph.source = string (i,j,k); 
+                                    Graph.target = string (d,e,f)
+                                }
                             }
-                        }
-                    })                 
-                )
-                ErrorMsg.Logger.Debug "Conversion done."
+                        })                 
+                    )
+                | "json",_ ->
+                    let j = Graph.loadFileGraph(s1)
+                    seq { for n in j.nodes do
+                            n.id }
+                    failwith "stub"
+                    
+                | _,_ ->
+                    failwith "wrong file exensions for conversion"
+            ErrorMsg.Logger.Debug "Conversion done."
             exit 0
             
         let sequential = parsed.Contains Sequential        
