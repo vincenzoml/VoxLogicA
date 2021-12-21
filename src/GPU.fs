@@ -454,7 +454,7 @@ and GPU(kernelsFilename : string) =
                     //         imageCount.[memoryKey] <- 0
                     //         0         
 
-                    if c < 30 then // TODO: URGENT: PROVISIONAL
+                    if c < 40 then // TODO: URGENT: PROVISIONAL
                         ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
                         lock imageCount (fun () -> imageCount.[memoryKey] <- c + 1)
                         Job.result <| 
