@@ -29,7 +29,7 @@ type ModelChecker(model : IModel) =
         let threadCountLck = Lock()
         let mutable threadCount = 0
         (
-            (Lock.duringFun threadCountLck (fun () -> threadCount <- threadCount + 1)),
+            (Lock.duringFun threadCountLck (fun () -> threadCount <- threadCount + 1; threadCount)),
             (Lock.duringFun threadCountLck (fun () -> threadCount <- threadCount - 1; threadCount)),
             (fun n -> Lock.duringFun threadCountLck (fun () -> threadCount <- n))
         )
@@ -56,16 +56,23 @@ type ModelChecker(model : IModel) =
                 with :? System.InvalidCastException -> job { return () }
             do! (Job.start dispose)            
     }
+
+    // WHERE IN THE WORLD IS CARMEN SANDIEGO? let l = Lock()
+    // WHERE IN THE WORLD IS CARMEN SANDIEGO? let mutable v = 0
+
     let startChecker i (referenceCount : array<ref<int>>) = 
-        job {   
+        job {
             let iv = cache.[i]
             let f = formulaFactory.[i]
-            let op = f.Operator                
+            let op = f.Operator           
             do! Job.start <| job { 
                     do! Job.tryWith
                             (job {  // cache.[f'.Uid] below never fails !
-                                    // because formula uids give a topological sort of the dependency graph
-                                let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
+                                    // because formula uids give a topological sort of the dependency graph                                
+                                let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)     
+                                let! t = incNumThreads
+                                // WHERE IN THE WORLD IS CARMEN SANDIEGO? do! Lock.duringFun l (fun () -> (v <- v+1; printfn "V: %A" v))
+                                do! model.SignalNumThreads t
                                 ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
                                                                 f.Operator.Name f.Uid 
                                                                 (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
@@ -75,8 +82,12 @@ type ModelChecker(model : IModel) =
                                 /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
                                 /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
                                 // printfn "about to compute %d" i
+                                
+                                
+                                // WHERE IN THE WORLD IS CARMEN SANDIEGO? do! Lock.duringFun l (fun () -> (v <- v-1; printfn "V': %A" v))
+                                
                                 let! x = op.Eval (Array.ofSeq arguments)  
-                                                                                
+
                                 ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                                                    
                                 do! IVar.fill iv x 
                                 for uid in Seq.distinct (Seq.map (fun (x : Formula) -> x.Uid) formulaFactory.[i].Arguments) do
@@ -87,7 +98,7 @@ type ModelChecker(model : IModel) =
                                 do! IVar.FillFailure (iv,exn)                        
                             })  
                     let! t = decNumThreads                    
-                    do! model.SignalNumThreads t                                        
+                    do! model.SignalNumThreads t      
             }
             cache.[i] <- iv 
         }
@@ -112,7 +123,6 @@ type ModelChecker(model : IModel) =
             // let f = formulaFactory.[i]
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
         job {   
-                do! setNumThreads formulaFactory.Count
                 for i = 0 to formulaFactory.Count - 1 do                                           
                     ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
                     do! startChecker i referenceCount               

@@ -24,6 +24,9 @@ exception UnsupportedImageDimensionException of i : int
 exception FormatMismatchInGPUMemoryTransferException
     with override this.Message = "Format mismatch in GPU to CPU memory transfer or CPU to GPU memory transfer"
 
+exception OutOfGPUMemoryException
+    with override this.Message = "GPU Memory exhausted."
+
 let nullPtr : nativeptr<nativeint> = NativePtr.ofNativeInt 0n
 let uNullPtr : nativeptr<unativeint> = NativePtr.ofNativeInt 0n
 let bNullPtr : nativeptr<byte> = NativePtr.ofNativeInt 0n
@@ -114,7 +117,10 @@ type MemoryKey =
 type GPUMemory() =
     static let globalLock = ref ()
     static let pools = new Dictionary<MemoryKey,Pool>()    
-    
+    static let mutable onWait = Job.unit ()
+
+    static member OnWait j = onWait <- j
+
     static member Put key mem = 
         ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A %A" key mem
         let pool = 
@@ -127,8 +133,8 @@ type GPUMemory() =
             )
         pool.Put mem        
 
-    static member Wait key =
-        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A" key
+    static member Wait key = job {
+        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A" key        
         let pool =
             lock globalLock (fun () ->
                 try 
@@ -138,9 +144,10 @@ type GPUMemory() =
                     let r = Pool()
                     pools.[key] <- r
                     r
-            )
-        
-        pool.Wait()
+            )   
+        do! onWait                            
+        return! pool.Wait()
+    }
 
     static member NumBlockedThreads () = 
         lock globalLock (fun () -> Seq.sumBy (fun (kv : KeyValuePair<MemoryKey,Pool>) -> kv.Value.NumBlockedThreads()) pools)
@@ -235,12 +242,12 @@ type Kernel =
     {   Name : string
         Pointer : Pointer     }    
 
-and GPU(kernelsFilename : string,dimension : int) =
+and GPU(kernelsFilename : string) =
     static let imageCount = Dictionary<_,_>()
 
     let mutex = ref ()
 
-    let mutable dimensionIndex = 0
+    // let mutable dimensionIndex = 0
 
     let _ = ErrorMsg.Logger.Debug "Initializing GPU"
 
@@ -283,68 +290,74 @@ and GPU(kernelsFilename : string,dimension : int) =
         use devicesPtr = fixed devices
         checkErrPtr (fun errPtr -> (devices.[0],API.CreateContext(nullPtr,1ul,devicesPtr,noNotify,vNullPtr,errPtr)))   // TODO: always selects first device              
 
-    let source = 
-        let defineString = "#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable\n #define DIM " + (string dimension) + "\n"
-        use streamReader = new System.IO.StreamReader(kernelsFilename)
-        let kernels = streamReader.ReadToEnd()
-        let res = defineString + kernels
-        streamReader.Close()
-        res
+    let kernelsByDim dimension =
+        let source = 
+            let defineString = "#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable\n #define DIM " + (string dimension) + "\n"
+            use streamReader = new System.IO.StreamReader(kernelsFilename)
+            let kernels = streamReader.ReadToEnd()
+            let res = defineString + kernels
+            streamReader.Close()
+            res
 
-    let program =         
-        ErrorMsg.Logger.Debug "Compiling kernels"
-        let prg = checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))                
-        let res = API.CompileProgram(prg,0ul,nullPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) 
-        if res = int CLEnum.CompileProgramFailure then        
-            let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
-            let mutable len = [|0un|]
-            use lenPtr = fixed len                        
-            checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
-            let output = SilkMarshal.Allocate (int len.[0] + 1)
-            let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr)) 
-            let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
-            raise <| GPUCompileException error
-        let res = API.BuildProgram(prg,0ul,nullPtr,bNullPtr,noNotify,vNullPtr)     
-        if res = int CLEnum.BuildProgramFailure then        
-            let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
-            let mutable len = [|0un|]
-            use lenPtr = fixed len                        
-            checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
-            let output = SilkMarshal.Allocate (int len.[0] + 1)
-            let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
-            checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr)) 
-            let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
-            raise <| GPUCompileException error
-        checkErr res 
-        ErrorMsg.Logger.Debug "Kernels compiled"
-        prg               
+        let program =         
+            ErrorMsg.Logger.Debug "Compiling kernels"
+            let prg = checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))                
+            let res = API.CompileProgram(prg,0ul,nullPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) 
+            if res = int CLEnum.CompileProgramFailure then        
+                let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
+                let mutable len = [|0un|]
+                use lenPtr = fixed len                        
+                checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
+                let output = SilkMarshal.Allocate (int len.[0] + 1)
+                let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
+                checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr)) 
+                let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
+                raise <| GPUCompileException error
+            let res = API.BuildProgram(prg,0ul,nullPtr,bNullPtr,noNotify,vNullPtr)     
+            if res = int CLEnum.BuildProgramFailure then        
+                let paramName : uint32 = uint32 CLEnum.ProgramBuildLog            
+                let mutable len = [|0un|]
+                use lenPtr = fixed len                        
+                checkErr (API.GetProgramBuildInfo(prg,device,paramName,0un,vNullPtr,lenPtr)) 
+                let output = SilkMarshal.Allocate (int len.[0] + 1)
+                let outputPtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt output : nativeptr<int>)) : voidptr
+                checkErr (API.GetProgramBuildInfo(prg,device,paramName,len.[0],outputPtr,uNullPtr)) 
+                let error = SilkMarshal.PtrToString(output,NativeStringEncoding.Auto)            
+                raise <| GPUCompileException error
+            checkErr res 
+            ErrorMsg.Logger.Debug "Kernels compiled"
+            prg               
 
-    let kernels = // TODO: it is possible in opencl to retrieve information on each parameter (type etc.) with a suitable option to the compiler. Use this to generate typed methods (with a typeprovider?)
-        let num = [|0ul|]
-        use numPtr = fixed num
-        checkErr (API.CreateKernelsInProgram(program,0ul,nullPtr,numPtr))        
-        let kv = Array.create (int num.[0]) 0n        
-        use kvPtr = fixed kv
-        checkErr (API.CreateKernelsInProgram(program,num.[0],kvPtr,numPtr))
-        let kernels = kv.[0..(int num.[0]-1)]
-        let dict = Dictionary<_,_>()
-        for (k,v) in
-            Array.map 
-                (fun k -> 
-                    let len = [|0un|]
-                    use lenPtr = fixed len
-                    checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,vNullPtr,lenPtr) 
-                    let name = SilkMarshal.Allocate (int len.[0] + 1)
-                    let namePtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
-                    checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,len.[0],namePtr,uNullPtr) 
-                    let name = SilkMarshal.PtrToString(name,NativeStringEncoding.Auto)
-                    (name,{ Name = name; Pointer = { Pointer = k}}) )                          
-                kernels
-            do 
-                dict.Add(k,v)
-        dict
-    
+        let kernels = // TODO: it is possible in opencl to retrieve information on each parameter (type etc.) with a suitable option to the compiler. Use this to generate typed methods (with a typeprovider?)
+            let num = [|0ul|]
+            use numPtr = fixed num
+            checkErr (API.CreateKernelsInProgram(program,0ul,nullPtr,numPtr))        
+            let kv = Array.create (int num.[0]) 0n        
+            use kvPtr = fixed kv
+            checkErr (API.CreateKernelsInProgram(program,num.[0],kvPtr,numPtr))
+            let kernels = kv.[0..(int num.[0]-1)]
+            let dict = Dictionary<_,_>()
+            for (k,v) in
+                Array.map 
+                    (fun k -> 
+                        let len = [|0un|]
+                        use lenPtr = fixed len
+                        checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,0un,vNullPtr,lenPtr) 
+                        let name = SilkMarshal.Allocate (int len.[0] + 1)
+                        let namePtr = NativePtr.toVoidPtr((NativePtr.ofNativeInt name : nativeptr<int>)) : voidptr
+                        checkErr <| API.GetKernelInfo(k,uint32 CLEnum.KernelFunctionName,len.[0],namePtr,uNullPtr) 
+                        let name = SilkMarshal.PtrToString(name,NativeStringEncoding.Auto)
+                        (name,{ Name = name; Pointer = { Pointer = k}}) )                          
+                    kernels
+                do 
+                    dict.Add(k,v)
+            dict
+
+        kernels
+
+    let kernels = new Dictionary<_,_>() 
+    let _ = Array.iter (fun k -> kernels.[k] <- kernelsByDim k) [|2;3|]
+
     let queue = checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
     
     let _ = ErrorMsg.Logger.Debug "GPU initialized" 
@@ -353,21 +366,23 @@ and GPU(kernelsFilename : string,dimension : int) =
     let mutable numInternalThreads = 0
     let mutable numExternalThreads = 0
 
-    let checkStarvation = job {
+    let checkStarvation k = job {        
         let b = GPUMemory.NumBlockedThreads()
-        printfn "********** CHECK STARVATION %A %A %A" numInternalThreads numExternalThreads b
-        if b > 0 && (numInternalThreads + numExternalThreads - b <= 0) then
-            failwith "GPU memory exhausted, exiting."
+        ErrorMsg.Logger.Debug <| sprintf "CHECK STARVATION: internal: %A external: %A blocked %A surplus: %A" numInternalThreads numExternalThreads b k
+        if numInternalThreads = 0 && b > 0 && numExternalThreads - k - b <= 0 then
+            raise OutOfGPUMemoryException
     }
 
-    member __.SignalNumExternalThreads n =
+    let _ = GPUMemory.OnWait (Lock.duringJob numThreadsLock <| checkStarvation 1)
+
+    member __.SignalNumExternalThreads n =        
         Lock.duringJob numThreadsLock <| job {
             numExternalThreads <- n
-            do! checkStarvation 
+            do! checkStarvation 0
         }
 
-    member __.SetDimensionIndex x =
-        dimensionIndex <- x
+    // member __.SetDimensionIndex x =
+    //     dimensionIndex <- x
 
     member __.Float32 (f : float32) =
         GPUFloat(f) :> GPUValue<float32>
@@ -437,7 +452,7 @@ and GPU(kernelsFilename : string,dimension : int) =
                     //         imageCount.[memoryKey] <- 0
                     //         0         
 
-                    if c < 40 then // TODO: URGENT: PROVISIONAL
+                    if c < 20 then // TODO: URGENT: PROVISIONAL
                         ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
                         imageCount.[memoryKey] <- c + 1
                         Job.result <| 
@@ -537,7 +552,7 @@ and GPU(kernelsFilename : string,dimension : int) =
             return res
         }
   
-    member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
+    member this.Run (dimension : int,kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
             ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run kernelname %A %A" kernelName args
             do! Lock.duringFun numThreadsLock (fun () -> numInternalThreads <- numInternalThreads + 1)
@@ -546,7 +561,7 @@ and GPU(kernelsFilename : string,dimension : int) =
             do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Reference()) (Seq.distinct args) )
             let res =
                 lock mutex (fun () -> 
-                    let kernel = kernels.[kernelName].Pointer
+                    let kernel = kernels.[dimension].[kernelName].Pointer
                     let args' = Seq.zip (Seq.initInfinite id) args
                     let mutable dimIdx = 0
                     let events = Array.map (fun (x : Event) -> x.EventPointer) events
@@ -566,7 +581,7 @@ and GPU(kernelsFilename : string,dimension : int) =
                     use event' = fixed event
                     use events'' = fixed events
                     let events' = if events.Length > 0 then events'' else nullPtr
-                    let rec fn (localWorkSize' : nativeptr<unativeint>) = 
+                    let fn (localWorkSize' : nativeptr<unativeint>) = 
                         checkErr <|                 
                             API.EnqueueNdrangeKernel(queue,kernel.Pointer,uint32 globalWorkSize.Length,uNullPtr,globalWorkSize',localWorkSize',uint32 events.Length,events',event')                
                     match oLocalWorkSize with
@@ -583,7 +598,7 @@ and GPU(kernelsFilename : string,dimension : int) =
                 do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )
                 do! Lock.duringJob numThreadsLock <| job {
                     numInternalThreads <- numInternalThreads - 1
-                    do! checkStarvation
+                    do! checkStarvation 0
                 }
             }
             // ErrorMsg.Logger.Debug <| sprintf "exit %A" kernelName

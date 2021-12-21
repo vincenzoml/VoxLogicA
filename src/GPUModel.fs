@@ -40,10 +40,7 @@ type GPUModel(performanceTest) =
     let kernelFile =
         System.IO.Path.Combine [| AppContext.BaseDirectory
                                   "kernel.cl" |]
-
-    let gpuvalLck = new Lock()
-    let gpuval = new IVar<GPU>()                           
-
+   
     let mutable dim = 0
 
     let mutable baseImg: option<VoxImage> = None
@@ -78,7 +75,9 @@ type GPUModel(performanceTest) =
     let _ =
         ErrorMsg.Logger.Debug(sprintf "SimpleITK Version: %s.%s" sitkM sitkm)
      
-    let gpu = IVar.read gpuval
+    let gpu = 
+        let x = GPU(kernelFile)
+        Job.result x
 
     override __.SignalNumThreads n =  job {
         let! g = gpu
@@ -107,14 +106,13 @@ type GPUModel(performanceTest) =
     }
 
     override __.Load s = 
-        Lock.duringJob gpuvalLck <| job { // TODO: the granularity of this lock can be lowered; only the first case of the match and the creation of the GPU object need mutual exclusion
+        job { 
             let res = // TODO: URGENT: does this require locking?
                 match (baseImg,performanceTest) with
                 | None,_ ->
                     let img = new VoxImage(s)                    
                     dim <- img.Dimension
-                    baseImg <- Some img    
-                    
+                    baseImg <- Some img                        
                     if performanceTest then ErrorMsg.Logger.Debug "Start measuring performance from here"
                     img
                 | Some img1,true ->
@@ -143,26 +141,22 @@ type GPUModel(performanceTest) =
                             raise (DifferentPhysicalAndLogicalSpaceException s)
                     else
                         raise (DifferentPhysicalAndLogicalSpaceException s)
-
-            ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())
-            if not (IVar.Now.isFull gpuval) 
-            then do! IVar.Fill (gpuval,GPU(kernelFile,dim))
+            ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())            
             let! g = gpu
             let! img = (g.CopyImageToDevice res)         
-
             return GPUModelValue(img, [| |],g) :> obj
         }
 
     interface IBoundedModel<GPUModelValue> with
         member __.Border =
             job {
-                let img = getBaseImg ()
+                let img = getBaseImg ()                
                 let! g = gpu
                 let! output = g.NewImageOnDevice(img, 1, UInt8)
                 let kernelName = if dim = 2 then "border" else "border3D"
 
                 let! event =
-                    g.Run(kernelName, [||], seq { output }, img.Size, None)
+                    g.Run(img.Dimension,kernelName, [||], seq { output }, img.Size, None)
 
                 return GPUModelValue(output, [| event |],g)
             }
@@ -179,7 +173,7 @@ type GPUModel(performanceTest) =
                 let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let! event =
-                    g.Run(
+                    g.Run(img.Dimension,
                             "copy",
                             imgIn.GEvt,
                             seq {
@@ -201,7 +195,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(1f)
 
                 let! event =
-                    g.Run(
+                    g.Run(img.Dimension,
                             "getComponent",
                             imgIn.GEvt,
                             seq {
@@ -224,7 +218,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(1f)
 
                 let! event =
-                    g.Run(
+                    g.Run(img.Dimension,
                             "getComponent",
                             imgIn.GEvt,
                             seq {
@@ -247,8 +241,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(3f)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "getComponent",
                             imgIn.GEvt,
                             seq {
@@ -271,8 +264,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(4f)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "getComponent",
                             imgIn.GEvt,
                             seq {
@@ -302,8 +294,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "rgbaComps",
                             newEvents,
                             seq {
@@ -342,8 +333,7 @@ type GPUModel(performanceTest) =
                         "readFirstPixel2D"
 
                 let! evt' =
-                    g
-                        .Run(
+                    g.Run(img1.Dimension,
                             "castUInt8ToFloat32",
                             img.GEvt,
                             seq {
@@ -369,8 +359,7 @@ type GPUModel(performanceTest) =
                 // ARRAY DELLE DIMENSIONI, COPIATO COME VARIABILE
                 for i = 0 to iterations - 1 do // WHILE UNA DELLE DIMENSIONI E' MAGGIORE DI 1
                     let! event =
-                        g
-                            .Run(
+                        g.Run(img1.Dimension,
                                 kernelVolume,
                                 newEvent,
                                 seq {
@@ -399,8 +388,7 @@ type GPUModel(performanceTest) =
                 // x.Save("output/tmp.png")
 
                 let! ev =
-                    (g
-                        .Run(
+                    (g.Run(img1.Dimension,
                             kernelRead,
                             newEvent,
                             seq {
@@ -486,8 +474,7 @@ type GPUModel(performanceTest) =
                     output <- temp
 
                 let! evt0 =
-                    g
-                        .Run(
+                    g.Run(bimg.Dimension,
                             kernelInit,
                             img.GEvt,
                             seq {
@@ -507,8 +494,7 @@ type GPUModel(performanceTest) =
                             return evt
                         else
                             let! evt' =
-                                g
-                                    .Run(
+                                g.Run(bimg.Dimension,
                                         kernelIterate,
                                         [| evt |],
                                         seq {
@@ -540,8 +526,7 @@ type GPUModel(performanceTest) =
                     let! evt1 = iterate 0 k whileEvt
 
                     let! evt2 =
-                        g
-                            .Run(
+                        g.Run(bimg.Dimension,
                                 kernelReconnect,
                                 [| evt1 |],
                                 seq {
@@ -562,8 +547,7 @@ type GPUModel(performanceTest) =
                         swap ()
 
                         let! whileEvtTmp =
-                            g
-                                .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+                            g.Run(bimg.Dimension,"resetFlag", [||], seq { flag }, [| 1 |], None)
 
                         whileEvt <- whileEvtTmp
                     else
@@ -587,8 +571,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(1f)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "booleanImg",
                             [||],
                             seq {
@@ -610,8 +593,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(0f)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "booleanImg",
                             [||],
                             seq {
@@ -634,8 +616,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(v)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "booleanImg",
                             [||],
                             seq {
@@ -661,8 +642,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "logand",
                             newEvents,
                             seq {
@@ -689,8 +669,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "logor",
                             newEvents,
                             seq {
@@ -712,8 +691,7 @@ type GPUModel(performanceTest) =
                 let! output = g.NewImageOnDevice(img, 1, UInt8)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "lognot",
                             imgIn.GEvt,
                             seq {
@@ -736,8 +714,7 @@ type GPUModel(performanceTest) =
                 let! output = g.NewImageOnDevice(img, 1, UInt8)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             kernelName,
                             imgIn.GEvt,
                             seq {
@@ -782,8 +759,7 @@ type GPUModel(performanceTest) =
                             "reconnectCCL3D"
 
                     let! evt0 =
-                        g
-                            .Run(
+                        g.Run(bimg.Dimension,
                                 kernelInit,
                                 img.GEvt,
                                 seq {
@@ -813,8 +789,7 @@ type GPUModel(performanceTest) =
                                 return (meaningful,temporary,evt) 
                             else
                                 let! evt' =
-                                    g
-                                        .Run(
+                                    g.Run(bimg.Dimension,
                                             "iterateCCL3D", // kernelIterate,
                                             [| evt |],
                                             seq {
@@ -835,8 +810,7 @@ type GPUModel(performanceTest) =
                     while not terminated do                        
                         let! (m,t,evt1) = iterate 8 whileEvt meaningful temporary 
                         let! evt2 = 
-                            g
-                                .Run(
+                            g.Run(bimg.Dimension,
                                     kernelReconnect,
                                     [| evt1 |],
                                     seq {
@@ -854,8 +828,7 @@ type GPUModel(performanceTest) =
                         
                         if flag.Get().[0] > 0uy then     
                            let! whileEvtTmp =
-                               g
-                                   .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
+                               g.Run(bimg.Dimension,"resetFlag", [||], seq { flag }, [| 1 |], None)
                            whileEvt <- whileEvtTmp
                         else
                            terminated <- true                  
@@ -896,8 +869,7 @@ type GPUModel(performanceTest) =
                         "finalizeThrough3D"
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(baseImg.Dimension,
                             kernelInit,
                             newEvents,
                             seq {
@@ -910,8 +882,7 @@ type GPUModel(performanceTest) =
                         )
 
                 let! resultEvent =
-                    g
-                        .Run(
+                    g.Run(baseImg.Dimension,
                             kernelFinalize,
                             [| event |],
                             seq {
@@ -942,8 +913,7 @@ type GPUModel(performanceTest) =
                 let kernelName = if dim = 2 then "erode" else "erode3D"
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             kernelName,
                             imgIn.GEvt,
                             seq {
@@ -980,8 +950,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 value)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "constImg",
                             [||],
                             seq {
@@ -1003,8 +972,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 value)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "eq",
                             imgIn.GEvt,
                             seq {
@@ -1027,8 +995,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 value)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "geqSV",
                             imgIn.GEvt,
                             seq {
@@ -1051,8 +1018,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 value)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "leq",
                             imgIn.GEvt,
                             seq {
@@ -1076,8 +1042,7 @@ type GPUModel(performanceTest) =
                 let f2 = g.Float32(float32 value2)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "between",
                             imgIn.GEvt,
                             seq {
@@ -1100,8 +1065,7 @@ type GPUModel(performanceTest) =
                 let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "abs",
                             imgIn.GEvt,
                             seq {
@@ -1144,8 +1108,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "sub",
                             newEvents,
                             seq {
@@ -1172,8 +1135,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "add",
                             newEvents,
                             seq {
@@ -1200,8 +1162,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "mul",
                             newEvents,
                             seq {
@@ -1228,8 +1189,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "div",
                             newEvents,
                             seq {
@@ -1256,8 +1216,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "mask",
                             newEvents,
                             seq {
@@ -1280,8 +1239,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 k)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "addVS",
                             imgIn.GEvt,
                             seq {
@@ -1304,8 +1262,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 k)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "mulVS",
                             imgIn.GEvt,
                             seq {
@@ -1328,8 +1285,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 k)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "subVS",
                             imgIn.GEvt,
                             seq {
@@ -1352,8 +1308,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 k)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "divVS",
                             imgIn.GEvt,
                             seq {
@@ -1376,8 +1331,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 k)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "subSV",
                             imgIn.GEvt,
                             seq {
@@ -1400,8 +1354,7 @@ type GPUModel(performanceTest) =
                 let f = g.Float32(float32 k)
 
                 let! event =
-                    g
-                        .Run(
+                    g.Run(img.Dimension,
                             "divSV",
                             imgIn.GEvt,
                             seq {
@@ -1427,8 +1380,7 @@ type GPUModel(performanceTest) =
                     let! output = g.NewImageOnDevice(img, 1, Float32)
                     
                     let! event1 =
-                        g
-                            .Run(
+                        g.Run(img.Dimension,
                                 "dtInitialize",
                                 imgIn.GEvt,
                                 seq {
@@ -1446,8 +1398,7 @@ type GPUModel(performanceTest) =
 
                     let f = g.Float32(1f)
                     let! event' = 
-                        g
-                            .Run(
+                        g.Run(img.Dimension,
                                 "dtStep",
                                 [| event1 |],
                                 seq {
@@ -1471,8 +1422,7 @@ type GPUModel(performanceTest) =
                         swap() 
                         let f = g.Float32(float32 k) 
                         let! event' =
-                            g
-                                .Run(
+                            g.Run(img.Dimension,
                                     "dtStep",
                                     [| event2 |],
                                     seq {
@@ -1488,8 +1438,7 @@ type GPUModel(performanceTest) =
                         
 
                     let! event =
-                        g
-                            .Run(
+                        g.Run(img.Dimension,
                                 "dtFinalize",
                                 [| event2 |],
                                 seq {
