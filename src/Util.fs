@@ -20,6 +20,7 @@ open System
 type JSonOutput = FSharp.Data.JsonProvider<"example.json">
 
 module Util =
+    let inline (<||) f a = f a
     module Concurrent =
         open Hopac
 

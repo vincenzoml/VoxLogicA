@@ -168,7 +168,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                             let dirname = System.IO.Path.GetDirectoryName filename
                             ignore <| Directory.CreateDirectory(dirname)
                             // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: About to save image: %A" <| res.GetHashCode())
-                            let (min,max) = model.Save filename res
+                            let! (min,max) = model.Save filename res
                             ErrorMsg.Report.Save (fname,typ.ToString(), min, max, rpath)
                             do! checker.Unref formula // Very important 
                         }

@@ -57,6 +57,9 @@ type Pool() =
     let mutable queue = []
     let mutable waitingList = []
 
+    member __.NumBlockedThreads () = 
+        lock lck (fun () -> List.length waitingList)
+
     member __.Put (x : nativeint) =
         lock lck (fun () -> 
                     ErrorMsg.Logger.DebugOnly <| sprintf "PUT: %A" x 
@@ -110,7 +113,7 @@ type MemoryKey =
     Image of ImageKey
 type GPUMemory() =
     static let globalLock = ref ()
-    static let pools = new Dictionary<MemoryKey,Pool>()
+    static let pools = new Dictionary<MemoryKey,Pool>()    
     
     static member Put key mem = 
         ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A %A" key mem
@@ -138,6 +141,9 @@ type GPUMemory() =
             )
         
         pool.Wait()
+
+    static member NumBlockedThreads () = 
+        lock globalLock (fun () -> Seq.sumBy (fun (kv : KeyValuePair<MemoryKey,Pool>) -> kv.Value.NumBlockedThreads()) pools)
 
     // static member Get key = 
     //     ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" key
@@ -229,7 +235,7 @@ type Kernel =
     {   Name : string
         Pointer : Pointer     }    
 
-and GPU(kernelsFilename : string, dimension : int) =
+and GPU(kernelsFilename : string,dimension : int) =
     static let imageCount = Dictionary<_,_>()
 
     let mutex = ref ()
@@ -342,6 +348,23 @@ and GPU(kernelsFilename : string, dimension : int) =
     let queue = checkErrPtr (fun errPtr -> API.CreateCommandQueue(context,device,CLEnum.QueueOutOfOrderExecModeEnable,errPtr))    
     
     let _ = ErrorMsg.Logger.Debug "GPU initialized" 
+
+    let numThreadsLock = Lock()
+    let mutable numInternalThreads = 0
+    let mutable numExternalThreads = 0
+
+    let checkStarvation = job {
+        let b = GPUMemory.NumBlockedThreads()
+        printfn "********** CHECK STARVATION %A %A %A" numInternalThreads numExternalThreads b
+        if b > 0 && (numInternalThreads + numExternalThreads - b <= 0) then
+            failwith "GPU memory exhausted, exiting."
+    }
+
+    member __.SignalNumExternalThreads n =
+        Lock.duringJob numThreadsLock <| job {
+            numExternalThreads <- n
+            do! checkStarvation 
+        }
 
     member __.SetDimensionIndex x =
         dimensionIndex <- x
@@ -485,6 +508,7 @@ and GPU(kernelsFilename : string, dimension : int) =
             let dataPointer = 
                 match res.Value with
                 | Buffer buf -> buf.DataPointer
+                | _ -> failwith "Internal error in module GPU.fs. This should not happen, please report."
 
             match hImgSource.BufferType with
             | UInt8 ->
@@ -516,7 +540,7 @@ and GPU(kernelsFilename : string, dimension : int) =
     member this.Run (kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
             ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run kernelname %A %A" kernelName args
-            
+            do! Lock.duringFun numThreadsLock (fun () -> numInternalThreads <- numInternalThreads + 1)
             // ErrorMsg.Logger.Debug <| sprintf "start %A" kernelName
             let args = Seq.cache args
             do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Reference()) (Seq.distinct args) )
@@ -557,7 +581,10 @@ and GPU(kernelsFilename : string, dimension : int) =
                 this.Wait [|res|]     
                 ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run finished %A" kernelName
                 do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )
-
+                do! Lock.duringJob numThreadsLock <| job {
+                    numInternalThreads <- numInternalThreads - 1
+                    do! checkStarvation
+                }
             }
             // ErrorMsg.Logger.Debug <| sprintf "exit %A" kernelName
             return res

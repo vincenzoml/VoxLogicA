@@ -41,7 +41,9 @@ type GPUModel(performanceTest) =
         System.IO.Path.Combine [| AppContext.BaseDirectory
                                   "kernel.cl" |]
 
-    let mutable gpuval = None
+    let gpuvalLck = new Lock()
+    let gpuval = new IVar<GPU>()                           
+
     let mutable dim = 0
 
     let mutable baseImg: option<VoxImage> = None
@@ -75,11 +77,13 @@ type GPUModel(performanceTest) =
 
     let _ =
         ErrorMsg.Logger.Debug(sprintf "SimpleITK Version: %s.%s" sitkM sitkm)
+     
+    let gpu = IVar.read gpuval
 
-    let gpu () =
-        match gpuval with
-        | None -> raise NoModelLoadedException
-        | Some (x: GPU) -> x
+    override __.SignalNumThreads n =  job {
+        let! g = gpu
+        do! g.SignalNumExternalThreads n
+    }
 
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         match t with
@@ -87,32 +91,30 @@ type GPUModel(performanceTest) =
         | TModel) when List.exists (f.EndsWith: string -> bool) supportedExtensions -> true
         | _ -> false
 
-    override __.Save filename v =
+    override __.Save filename v = job {
         ErrorMsg.Logger.DebugOnly(sprintf "Retrieving from GPU: %A" filename)
         let gmv = (v :?> GPUModelValue)
-        gpu().Wait <| gmv.GEvt
+        let! g = gpu
+        g.Wait <| gmv.GEvt
         let img = gmv.GVal.Get()
         ErrorMsg.Logger.DebugOnly(sprintf "saving image: %A" <| img.GetHashCode())
         if performanceTest then
-            (0.0,0.0)        
+            return (0.0,0.0)        
         else
             img.Save(filename)
             // JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))         
-            (VoxImage.Min (VoxImage.Intensity img),VoxImage.Max (VoxImage.Intensity img))
-
+            return (VoxImage.Min (VoxImage.Intensity img),VoxImage.Max (VoxImage.Intensity img))
+    }
 
     override __.Load s = 
-        job {
+        Lock.duringJob gpuvalLck <| job { // TODO: the granularity of this lock can be lowered; only the first case of the match and the creation of the GPU object need mutual exclusion
             let res = // TODO: URGENT: does this require locking?
                 match (baseImg,performanceTest) with
                 | None,_ ->
                     let img = new VoxImage(s)                    
                     dim <- img.Dimension
-                    baseImg <- Some img
-                    gpuval <-
-                        match gpuval with
-                        | None -> Some(GPU(kernelFile, dim))
-                        | Some (_) as x -> x
+                    baseImg <- Some img    
+                    
                     if performanceTest then ErrorMsg.Logger.Debug "Start measuring performance from here"
                     img
                 | Some img1,true ->
@@ -143,24 +145,26 @@ type GPUModel(performanceTest) =
                         raise (DifferentPhysicalAndLogicalSpaceException s)
 
             ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())
+            if not (IVar.Now.isFull gpuval) 
+            then do! IVar.Fill (gpuval,GPU(kernelFile,dim))
+            let! g = gpu
+            let! img = (g.CopyImageToDevice res)         
 
-            let! img = (gpu().CopyImageToDevice res)         
-
-            return GPUModelValue(img, [| |],gpu()) :> obj
+            return GPUModelValue(img, [| |],g) :> obj
         }
 
     interface IBoundedModel<GPUModelValue> with
         member __.Border =
             job {
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let! g = gpu
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
                 let kernelName = if dim = 2 then "border" else "border3D"
 
                 let! event =
-                    gpu()
-                        .Run(kernelName, [||], seq { output }, img.Size, None)
+                    g.Run(kernelName, [||], seq { output }, img.Size, None)
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
     interface IImageModel<GPUModelValue> with
@@ -170,12 +174,12 @@ type GPUModel(performanceTest) =
 
             job {
                 let img = getBaseImg ()
-                
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                let! g = gpu
+
+                let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let! event =
-                    gpu()
-                        .Run(
+                    g.Run(
                             "copy",
                             imgIn.GEvt,
                             seq {
@@ -186,18 +190,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Red(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(1f)
+                let! g = gpu
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(1f)
 
                 let! event =
-                    gpu()
-                        .Run(
+                    g.Run(
                             "getComponent",
                             imgIn.GEvt,
                             seq {
@@ -209,18 +213,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Green(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(1f)
+                let! g = gpu
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(1f)
 
                 let! event =
-                    gpu()
-                        .Run(
+                    g.Run(
                             "getComponent",
                             imgIn.GEvt,
                             seq {
@@ -232,17 +236,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Blue(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(3f)
+                let! g = gpu
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(3f)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "getComponent",
                             imgIn.GEvt,
@@ -255,17 +260,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Alpha(imgIn: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(4f)
+                let! g = gpu
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(4f)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "getComponent",
                             imgIn.GEvt,
@@ -278,13 +284,15 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.RGBA (imgr: GPUModelValue) (imgg: GPUModelValue) (imgb: GPUModelValue) (imga: GPUModelValue) =
             job {
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 4, Float32)
+                let! g = gpu
+
+                let! output = g.NewImageOnDevice(img, 4, Float32)
                 let evt1 = Array.append imgr.GEvt imgg.GEvt
                 let evt2 = Array.append evt1 imgb.GEvt
 
@@ -294,7 +302,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "rgbaComps",
                             newEvents,
@@ -309,15 +317,16 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Volume(img: GPUModelValue) =
             job {
                 let img1 = getBaseImg ()
-                let! output' = gpu().NewImageOnDevice(img1, 1, Float32)
+                let! g = gpu
+                let! output' = g.NewImageOnDevice(img1, 1, Float32)
                 let mutable output = output'
-                let! tmp' = gpu().NewImageOnDevice(img1, 1, Float32)
+                let! tmp' = g.NewImageOnDevice(img1, 1, Float32)
                 let mutable tmp = tmp'
 
                 let kernelVolume =
@@ -333,7 +342,7 @@ type GPUModel(performanceTest) =
                         "readFirstPixel2D"
 
                 let! evt' =
-                    gpu()
+                    g
                         .Run(
                             "castUInt8ToFloat32",
                             img.GEvt,
@@ -360,7 +369,7 @@ type GPUModel(performanceTest) =
                 // ARRAY DELLE DIMENSIONI, COPIATO COME VARIABILE
                 for i = 0 to iterations - 1 do // WHILE UNA DELLE DIMENSIONI E' MAGGIORE DI 1
                     let! event =
-                        gpu()
+                        g
                             .Run(
                                 kernelVolume,
                                 newEvent,
@@ -372,7 +381,7 @@ type GPUModel(performanceTest) =
                                 None
                             )
 
-                    // gpu().Wait([|event|])
+                    // g.Wait([|event|])
                     // let x = (VoxImage.Mult (output.Get(),float 256))
                     // x.Save(sprintf "output/iteration-%02d.png" i)
 
@@ -384,13 +393,13 @@ type GPUModel(performanceTest) =
                             currentSize.[i] <- currentSize.[i] + 1
                             currentSize.[i] <- currentSize.[i] / 2
 
-                let mutable res: GPUValue<array<float32>> = gpu().CopyArrayToDevice([| 0f |])
-                // gpu().Wait(newEvent)
+                let mutable res: GPUValue<array<float32>> = g.CopyArrayToDevice([| 0f |])
+                // g.Wait(newEvent)
                 // let x = (VoxImage.Mult (tmp.Get(),float 256))
                 // x.Save("output/tmp.png")
 
                 let! ev =
-                    (gpu()
+                    (g
                         .Run(
                             kernelRead,
                             newEvent,
@@ -402,7 +411,7 @@ type GPUModel(performanceTest) =
                             None
                         ))
 
-                gpu().Wait([| ev |])
+                g.Wait([| ev |])
                 do! (tmp' :> IDisposableJob).Dispose
                 do! (output' :> IDisposableJob).Dispose
                 let result = res.Get()
@@ -412,23 +421,24 @@ type GPUModel(performanceTest) =
         // ON CPU
         member __.MaxVol img =
             job {
-
-                gpu().Wait img.GEvt
+                let! g = gpu
+                g.Wait img.GEvt
 
                 let cpuImg = img.GVal.Get()
 
                 let result = VoxImage.MaxVol cpuImg
 
-                let! output = gpu().CopyImageToDevice result
+                let! output = g.CopyImageToDevice result
 
-                return GPUModelValue(output, [||],gpu())
+                return GPUModelValue(output, [||],g)
             }
 
         // ON CPU
         member __.Percentiles imgIn mask correction =
             job {
+                let! g = gpu
                 let evt = Array.append imgIn.GEvt mask.GEvt
-                gpu().Wait evt
+                g.Wait evt
 
                 let cpuImg = imgIn.GVal.Get()
                 let cpuMask = mask.GVal.Get()
@@ -436,19 +446,20 @@ type GPUModel(performanceTest) =
                 let result =
                     VoxImage.Percentiles cpuImg cpuMask correction
 
-                let! output = gpu().CopyImageToDevice result
+                let! output = g.CopyImageToDevice result
 
-                return GPUModelValue(output, [||],gpu())
+                return GPUModelValue(output, [||],g)
             }
 
         member __.LCC img = // TODO: URGENT: see the changes to this in through ; use this instead of the copy in through
             job {
+                let! g = gpu
                 let bimg = getBaseImg ()
 
-                let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |])
-                let! output' = gpu().NewImageOnDevice(bimg, 4, Float32)
+                let mutable flag: GPUValue<array<uint8>> = g.CopyArrayToDevice([| 0uy |])
+                let! output' = g.NewImageOnDevice(bimg, 4, Float32)
                 let mutable output = output'
-                let! tmp' = gpu().NewImageOnDevice(bimg, 4, Float32)
+                let! tmp' = g.NewImageOnDevice(bimg, 4, Float32)
                 let mutable tmp = tmp'
 
                 let kernelInit =
@@ -475,7 +486,7 @@ type GPUModel(performanceTest) =
                     output <- temp
 
                 let! evt0 =
-                    gpu()
+                    g
                         .Run(
                             kernelInit,
                             img.GEvt,
@@ -487,7 +498,7 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                //gpu().Wait([|evt0|])
+                //g.Wait([|evt0|])
                 //tmp.Get().Save("output/init.nii.gz")
 
                 let rec iterate n iterations evt =
@@ -496,7 +507,7 @@ type GPUModel(performanceTest) =
                             return evt
                         else
                             let! evt' =
-                                gpu()
+                                g
                                     .Run(
                                         kernelIterate,
                                         [| evt |],
@@ -508,7 +519,7 @@ type GPUModel(performanceTest) =
                                         None
                                     )
 
-                            //gpu().Wait([|evt'|])
+                            //g.Wait([|evt'|])
                             //output.Get().Save(sprintf "output/iteration-%02d.nii.gz" n)
 
                             swap ()
@@ -529,7 +540,7 @@ type GPUModel(performanceTest) =
                     let! evt1 = iterate 0 k whileEvt
 
                     let! evt2 =
-                        gpu()
+                        g
                             .Run(
                                 kernelReconnect,
                                 [| evt1 |],
@@ -545,13 +556,13 @@ type GPUModel(performanceTest) =
                     nsteps <- nsteps + k
                     nrecs <- nrecs + 1
 
-                    gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
+                    g.Wait([| evt2 |]) // DO NOT REMOVE THIS
 
                     if flag.Get().[0] > 0uy then
                         swap ()
 
                         let! whileEvtTmp =
-                            gpu()
+                            g
                                 .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
 
                         whileEvt <- whileEvtTmp
@@ -563,19 +574,20 @@ type GPUModel(performanceTest) =
 
                 // ONLY TO DEBUG A SINGE ITERATION WITH RECONNECT SET THIS AND COMMENT THE IF ABOVE: terminated <- true
 
-                return GPUModelValue(output, [||],gpu()) // No event returned as we waited for the event already to read the flag
+                return GPUModelValue(output, [||],g) // No event returned as we waited for the event already to read the flag
             }
 
 
     interface IBooleanModel<GPUModelValue> with
         member __.TT =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
-                let f = gpu().Float32(1f)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
+                let f = g.Float32(1f)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "booleanImg",
                             [||],
@@ -587,17 +599,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.FF =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
-                let f = gpu().Float32(0f)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
+                let f = g.Float32(0f)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "booleanImg",
                             [||],
@@ -609,18 +622,19 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.BConst value =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
                 let v = if value then 1f else 0f
-                let f = gpu().Float32(v)
+                let f = g.Float32(v)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "booleanImg",
                             [||],
@@ -632,13 +646,14 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.And img1 img2 =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
 
                 let tmpEvents =
                     Seq.distinct (Array.append img1.GEvt img2.GEvt)
@@ -646,7 +661,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "logand",
                             newEvents,
@@ -659,13 +674,14 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Or img1 img2 =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
 
                 let tmpEvents =
                     Seq.distinct (Array.append img1.GEvt img2.GEvt)
@@ -673,7 +689,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "logor",
                             newEvents,
@@ -686,16 +702,17 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Not imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "lognot",
                             imgIn.GEvt,
@@ -707,18 +724,19 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
     interface ISpatialModel<GPUModelValue> with
         member __.Near imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
                 let kernelName = if dim = 2 then "dilate" else "dilate3D"
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             kernelName,
                             imgIn.GEvt,
@@ -730,18 +748,19 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member this.Through (img: GPUModelValue) (img2: GPUModelValue) = // TODO: URGENT: make multiple allocation transactional
             let lcc (img: GPUModelValue) =
                 job {
+                    let! g = gpu
                     let bimg = getBaseImg ()
 
-                    let mutable flag: GPUValue<array<uint8>> = gpu().CopyArrayToDevice([| 0uy |]) // TODO: URGENT: leak?
-                    let! temporary' = gpu().NewImageOnDevice(bimg, 4, Float32)
+                    let mutable flag: GPUValue<array<uint8>> = g.CopyArrayToDevice([| 0uy |]) // TODO: URGENT: leak?
+                    let! temporary' = g.NewImageOnDevice(bimg, 4, Float32)
                     let mutable temporary = temporary'
-                    let! meaningful' = gpu().NewImageOnDevice(bimg, 4, Float32)
+                    let! meaningful' = g.NewImageOnDevice(bimg, 4, Float32)
                     let mutable meaningful = meaningful'
 
                     let kernelInit =
@@ -763,7 +782,7 @@ type GPUModel(performanceTest) =
                             "reconnectCCL3D"
 
                     let! evt0 =
-                        gpu()
+                        g
                             .Run(
                                 kernelInit,
                                 img.GEvt,
@@ -776,7 +795,7 @@ type GPUModel(performanceTest) =
                             )
 
                     // let! evt0 =
-                    //     gpu()
+                    //     g
                     //         .Run(
                     //             "copy",
                     //             [|evt0|],
@@ -794,7 +813,7 @@ type GPUModel(performanceTest) =
                                 return (meaningful,temporary,evt) 
                             else
                                 let! evt' =
-                                    gpu()
+                                    g
                                         .Run(
                                             "iterateCCL3D", // kernelIterate,
                                             [| evt |],
@@ -816,7 +835,7 @@ type GPUModel(performanceTest) =
                     while not terminated do                        
                         let! (m,t,evt1) = iterate 8 whileEvt meaningful temporary 
                         let! evt2 = 
-                            gpu()
+                            g
                                 .Run(
                                     kernelReconnect,
                                     [| evt1 |],
@@ -829,28 +848,29 @@ type GPUModel(performanceTest) =
                                     None
                                 )                                   
 
-                        gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
+                        g.Wait([| evt2 |]) // DO NOT REMOVE THIS
                         meaningful <- t // double buffering again
                         temporary <- m // double buffering again 
                         
                         if flag.Get().[0] > 0uy then     
                            let! whileEvtTmp =
-                               gpu()
+                               g
                                    .Run("resetFlag", [||], seq { flag }, [| 1 |], None)
                            whileEvt <- whileEvtTmp
                         else
                            terminated <- true                  
 
                     do! (temporary :> IDisposableJob).Dispose // can be disposed here, as we waited for the event already to read the flag TODO: URGENT: restore this line
-                    return GPUModelValue(meaningful, [| |],gpu()) 
+                    return GPUModelValue(meaningful, [| |],g) 
                 }
 
 
             //Lock.duringJob shamefulLock <| // TODO change this to a multi-image allocation function on the GPU (this is here to avoid starvation)
             job {
+                let! g = gpu
                 let baseImg = getBaseImg ()
 
-                // let! tmp = gpu().NewImageOnDevice(baseImg, 1, UInt8)
+                // let! tmp = g.NewImageOnDevice(baseImg, 1, UInt8)
 
                 let! tmpResult = (this :> IBooleanModel<_>).BConst false
                 let tmp = tmpResult.GVal
@@ -876,7 +896,7 @@ type GPUModel(performanceTest) =
                         "finalizeThrough3D"
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             kernelInit,
                             newEvents,
@@ -890,7 +910,7 @@ type GPUModel(performanceTest) =
                         )
 
                 let! resultEvent =
-                    gpu()
+                    g
                         .Run(
                             kernelFinalize,
                             [| event |],
@@ -906,22 +926,23 @@ type GPUModel(performanceTest) =
                 let! _ = 
                     Job.queue
                     <| job {
-                        gpu().Wait [| resultEvent |]
+                        g.Wait [| resultEvent |]
                         do! (tmp :> IDisposableJob).Dispose 
                         do! (lccResult :> IDisposableJob).Dispose
                         }
 
-                return GPUModelValue(output, [| resultEvent |],gpu())
+                return GPUModelValue(output, [| resultEvent |],g)
             }    
 
         member __.Interior imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
                 let kernelName = if dim = 2 then "erode" else "erode3D"
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             kernelName,
                             imgIn.GEvt,
@@ -933,32 +954,33 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
     // interface IDistanceModel<GPUModelValue> with
     //     member __.DT img =
     //         job {
-    //             gpu().Wait img.GEvt
+    //             g.Wait img.GEvt
 
     //             let cpuImg = img.GVal.Get()
 
     //             let result = VoxImage.Dt cpuImg
 
-    //             let! output = gpu().CopyImageToDevice result
+    //             let! output = g.CopyImageToDevice result
 
-    //             return GPUModelValue(output, [||],gpu())
+    //             return GPUModelValue(output, [||],g)
     //         }    
 
     interface IQuantitativeModel<GPUModelValue> with
         member __.Const value =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(float32 value)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(float32 value)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "constImg",
                             [||],
@@ -970,17 +992,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.EqSV value imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
-                let f = gpu().Float32(float32 value)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
+                let f = g.Float32(float32 value)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "eq",
                             imgIn.GEvt,
@@ -993,17 +1016,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.GeqSV value imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
-                let f = gpu().Float32(float32 value)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
+                let f = g.Float32(float32 value)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "geqSV",
                             imgIn.GEvt,
@@ -1016,17 +1040,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.LeqSV value imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
-                let f = gpu().Float32(float32 value)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
+                let f = g.Float32(float32 value)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "leq",
                             imgIn.GEvt,
@@ -1039,18 +1064,19 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Between value1 value2 imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, UInt8)
-                let f1 = gpu().Float32(float32 value1)
-                let f2 = gpu().Float32(float32 value2)
+                let! output = g.NewImageOnDevice(img, 1, UInt8)
+                let f1 = g.Float32(float32 value1)
+                let f2 = g.Float32(float32 value2)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "between",
                             imgIn.GEvt,
@@ -1064,16 +1090,17 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Abs imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "abs",
                             imgIn.GEvt,
@@ -1085,30 +1112,31 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
         //     member __.Max img = lift VoxImage.Max img
 
         // member __.Min img =
 
         //     job {
-        //         gpu().Wait img.gEvt
+        //         g.Wait img.gEvt
 
         //         let cpuImg = img.gVal.Get()
 
         //         let result = VoxImage.Min cpuImg
 
-        //         let output = gpu().CopyImageToDevice result
+        //         let output = g.CopyImageToDevice result
 
-        //         return GPUModelValue(output, [||] ,gpu())
+        //         return GPUModelValue(output, [||] ,g)
         //     }
 
 
 
         member __.SubtractVV img1 img2 =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let tmpEvents =
                     Seq.distinct (Array.append img1.GEvt img2.GEvt)
@@ -1116,7 +1144,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "sub",
                             newEvents,
@@ -1129,13 +1157,14 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.AddVV img1 img2 =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let tmpEvents =
                     Seq.distinct (Array.append img1.GEvt img2.GEvt)
@@ -1143,7 +1172,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "add",
                             newEvents,
@@ -1156,13 +1185,14 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.MultiplyVV img1 img2 =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let tmpEvents =
                     Seq.distinct (Array.append img1.GEvt img2.GEvt)
@@ -1170,7 +1200,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "mul",
                             newEvents,
@@ -1183,13 +1213,14 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.DivideVV img1 img2 =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let tmpEvents =
                     Seq.distinct (Array.append img1.GEvt img2.GEvt)
@@ -1197,7 +1228,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "div",
                             newEvents,
@@ -1210,13 +1241,14 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.Mask imgIn maskImg =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
 
                 let tmpEvents =
                     Seq.distinct (Array.append imgIn.GEvt maskImg.GEvt)
@@ -1224,7 +1256,7 @@ type GPUModel(performanceTest) =
                 let newEvents = Seq.toArray tmpEvents
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "mask",
                             newEvents,
@@ -1237,17 +1269,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
         //     member __.Avg (img : VoxImage) (maskImg : VoxImage)  = lift2 VoxImage.Avg img maskImg
         member __.AddVS imgIn k =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(float32 k)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(float32 k)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "addVS",
                             imgIn.GEvt,
@@ -1260,17 +1293,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.MulVS imgIn k =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(float32 k)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(float32 k)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "mulVS",
                             imgIn.GEvt,
@@ -1283,17 +1317,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.SubVS imgIn k =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(float32 k)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(float32 k)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "subVS",
                             imgIn.GEvt,
@@ -1306,17 +1341,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.DivVS imgIn k =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(float32 k)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(float32 k)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "divVS",
                             imgIn.GEvt,
@@ -1329,17 +1365,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.SubSV k imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(float32 k)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(float32 k)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "subSV",
                             imgIn.GEvt,
@@ -1352,17 +1389,18 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
         member __.DivSV k imgIn =
             job {
+                let! g = gpu
                 let img = getBaseImg ()
-                let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(float32 k)
+                let! output = g.NewImageOnDevice(img, 1, Float32)
+                let f = g.Float32(float32 k)
 
                 let! event =
-                    gpu()
+                    g
                         .Run(
                             "divSV",
                             imgIn.GEvt,
@@ -1375,20 +1413,21 @@ type GPUModel(performanceTest) =
                             None
                         )
 
-                return GPUModelValue(output, [| event |],gpu())
+                return GPUModelValue(output, [| event |],g)
             }
 
     interface IDistanceModel<GPUModelValue> with
         member __.DT (imgIn : GPUModelValue) =
             job {
+                    let! g = gpu
                     let img = getBaseImg ()
-                    let! tmp1 = gpu().NewImageOnDevice(img, 4, Float32)
-                    let! tmp2 = gpu().NewImageOnDevice(img, 4, Float32)
+                    let! tmp1 = g.NewImageOnDevice(img, 4, Float32)
+                    let! tmp2 = g.NewImageOnDevice(img, 4, Float32)
                     let coordinate = [|tmp1; tmp2|]
-                    let! output = gpu().NewImageOnDevice(img, 1, Float32)
+                    let! output = g.NewImageOnDevice(img, 1, Float32)
                     
                     let! event1 =
-                        gpu()
+                        g
                             .Run(
                                 "dtInitialize",
                                 imgIn.GEvt,
@@ -1405,9 +1444,9 @@ type GPUModel(performanceTest) =
                         coordinate.[1] <- coordinate.[0]
                         coordinate.[0] <- tmp                 
 
-                    let f = gpu().Float32(1f)
+                    let f = g.Float32(1f)
                     let! event' = 
-                        gpu()
+                        g
                             .Run(
                                 "dtStep",
                                 [| event1 |],
@@ -1430,9 +1469,9 @@ type GPUModel(performanceTest) =
 
                     while k > 0 do
                         swap() 
-                        let f = gpu().Float32(float32 k) 
+                        let f = g.Float32(float32 k) 
                         let! event' =
-                            gpu()
+                            g
                                 .Run(
                                     "dtStep",
                                     [| event2 |],
@@ -1449,7 +1488,7 @@ type GPUModel(performanceTest) =
                         
 
                     let! event =
-                        gpu()
+                        g
                             .Run(
                                 "dtFinalize",
                                 [| event2 |],
@@ -1464,26 +1503,26 @@ type GPUModel(performanceTest) =
                     let! _ = 
                         Job.queue
                         <| job {
-                            gpu().Wait [| event |]
+                            g.Wait [| event |]
                             do! (tmp1:> IDisposableJob).Dispose 
                             do! (tmp2 :> IDisposableJob).Dispose
                             }
 
-                    return GPUModelValue(output, [| event |],gpu())
+                    return GPUModelValue(output, [| event |],g)
             }    
 
 // member __.Min imgIn =
 //     job {
 //         let evt = Array.append imgIn.gEvt mask.gEvt
-//         gpu().Wait evt
+//         g.Wait evt
 
 //         let cpuImg = imgIn.gVal.Get()
 
 //         let result = VoxImage.Min cpuImg
 
-//         let output = gpu().Float32 (float32 result)
+//         let output = g.Float32 (float32 result)
 
-//         return GPUModelValue(output, [||] ,gpu())
+//         return GPUModelValue(output, [||] ,g)
 //     }
 
 // interface IStatisticalModel<VoxImage> with

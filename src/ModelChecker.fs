@@ -24,8 +24,17 @@ type ModelChecker(model : IModel) =
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
     let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()
-    //let cache = System.Collections.Generic.Dictionary<int,Job<obj>>()            
-    let mutable alreadyChecked = 0
+    
+    let incNumThreads,decNumThreads,setNumThreads = 
+        let threadCountLck = Lock()
+        let mutable threadCount = 0
+        (
+            (Lock.duringFun threadCountLck (fun () -> threadCount <- threadCount + 1)),
+            (Lock.duringFun threadCountLck (fun () -> threadCount <- threadCount - 1; threadCount)),
+            (fun n -> Lock.duringFun threadCountLck (fun () -> threadCount <- n))
+        )
+        
+
     let mutable referenceCount = Array.init 0 (fun i -> ref 0)
     let deref i = job {
         let (oldrefc,newrefc) = 
@@ -52,29 +61,36 @@ type ModelChecker(model : IModel) =
             let iv = cache.[i]
             let f = formulaFactory.[i]
             let op = f.Operator                
-            do! Job.start <|
-                    Job.tryWith                                                  
-                        (job {  // cache.[f'.Uid] below never fails !
-                                // because formula uids give a topological sort of the dependency graph
-                            let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
-                            ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
-                                                            f.Operator.Name f.Uid 
-                                                            (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
-                                                            (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
-                            
+            do! Job.start <| job { 
+                    do! Job.tryWith
+                            (job {  // cache.[f'.Uid] below never fails !
+                                    // because formula uids give a topological sort of the dependency graph
+                                let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
+                                ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
+                                                                f.Operator.Name f.Uid 
+                                                                (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
+                                                                (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
+                                
 
-                            /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
-                            /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
-                            // printfn "about to compute %d" i
-                            let! x = op.Eval (Array.ofSeq arguments)  
-                                                                            
-                            ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                                                    
-                            do! IVar.fill iv x 
-                            for uid in Seq.distinct (Seq.map (fun (x : Formula) -> x.Uid) formulaFactory.[i].Arguments) do
-                                do! deref uid
-                                } )
-                        (fun exn -> ErrorMsg.Logger.DebugOnly (exn.ToString()); IVar.FillFailure (iv,exn))  
-            cache.[i] <- iv }
+                                /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
+                                /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
+                                // printfn "about to compute %d" i
+                                let! x = op.Eval (Array.ofSeq arguments)  
+                                                                                
+                                ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                                                    
+                                do! IVar.fill iv x 
+                                for uid in Seq.distinct (Seq.map (fun (x : Formula) -> x.Uid) formulaFactory.[i].Arguments) do
+                                    do! deref uid                              
+                            } )
+                            (fun exn -> job {
+                                ErrorMsg.Logger.DebugOnly (exn.ToString())
+                                do! IVar.FillFailure (iv,exn)                        
+                            })  
+                    let! t = decNumThreads                    
+                    do! model.SignalNumThreads t                                        
+            }
+            cache.[i] <- iv 
+        }
                     
     member __.OperatorFactory = operatorFactory    
     member __.FormulaFactory = formulaFactory
@@ -83,7 +99,7 @@ type ModelChecker(model : IModel) =
         // corollary: this method must be called at least once before any invocation of Get        
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
-        ErrorMsg.Logger.Debug (sprintf "Running %d tasks" (formulaFactory.Count - alreadyChecked))
+        ErrorMsg.Logger.Debug (sprintf "Running %d tasks" formulaFactory.Count)
         if ErrorMsg.isDebug() then
             System.IO.File.WriteAllText("DebugFormulas.dot",this.FormulaFactory.AsDot)
         referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
@@ -96,24 +112,10 @@ type ModelChecker(model : IModel) =
             // let f = formulaFactory.[i]
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
         job {   
-                for i = alreadyChecked to formulaFactory.Count - 1 do                                           
+                do! setNumThreads formulaFactory.Count
+                for i = 0 to formulaFactory.Count - 1 do                                           
                     ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
-                    do! startChecker i referenceCount      
-                    // TODO: URGENT: test the following strategy:
-                    // wait for the task to complete whenever the task has no sucessors in the graph (so that the memory can be freed)
-                    // if i % 1 = 0 then // TODO: URGENT: deserialize!
-                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Attempting to wait for Uid %A" i
-                    //         let! x = IVar.read cache.[i]
-                    //         ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Starting to wait for Uid %A" i
-                    //         do! job {                   
-                    //                     do! 
-                    //                         try (x :?> IWait).Wait
-                    //                         with _ -> Job.result ()
-                                           
-                    //                     ErrorMsg.Logger.DebugOnly <| sprintf "Model checker: Finished waiting for Uid %A" i                        
-                    //                 }                                
-                                                           
-                alreadyChecked <- formulaFactory.Count                  
+                    do! startChecker i referenceCount               
             }
 
     member __.Get (f : Formula) =  
