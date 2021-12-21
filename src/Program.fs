@@ -26,6 +26,7 @@ type CmdLine =
     | [<UniqueAttribute>] JSon
     | [<UniqueAttribute>] Sequential
     | [<UniqueAttribute>] PerformanceTest
+    | [<UniqueAttribute>] SaveTaskGraph of string
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
@@ -37,6 +38,8 @@ type CmdLine =
                 "wait for each thread to complete before starting a new one; useful for debugging"
             | PerformanceTest _ ->
                 "do not load or save actual images; always use the given file instead; useful to measure raw speed" 
+            | SaveTaskGraph _ -> 
+                "save the task graph in .dot format and exit"
             | Filename _ -> "VoxLogicA session file"
 
 [<EntryPoint>]
@@ -124,6 +127,9 @@ let main (argv: string array) =
         let run filename =
             let interpreter = Interpreter(model, checker)
             interpreter.Batch interpreter.DefaultLibDir filename
+
+        if parsed.Contains SaveTaskGraph then
+            checker.WriteOnlyDot (parsed.GetResult SaveTaskGraph)            
 
         match (parsed.TryGetResult Filename, ErrorMsg.isDebug ()) with
         | None, false ->

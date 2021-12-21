@@ -16,15 +16,19 @@
 
 namespace VoxLogicA
 
+// TODO: URGENT: when saving the same formula multiple times, task count is wrong?
+
 open Hopac  
 
 type IWait =  
     abstract member Wait : Job<unit>
 type ModelChecker(model : IModel) =
+    let globalLock = Lock()
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
-    let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()
-    
+    let cache = System.Collections.Generic.Dictionary<int,IVar<_>>()    
+    let inProgress = System.Collections.Generic.Dictionary<int,unit>() 
+
     let incNumThreads,decNumThreads,setNumThreads = 
         let threadCountLck = Lock()
         let mutable threadCount = 0
@@ -34,7 +38,7 @@ type ModelChecker(model : IModel) =
             (fun n -> Lock.duringFun threadCountLck (fun () -> threadCount <- n))
         )
         
-
+    let mutable dotFileName = ""
     let mutable referenceCount = Array.init 0 (fun i -> ref 0)
     let deref i = job {
         let (oldrefc,newrefc) = 
@@ -105,14 +109,18 @@ type ModelChecker(model : IModel) =
                     
     member __.OperatorFactory = operatorFactory    
     member __.FormulaFactory = formulaFactory
-    member this.Check =
+    member __.WriteOnlyDot filename =
+        dotFileName <- filename
+    member this.Check = job {
         // this method must be called before Get(f) for f added after the previous invocation of Check()
         // corollary: this method must be called at least once before any invocation of Get        
         // It is important that the ordering of formulas is a topological sort of the dependency graph
         // this method should not be invoked concurrently from different threads or concurrently with get
-        ErrorMsg.Logger.Debug (sprintf "Running %d tasks" formulaFactory.Count)
-        if ErrorMsg.isDebug() then
-            System.IO.File.WriteAllText("DebugFormulas.dot",this.FormulaFactory.AsDot)
+        
+        if dotFileName <> "" then 
+            System.IO.File.WriteAllText(dotFileName,this.FormulaFactory.AsDot)
+            exit 0
+        ErrorMsg.Logger.Debug (sprintf "Running %d tasks" formulaFactory.Count)        
         referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
         for i = 0 to formulaFactory.Count - 1 do            
             cache.[i] <- new IVar<_>()
@@ -122,18 +130,39 @@ type ModelChecker(model : IModel) =
         // for i = 0 to formulaFactory.Count - 1 do
             // let f = formulaFactory.[i]
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
-        job {   
-                for i = 0 to formulaFactory.Count - 1 do                                           
-                    ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
-                    do! startChecker i referenceCount               
-            }
+        //    
+        //         for i = 0 to formulaFactory.Count - 1 do                                           
+        //             ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
+        //             do! startChecker i referenceCount               
+        //
+    }     
 
-    member __.Get (f : Formula) =  
+    member __.Get (f : Formula) =  job {
         ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" f.Uid
         let r = referenceCount.[f.Uid]
-        lock r (fun () -> r.Value <- r.Value + 1) 
-        IVar.read cache.[f.Uid]   
+        lock r (fun () -> r.Value <- r.Value + 1)
+        return! Lock.duringJob globalLock <| job {
+            let mutable frontier = [f.Uid]
+            let mutable visit = []
+            while frontier <> [] do
+                let hd = List.head frontier   
+                frontier <- List.tail frontier             
+                if not (inProgress.ContainsKey hd) then 
+                    inProgress.[hd] <- ()
+                    do! startChecker hd referenceCount
+                for d in Array.map (fun (x : Formula) -> x.Uid) (formulaFactory.[hd].Arguments) do
+                    frontier <- d::frontier        
+            let! result = IVar.read cache.[f.Uid]
+            let! t = incNumThreads
+            do! model.SignalNumThreads t
+            return result
+        }
+    }
 
-    member __.Unref (f : Formula) =
-        deref f.Uid
+    member __.Unref (f : Formula) = job {
+        do! deref f.Uid
+        let! t = decNumThreads
+        do! model.SignalNumThreads t   
+    }
+
         

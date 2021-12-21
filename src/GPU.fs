@@ -368,7 +368,7 @@ and GPU(kernelsFilename : string) =
 
     let checkStarvation k = job {        
         let b = GPUMemory.NumBlockedThreads()
-        ErrorMsg.Logger.Debug <| sprintf "CHECK STARVATION: internal: %A external: %A blocked %A surplus: %A" numInternalThreads numExternalThreads b k
+        // ErrorMsg.Logger.Debug <| sprintf "CHECK STARVATION: internal: %A external: %A blocked %A surplus: %A" numInternalThreads numExternalThreads b k
         if numInternalThreads = 0 && b > 0 && numExternalThreads - k - b <= 0 then
             raise OutOfGPUMemoryException
     }
@@ -439,22 +439,24 @@ and GPU(kernelsFilename : string) =
             }
         
         job {
+
                 let! p =
                     let c = 
-                        if imageCount.ContainsKey memoryKey then 
-                            imageCount.[memoryKey] 
-                        else 
-                            imageCount.[memoryKey] <- 0
-                            0                
+                        lock imageCount (fun () ->
+                            if imageCount.ContainsKey memoryKey then 
+                                imageCount.[memoryKey] 
+                            else 
+                                imageCount.[memoryKey] <- 0
+                                0)                
                     // The above should be:
                     //     try imageCount.[memoryKey] // TODO: this breaks memory, report this fsharp bug
                     //     with _ ->
                     //         imageCount.[memoryKey] <- 0
                     //         0         
 
-                    if c < 20 then // TODO: URGENT: PROVISIONAL
+                    if c < 30 then // TODO: URGENT: PROVISIONAL
                         ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
-                        imageCount.[memoryKey] <- c + 1
+                        lock imageCount (fun () -> imageCount.[memoryKey] <- c + 1)
                         Job.result <| 
                             checkErrPtr (fun p -> 
                                 API.CreateImage(

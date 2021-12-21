@@ -107,6 +107,7 @@ type GPUModel(performanceTest) =
 
     override __.Load s = 
         job { 
+            
             let res = // TODO: URGENT: does this require locking?
                 match (baseImg,performanceTest) with
                 | None,_ ->
@@ -143,7 +144,7 @@ type GPUModel(performanceTest) =
                         raise (DifferentPhysicalAndLogicalSpaceException s)
             ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())            
             let! g = gpu
-            let! img = (g.CopyImageToDevice res)         
+            let! img = (g.CopyImageToDevice res)       
             return GPUModelValue(img, [| |],g) :> obj
         }
 
@@ -171,7 +172,6 @@ type GPUModel(performanceTest) =
                 let! g = gpu
 
                 let! output = g.NewImageOnDevice(img, 1, Float32)
-
                 let! event =
                     g.Run(img.Dimension,
                             "copy",
