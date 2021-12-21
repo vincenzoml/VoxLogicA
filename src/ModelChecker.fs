@@ -23,6 +23,7 @@ open Hopac
 type IWait =  
     abstract member Wait : Job<unit>
 type ModelChecker(model : IModel) =
+    let ch = new Ch<_>()
     let globalLock = Lock()
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
@@ -135,28 +136,35 @@ type ModelChecker(model : IModel) =
         //             ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
         //             do! startChecker i referenceCount               
         //
+        do! Job.start <| job {
+            let mutable exit = false
+            while not exit do
+                let! r = Ch.take ch
+                if r >= 0 then                     
+                    do! startChecker r referenceCount
+                else exit <- true
+        }
     }     
 
     member __.Get (f : Formula) =  job {
         ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" f.Uid
         let r = referenceCount.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1)
-        return! Lock.duringJob globalLock <| job {
+        do! Lock.duringJob globalLock <| job {
             let mutable frontier = [f.Uid]
-            let mutable visit = []
             while frontier <> [] do
                 let hd = List.head frontier   
                 frontier <- List.tail frontier             
                 if not (inProgress.ContainsKey hd) then 
                     inProgress.[hd] <- ()
-                    do! startChecker hd referenceCount
+                    do! Ch.send ch hd
                 for d in Array.map (fun (x : Formula) -> x.Uid) (formulaFactory.[hd].Arguments) do
-                    frontier <- d::frontier        
-            let! result = IVar.read cache.[f.Uid]
+                    frontier <- d::frontier      
             let! t = incNumThreads
-            do! model.SignalNumThreads t
-            return result
+            do! model.SignalNumThreads t              
         }
+        let! result = IVar.read cache.[f.Uid]
+        return result
     }
 
     member __.Unref (f : Formula) = job {
