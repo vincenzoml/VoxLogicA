@@ -131,7 +131,7 @@ let main (argv: string array) =
         if parsed.Contains SaveTaskGraph then
             checker.WriteOnlyDot (parsed.GetResult SaveTaskGraph)            
 
-        match (parsed.TryGetResult Filename, ErrorMsg.isDebug ()) with
+        match (parsed.TryGetResult Filename, Util.isDebug ()) with
         | None, false ->
             printfn "%s\n" (cmdLineParser.PrintUsage())
             0

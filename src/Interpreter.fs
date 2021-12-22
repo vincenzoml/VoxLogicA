@@ -134,7 +134,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
 
     let interpreterJob libdir filename (model: #IModel) (checker: ModelChecker) (s: System.IO.Stream) =
         let rec evaluate (env: Env) (parsedImports: Set<string>) syn jobs =
-            match syn with
+            match syn with            
             | ModelLoad (ide,filename)::rest ->
                 ErrorMsg.Logger.Warning <| sprintf "'load' command is deprecated. Use 'let x = load(\"%s\")' instead." filename                
                 let p = FParsec.Position("generated",0L,0L,0L)
@@ -234,7 +234,8 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                     evaluate env (parsedImports.Add path) (parsed @ rest) jobs
                 else
                     evaluate env parsedImports rest jobs
-            | [] -> Job.result <| List.rev jobs 
+            | [] ->                 
+                Job.result <| List.rev jobs 
 
         job {
             ErrorMsg.Logger.Debug <| sprintf "Parsing input %s ..." filename
@@ -246,7 +247,8 @@ type Interpreter(model: IModel, checker: ModelChecker) =
 
             ErrorMsg.Logger.Debug "Starting computation..."
             do! Job.queue checker.Check // in parallel
-            do! Util.Concurrent.conIgnore (Array.ofList jobs)
+            do! Util.Concurrent.conIgnore (Array.ofList jobs)            
+            do! checker.Finish
             ErrorMsg.Logger.Debug "... done."
         }
 
@@ -254,7 +256,9 @@ type Interpreter(model: IModel, checker: ModelChecker) =
         let scheduler = Scheduler.create Scheduler.Create.Def
         match Scheduler.run scheduler (Job.catch job) with
         | Choice1Of2 () -> ()
-        | Choice2Of2 e -> raise e
+        | Choice2Of2 e ->             
+            ErrorMsg.Logger.DebugOnly <| sprintf "Exception in Job:\n %A" (e.ToString())
+            raise e
 
     member __.DefaultLibDir = defaultLibDir
 

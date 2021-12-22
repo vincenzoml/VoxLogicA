@@ -23,7 +23,7 @@ open Hopac
 type IWait =  
     abstract member Wait : Job<unit>
 type ModelChecker(model : IModel) =
-    let ch = new Ch<_>()
+    let mb = BoundedMb<_>(32)
     let globalLock = Lock()
     let operatorFactory = OperatorFactory(model)
     let formulaFactory = FormulaFactory()       
@@ -40,13 +40,14 @@ type ModelChecker(model : IModel) =
         )
         
     let mutable dotFileName = ""
-    let mutable referenceCount = Array.init 0 (fun i -> ref 0)
+    let mutable referenceCount = new IVar<array<ref<int>>>()
     let deref i = job {
+        let! rc = IVar.read referenceCount
         let (oldrefc,newrefc) = 
             lock 
-                referenceCount.[i] 
+                rc.[i] 
                 (fun () -> 
-                    let r = referenceCount.[i]
+                    let r = rc.[i]
                     let o = r.Value 
                     let n = r.Value - 1
                     r.Value <- n
@@ -62,48 +63,41 @@ type ModelChecker(model : IModel) =
             do! (Job.start dispose)            
     }
 
-    // WHERE IN THE WORLD IS CARMEN SANDIEGO? let l = Lock()
-    // WHERE IN THE WORLD IS CARMEN SANDIEGO? let mutable v = 0
-
     let startChecker i (referenceCount : array<ref<int>>) = 
         job {
             let iv = cache.[i]
             let f = formulaFactory.[i]
             let op = f.Operator           
+            let tokens = new BoundedMb<_>(1000000)
+            for i = 0 to 100 do
+                do! BoundedMb.put tokens i
             do! Job.start <| job { 
+                    let! token = BoundedMb.take tokens
                     do! Job.tryWith
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph                                
-                                let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)     
+                                let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
                                 let! t = incNumThreads
-                                // WHERE IN THE WORLD IS CARMEN SANDIEGO? do! Lock.duringFun l (fun () -> (v <- v+1; printfn "V: %A" v))
                                 do! model.SignalNumThreads t
                                 ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
                                                                 f.Operator.Name f.Uid 
                                                                 (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
                                                                 (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
-                                
-
-                                /// A GLOBAL ARRAY OF LOCKS AND A GLOBAL ARRAY OF REFERENCE COUNTS
-                                /// SEE ALSO: https://stackoverflow.com/questions/41652195/dispose-pattern-in-f
-                                // printfn "about to compute %d" i
-                                
-                                
-                                // WHERE IN THE WORLD IS CARMEN SANDIEGO? do! Lock.duringFun l (fun () -> (v <- v-1; printfn "V': %A" v))
-                                
+                                                                
                                 let! x = op.Eval (Array.ofSeq arguments)  
 
                                 ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                                                    
                                 do! IVar.fill iv x 
                                 for uid in Seq.distinct (Seq.map (fun (x : Formula) -> x.Uid) formulaFactory.[i].Arguments) do
-                                    do! deref uid                              
+                                    do! deref uid            
                             } )
                             (fun exn -> job {
                                 ErrorMsg.Logger.DebugOnly (exn.ToString())
                                 do! IVar.FillFailure (iv,exn)                        
                             })  
-                    let! t = decNumThreads                    
+                    let! t = decNumThreads 
                     do! model.SignalNumThreads t      
+                    do! BoundedMb.put tokens token     
             }
             cache.[i] <- iv 
         }
@@ -122,11 +116,12 @@ type ModelChecker(model : IModel) =
             System.IO.File.WriteAllText(dotFileName,this.FormulaFactory.AsDot)
             exit 0
         ErrorMsg.Logger.Debug (sprintf "Running %d tasks" formulaFactory.Count)        
-        referenceCount <- Array.init formulaFactory.Count (fun i -> ref 0)
+        let rc = Array.init formulaFactory.Count (fun i -> ref 0)
+        do! IVar.fill referenceCount rc        
         for i = 0 to formulaFactory.Count - 1 do            
             cache.[i] <- new IVar<_>()
-            for x in formulaFactory.[i].Arguments do
-                referenceCount.[x.Uid].Value <- referenceCount.[x.Uid].Value + 1
+            for x in formulaFactory.[i].Arguments do            
+                rc.[x.Uid].Value <- rc.[x.Uid].Value + 1
 
         // for i = 0 to formulaFactory.Count - 1 do
             // let f = formulaFactory.[i]
@@ -139,38 +134,44 @@ type ModelChecker(model : IModel) =
         do! Job.start <| job {
             let mutable exit = false
             while not exit do
-                let! r = Ch.take ch
-                if r >= 0 then                     
-                    do! startChecker r referenceCount
+                let! r = BoundedMb.take mb
+                if r >= 0 then        
+                    do! startChecker r rc
                 else exit <- true
         }
-    }     
+    }
+
+    member __.Finish = BoundedMb.put mb -1    
 
     member __.Get (f : Formula) =  job {
+        let! rc = IVar.read referenceCount
         ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" f.Uid
-        let r = referenceCount.[f.Uid]
+        let r = rc.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1)
         do! Lock.duringJob globalLock <| job {
             let mutable frontier = [f.Uid]
+            let mutable res = []
             while frontier <> [] do
                 let hd = List.head frontier   
                 frontier <- List.tail frontier             
                 if not (inProgress.ContainsKey hd) then 
                     inProgress.[hd] <- ()
-                    do! Ch.send ch hd
+                    res <- hd::res // BoundedMb.put mb hd
                 for d in Array.map (fun (x : Formula) -> x.Uid) (formulaFactory.[hd].Arguments) do
                     frontier <- d::frontier      
+            for x in List.sort res do
+                do! BoundedMb.put mb x
             let! t = incNumThreads
             do! model.SignalNumThreads t              
         }
         let! result = IVar.read cache.[f.Uid]
+        let! t = decNumThreads
+        do! model.SignalNumThreads t
         return result
     }
 
     member __.Unref (f : Formula) = job {
         do! deref f.Uid
-        let! t = decNumThreads
-        do! model.SignalNumThreads t   
     }
 
         

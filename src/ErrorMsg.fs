@@ -19,12 +19,6 @@ module VoxLogicA.ErrorMsg
 open System.IO
 // TODO: convert into a new type called Logger
 
-let mutable private debugFlag = false
-#if DEBUG
-do debugFlag <- true
-#endif
-let isDebug () = debugFlag
-
 type Report private () = 
     static let mutable print = []
     static let mutable save = []
@@ -68,7 +62,7 @@ type Logger private () =
                 sr.ReadToEnd())
 
     static member Debug s = print "info" s
-    static member DebugOnly s = if isDebug () then print "dbug" s
+    static member DebugOnly s = if Util.isDebug () then print "dbug" s
     static member Warning s = print "warn" s
     static member Failure s = print "fail" s
 
@@ -77,5 +71,5 @@ type Logger private () =
 
     static member DebugExn(exn: exn) =
         Logger.Debug
-        <| if isDebug () then exn.ToString() else exn.Message
+        <| if Util.isDebug () then exn.ToString() else exn.Message
 

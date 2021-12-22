@@ -19,7 +19,15 @@ open System
 
 type JSonOutput = FSharp.Data.JsonProvider<"example.json">
 
+
+
 module Util =
+    let mutable private debugFlag = false
+    #if DEBUG
+    do debugFlag <- true
+    #endif
+    let isDebug () = debugFlag
+
     let inline (<||) f a = f a
     module Concurrent =
         open Hopac
@@ -36,7 +44,10 @@ module Util =
                 for i = 0 to s.Length - 1 do
                     match! IVar.read x.[i] with
                     | None -> () 
-                    | Some exn -> raise exn
+                    | Some exn -> 
+                        if isDebug() then
+                            printfn "\n\n\n%A\n\n\n" <| exn.ToString()
+                        raise exn
             }
 
         open System.Reflection

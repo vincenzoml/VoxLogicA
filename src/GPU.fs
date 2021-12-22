@@ -146,7 +146,8 @@ type GPUMemory() =
                     r
             )   
         do! onWait                            
-        return! pool.Wait()
+        let! r= pool.Wait()
+        return r
     }
 
     static member NumBlockedThreads () = 
@@ -300,7 +301,7 @@ and GPU(kernelsFilename : string) =
             res
 
         let program =         
-            ErrorMsg.Logger.Debug "Compiling kernels"
+            ErrorMsg.Logger.Debug <| sprintf "Compiling kernels (%AD)" dimension
             let prg = checkErrPtr (fun errPtr -> API.CreateProgramWithSource(context,1ul,[|source|],uNullPtr,errPtr))                
             let res = API.CompileProgram(prg,0ul,nullPtr,bNullPtr,0ul,nullPtr,nbNullPtr,noNotify,vNullPtr) 
             if res = int CLEnum.CompileProgramFailure then        
@@ -368,7 +369,7 @@ and GPU(kernelsFilename : string) =
 
     let checkStarvation k = job {        
         let b = GPUMemory.NumBlockedThreads()
-        // ErrorMsg.Logger.Debug <| sprintf "CHECK STARVATION: internal: %A external: %A blocked %A surplus: %A" numInternalThreads numExternalThreads b k
+        //ErrorMsg.Logger.Debug <| sprintf "CHECK STARVATION: internal: %A external: %A blocked %A surplus: %A" numInternalThreads numExternalThreads b k
         if numInternalThreads = 0 && b > 0 && numExternalThreads - k - b <= 0 then
             raise OutOfGPUMemoryException
     }
