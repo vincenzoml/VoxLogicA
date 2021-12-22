@@ -75,17 +75,17 @@ type Pool() =
                         IVar.fill y x) 
         
 
-    // member __.Get () =
-    //     job {
-    //         ErrorMsg.Logger.DebugOnly "GET"
-    //         return lock lck (fun () -> 
-    //             match queue with
-    //             | [] -> ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: None"; None
-    //             | x::xs -> 
-    //                 queue <- xs
-    //                 ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: %A" x;
-    //                 Some x)
-    //     }
+    member __.TryGet () =
+        job {
+            ErrorMsg.Logger.DebugOnly "TRYGET"
+            return lock lck (fun () -> 
+                match queue with
+                | [] -> ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: None"; None
+                | x::xs -> 
+                    queue <- xs
+                    ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: %A" x;
+                    Some x)
+        }
 
     member __.Wait () =           
         ErrorMsg.Logger.DebugOnly "WAIT started"
@@ -132,6 +132,22 @@ type GPUMemory() =
                     r
             )
         pool.Put mem        
+
+    static member TryGet key = job {
+        ErrorMsg.Logger.DebugOnly <| sprintf "TRYGET %A" key
+        let pool =
+            lock globalLock (fun () ->
+                try 
+                    pools.[key]
+
+                with :? KeyNotFoundException ->
+                    let r = Pool()
+                    pools.[key] <- r
+                    r
+            )   
+        let! r= pool.TryGet()
+        return r
+    }
 
     static member Wait key = job {
         ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A" key        
@@ -371,15 +387,16 @@ and GPU(kernelsFilename : string) =
         let b = GPUMemory.NumBlockedThreads()
         //ErrorMsg.Logger.Debug <| sprintf "CHECK STARVATION: internal: %A external: %A blocked %A surplus: %A" numInternalThreads numExternalThreads b k
         if numInternalThreads = 0 && b > 0 && numExternalThreads - k - b <= 0 then
-            raise OutOfGPUMemoryException
+            ErrorMsg.Logger.Debug "GPU Memory exhausted, exiting."
+            exit 100
     }
 
     let _ = GPUMemory.OnWait (Lock.duringJob numThreadsLock <| checkStarvation 1)
 
     member __.SignalNumExternalThreads n =        
         Lock.duringJob numThreadsLock <| job {
-            numExternalThreads <- n
-            do! checkStarvation 0
+            numExternalThreads <- n            
+            do! checkStarvation 0 
         }
 
     // member __.SetDimensionIndex x =
@@ -398,7 +415,7 @@ and GPU(kernelsFilename : string) =
         let ptr = checkErrPtr <| fun p -> API.CreateBuffer(context,enum<CLEnum>(32),unativeint (v.Length * sizeof<'a>),vptr,p) // 32 -> TODO: UseHostPointer
         new GPUArray<'a>(ptr,v.Length,{ Pointer = queue }) :> GPUValue<array<'a>>
     
-    member __.NewImageOnDevice (img: VoxImage,nComponents,bufferType) =
+    member __.NewImageOnDevice (img: VoxImage,nComponents,bufferType) = job {
         let dimension =            
             match img.Dimension with 
             | 2 -> CLEnum.MemObjectImage2D
@@ -417,19 +434,6 @@ and GPU(kernelsFilename : string) =
             | UInt8 -> CLEnum.UnsignedInt8
             | Float32 -> CLEnum.Float                    
             
-        let imgFormatOUT = ImageFormat(uint32 channelOrder,uint32 channelDataType)
-        
-        use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
-        let imgFormatOUTPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatOUTPtr') 
-
-        let width = img.Width
-        let height = img.Height
-        let depth = img.Depth
-
-        let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
-        use imgDescPtr' = fixed [|imgDesc|]
-        let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
-
         let memoryKey = Image { 
                 NComponents = nComponents
                 BufferType = bufferType
@@ -438,40 +442,53 @@ and GPU(kernelsFilename : string) =
                 Height = img.Height
                 Depth = img.Depth
             }
+
+        let c = 
+            lock imageCount (fun () ->
+                if imageCount.ContainsKey memoryKey then 
+                    imageCount.[memoryKey] 
+                else 
+                    imageCount.[memoryKey] <- 0
+                    0)   
+
+        let mutable p = 0n
+
+        let! x = GPUMemory.TryGet memoryKey
+        match x with
+        | Some mem ->
+            p <- mem
+        | None ->
+            if c < 60 then // TODO: URGENT: PROVISIONAL     
+                ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
+                lock imageCount (fun () -> imageCount.[memoryKey] <- c + 1)
+                p <-
+                    let imgFormatOUT = ImageFormat(uint32 channelOrder,uint32 channelDataType)
         
-        job {
+                    use imgFormatOUTPtr' = fixed [|imgFormatOUT|]
+                    let imgFormatOUTPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgFormatOUTPtr') 
 
-                let! p =
-                    let c = 
-                        lock imageCount (fun () ->
-                            if imageCount.ContainsKey memoryKey then 
-                                imageCount.[memoryKey] 
-                            else 
-                                imageCount.[memoryKey] <- 0
-                                0)                
-                    // The above should be:
-                    //     try imageCount.[memoryKey] // TODO: this breaks memory, report this fsharp bug
-                    //     with _ ->
-                    //         imageCount.[memoryKey] <- 0
-                    //         0         
+                    let width = img.Width
+                    let height = img.Height
+                    let depth = img.Depth
 
-                    if c < 40 then // TODO: URGENT: PROVISIONAL
-                        ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
-                        lock imageCount (fun () -> imageCount.[memoryKey] <- c + 1)
-                        Job.result <| 
-                            checkErrPtr (fun p -> 
-                                API.CreateImage(
-                                    context,
-                                    CLEnum.MemReadWrite,
-                                    imgFormatOUTPtr,
-                                    imgDescPtr,
-                                    vNullPtr,
-                                    p))
-                    else
-                        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A %A" nComponents bufferType
-                        GPUMemory.Wait memoryKey                   
-                
-                return GPUImage(p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
+                    let imgDesc = ImageDesc(uint32 dimension,unativeint width,unativeint height,unativeint depth,0un,0un,0un,0ul,0ul)
+                    use imgDescPtr' = fixed [|imgDesc|]
+                    let imgDescPtr = NativePtr.ofNativeInt (NativePtr.toNativeInt imgDescPtr')
+
+                    checkErrPtr (fun p -> 
+                        API.CreateImage(
+                            context,
+                            CLEnum.MemReadWrite,
+                            imgFormatOUTPtr,
+                            imgDescPtr,
+                            vNullPtr,
+                            p))
+            else
+                ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A %A" nComponents bufferType
+                let! w = GPUMemory.Wait memoryKey                   
+                p <- w
+        
+        return GPUImage(p,img,nComponents,bufferType,{ Pointer = queue }) :> GPUValue<VoxImage>
         }
         
 
@@ -598,10 +615,10 @@ and GPU(kernelsFilename : string) =
             let! _ = Job.queue <| job {                
                 this.Wait [|res|]     
                 ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run finished %A" kernelName
-                do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )
-                do! Lock.duringJob numThreadsLock <| job {
+                do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )                
+                do! Lock.duringJob numThreadsLock <| job {                    
                     numInternalThreads <- numInternalThreads - 1
-                    do! checkStarvation 0
+                    do! checkStarvation 0 
                 }
             }
             // ErrorMsg.Logger.Debug <| sprintf "exit %A" kernelName
