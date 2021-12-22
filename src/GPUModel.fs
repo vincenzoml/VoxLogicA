@@ -77,6 +77,8 @@ type GPUModel(performanceTest) =
         let x = GPU(kernelFile)
         Job.result x
 
+    let baseImageLck = new Lock()
+
     override __.SignalNumThreads n =  job {
         let! g = gpu
         do! g.SignalNumExternalThreads n
@@ -102,12 +104,13 @@ type GPUModel(performanceTest) =
             // JSonOutput.Info(min = VoxImage.Min(VoxImage.Intensity img), max = VoxImage.Max(VoxImage.Intensity img))         
             return (VoxImage.Min (VoxImage.Intensity img),VoxImage.Max (VoxImage.Intensity img))
     }
-
-    override __.SetBaseImage s = job {
-        let img = new VoxImage(s)                    
-        dim <- img.Dimension
-        do! IVar.tryFill baseImg img
-        if performanceTest then ErrorMsg.Logger.Debug "Start measuring performance from here"
+    
+    override __.SetBaseImage s = Lock.duringJob baseImageLck <| job {
+        if not <| IVar.Now.isFull baseImg then        
+            let img = new VoxImage(s)                    
+            dim <- img.Dimension
+            do! IVar.tryFill baseImg img
+            if performanceTest then ErrorMsg.Logger.Debug "Start measuring performance from here"
     }
 
     override __.Load s = 

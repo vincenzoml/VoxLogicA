@@ -86,8 +86,11 @@ let private importCommand = command false "import" strConst |>> Import
 let private letCommand = command true "let" (lhs .>>. optlst farglist .>>. (defeq >>. parseExpression)) |>> (fun ((x,y),z) -> Declaration (x,y,z))    
 let private file contents = spacesOrComment >>. contents .>> eof
 let private import = file <| many (importCommand <|> letCommand) 
-let private program = file <| many (choice [ baseImageCommand; loadCommand; saveCommand; printCommand; importCommand; letCommand])
-//let private program = file <| many (choice [ saveCommand; printCommand; importCommand; letCommand])
+let private program = file <| parse {
+    let! b = baseImageCommand
+    let! c = many (choice [ baseImageCommand; loadCommand; saveCommand; printCommand; importCommand; letCommand])
+    return b::c
+}
 let private getResult res = 
     match res with  
         | Success (result,_,_) -> result

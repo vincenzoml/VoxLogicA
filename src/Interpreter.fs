@@ -140,7 +140,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                     return! evaluate env parsedImports rest jobs
                 }
             | ModelLoad (ide,filename)::rest ->
-                ErrorMsg.Logger.Warning <| sprintf "'load' command is deprecated. Use 'let x = load(\"%s\")' instead." filename                
+                ErrorMsg.Logger.Warning "'load' command is deprecated. Use 'let x = load(\"filename\")'."                
                 let p = FParsec.Position("generated",0L,0L,0L)
                 let lexpr = Call(p,"load",[String filename])
                 evaluate env parsedImports (Declaration (ide,[],lexpr)::rest) jobs 
