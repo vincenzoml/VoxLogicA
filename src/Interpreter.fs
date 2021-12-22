@@ -135,6 +135,10 @@ type Interpreter(model: IModel, checker: ModelChecker) =
     let interpreterJob libdir filename (model: #IModel) (checker: ModelChecker) (s: System.IO.Stream) =
         let rec evaluate (env: Env) (parsedImports: Set<string>) syn jobs =
             match syn with            
+            | BaseImage filename::rest -> job {
+                    do! model.SetBaseImage filename
+                    return! evaluate env parsedImports rest jobs
+                }
             | ModelLoad (ide,filename)::rest ->
                 ErrorMsg.Logger.Warning <| sprintf "'load' command is deprecated. Use 'let x = load(\"%s\")' instead." filename                
                 let p = FParsec.Position("generated",0L,0L,0L)
