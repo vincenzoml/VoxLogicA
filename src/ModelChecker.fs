@@ -79,14 +79,16 @@ type ModelChecker(model : IModel) =
                                 let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
                                 let! t = incNumThreads
                                 do! model.SignalNumThreads t
-                                ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
-                                                                f.Operator.Name f.Uid 
-                                                                (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
-                                                                (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
+                                // ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
+                                //                                 f.Operator.Name f.Uid 
+                                //                                 (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
+                                //                                 (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
                                                                 
                                 let! x = op.Eval (Array.ofSeq arguments)  
 
-                                ErrorMsg.Logger.DebugOnly (sprintf "Model checker finished: %s (id: %d)\nresult: %A" f.Operator.Name f.Uid (x.GetHashCode()))                                                                    
+                                // ErrorMsg.Logger.Debug (sprintf "Model checker finished: %s (id: %d)" f.Operator.Name f.Uid)
+                                // ErrorMsg.Logger.Debug (sprintf "result: %A %A" f.Uid (x.GetHashCode()))                                                                    
+                                
                                 do! IVar.fill iv x 
                                 for uid in Seq.distinct (Seq.map (fun (x : Formula) -> x.Uid) formulaFactory.[i].Arguments) do
                                     do! deref uid            
@@ -149,25 +151,27 @@ type ModelChecker(model : IModel) =
         let r = rc.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1)
         do! Lock.duringJob globalLock <| job {
-            let mutable frontier = [f.Uid]
-            let mutable res = []
-            while frontier <> [] do
-                let hd = List.head frontier   
-                frontier <- List.tail frontier             
-                if not (inProgress.ContainsKey hd) then 
-                    inProgress.[hd] <- ()
-                    res <- hd::res // BoundedMb.put mb hd
-                for d in Array.map (fun (x : Formula) -> x.Uid) (formulaFactory.[hd].Arguments) do
-                    frontier <- d::frontier      
-            for x in List.sort res do
-                do! BoundedMb.put mb x
-            let! t = incNumThreads
-            do! model.SignalNumThreads t              
+            if not (inProgress.ContainsKey f.Uid) then 
+                let mutable frontier = [f.Uid]
+                let mutable res = []
+                while frontier <> [] do            
+                    let hd = List.head frontier   
+                    frontier <- List.tail frontier             
+                    if not (inProgress.ContainsKey hd) then 
+                        inProgress.[hd] <- ()
+                        res <- hd::res // BoundedMb.put mb hd
+                    for d in Array.map (fun (x : Formula) -> x.Uid) (formulaFactory.[hd].Arguments) do
+                        if not (inProgress.ContainsKey d) 
+                        then frontier <- d::frontier      
+                for x in List.sort res do
+                    do! BoundedMb.put mb x
+                let! t = incNumThreads
+                do! model.SignalNumThreads t              
         }
         let! result = IVar.read cache.[f.Uid]
         let! t = decNumThreads
         do! model.SignalNumThreads t
-        return result
+        return result        
     }
 
     member __.Unref (f : Formula) = job {

@@ -111,7 +111,7 @@ type GPUModel(performanceTest) =
     }
 
     override __.Load s = 
-        job {    
+        job {                
             let! res = job { // TODO: URGENT: does this require locking?
                 if performanceTest then
                     let! img1 = IVar.read baseImg
