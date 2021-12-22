@@ -242,12 +242,14 @@ let getTriaGraphAp triaGraph ap =
 
 
 // Compute the topological closure of a set of simplexes S (encoded by truth), i.e. the set S plus SimplexesUp(s) for s in S
+// In terms of the spatial model: computes the topological closure
 let downClosure triaGraph (truth : Truth) : Truth =
     Array.mapi
         (fun idx s -> s || Set.exists (Array.get truth) triaGraph.Parents.[idx])
         truth
 
 // Compute the set S plus SimplexesDown(s) for s in S (topological closure for the Alexandroff topology of the reverse order)
+// In terms of the spatial model: computes the open star
 let upClosure triaGraph (truth : Truth) : Truth =
     Array.mapi
         (fun idx s -> s || Set.exists (Array.get truth) triaGraph.Faces.[idx])
@@ -274,7 +276,9 @@ let openStarSimplex triaGraph simplex : Set<int> =
 
 // Compute the points that can reach a point in "target" passing only through points in "safe".
 let reach triaGraph (safe : Truth) (target : Truth) : Truth =
-    let intermediate = Array.map2 (&&) (safe) (downClosure triaGraph target) // starting set of the flooding algorithm: simplexes in safe with a face in target
+    // TESTING
+    let intermediate = Array.map2 (&&) (safe) (upClosure triaGraph target) // starting set of the flooding algorithm: simplexes in safe with a face in target
+    // let intermediate = Array.map2 (&&) (safe) (downClosure triaGraph target) // starting set of the flooding algorithm: simplexes in safe with a face in target
     let visited = Array.copy intermediate
     let rec step (frontier : list<int>) =
         match frontier with
@@ -295,7 +299,9 @@ let reach triaGraph (safe : Truth) (target : Truth) : Truth =
             step (List.append restOfFrontier successorsOfS)
     let startList = [for i in 0..intermediate.Length-1 do if intermediate.[i] then yield i]
     step startList
-    let result = upClosure triaGraph intermediate
+    // TESTING
+    let result = downClosure triaGraph intermediate
+    // let result = upClosure triaGraph intermediate
     result
 
 

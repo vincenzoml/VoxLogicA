@@ -1,3 +1,4 @@
+import { color } from './dat.gui.module.js';
 import * as THREE from './three.module.js';
 
 
@@ -29,18 +30,6 @@ export function determineEvalColor(arrayEvalColor, amount, simplex, params) {
     }
 }
 
-// export function addColorAttribute(objGeometry, objEvalColor) {
-//     const objColors = new Float32Array(objEvalColor.length * 4);
-//     for (let i = 0; i < objEvalColor.length; i++) {
-//         objColors[i*4  ] = objEvalColor[i]['r'];
-//         objColors[i*4+1] = objEvalColor[i]['g'];
-//         objColors[i*4+2] = objEvalColor[i]['b'];
-//         objColors[i*4+3] = 1;
-//     }
-//     // console.log(objColors);
-//     const objColorBuffer = new THREE.BufferAttribute(objColors, 4);
-//     objGeometry.setAttribute( 'color', objColorBuffer );
-// }
 
 
 export function addColorAttribute(bufferGeometry) {
@@ -62,6 +51,15 @@ export function setColorBase(object, color) {
     colorBuffer.needsUpdate = true;
 }
 
+export function setColorFromArray(object, colorArray, numberOfEntriesPerUnit) {
+    var colorBuffer = object.geometry.getAttribute('color');
+    for (let i = 0; i < colorBuffer.array.length; i++) {
+        var simplexIndex = Math.floor(i / (3 * numberOfEntriesPerUnit));
+        colorBuffer.array[i] = hexToRGB(colorArray[simplexIndex])[i % 3];
+    }
+    colorBuffer.needsUpdate = true;
+}
+
 export function setColorEval(object, valuation, verticesPerSimplex, trueColor, falseColor) {
     // This function presupposes that geomtery has already a color attribute. See addColorAttribute.
     var trueColorRGB  = hexToRGB(trueColor);
@@ -75,6 +73,32 @@ export function setColorEval(object, valuation, verticesPerSimplex, trueColor, f
         }
     }
     colorBuffer.needsUpdate = true;
+}
+
+export function determineSimplexColor(colorArray,colorData,colorDefault,atomsData,index) {
+    if(colorData) {
+        for(var key in colorData) {
+            if(atomsData[key][index]) {
+                colorArray.push(colorData[key]);
+                // colorArray.push(0x0000ff);
+                return;
+            }
+        }
+    }
+    colorArray.push(colorDefault);
+}
+
+
+
+export function setMeshBase(objects) {
+    // not yet implemented
+}
+
+export function setMeshEval(atom, objects) {
+    for (var key in objects) {
+        objects[key].visible = false;
+    };
+    objects[atom].visible = true;
 }
 
 
