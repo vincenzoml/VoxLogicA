@@ -1,0 +1,11 @@
+base = "growTum98BraTS20Training061.nii.gz"
+
+load imgManualSegBraTS20Training061 = "/home/VoxLogicA/datasets/MICCAI_BraTS2020_TrainingData_Augmented/BraTS20_Training_061/BraTS20_Training_061_seg.nii.gz"
+let manualContouringGTVBraTS20Training061 = intensity(imgManualSegBraTS20Training061) >. 0
+
+load imgGrowTum98BraTS20Training061 = "growTum98BraTS20Training061.nii.gz"
+let growTum98BraTS20Training061 = intensity(imgGrowTum98BraTS20Training061) >. 0
+
+print "volume(x & y)" volume(growTum98BraTS20Training061 & manualContouringGTVBraTS20Training061)
+print "volume(x)" volume(growTum98BraTS20Training061)
+print "volume(y)" volume(manualContouringGTVBraTS20Training061)
