@@ -63,7 +63,7 @@ type ModelChecker(model : IModel) =
             do! (Job.start dispose)            
     }
 
-    let startChecker i (referenceCount : array<ref<int>>) = 
+    let startChecker i (referenceCount : array<ref<int>>) moreWaits = 
         job {
             let iv = cache.[i]
             let f = formulaFactory.[i]
@@ -76,7 +76,8 @@ type ModelChecker(model : IModel) =
                     do! Job.tryWith
                             (job {  // cache.[f'.Uid] below never fails !
                                     // because formula uids give a topological sort of the dependency graph                                
-                                let! arguments = Job.seqCollect (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments)
+                                let! arguments' = Job.seqCollect (Array.append (Array.map (fun (f' : Formula) -> cache.[f'.Uid]) f.Arguments) (Array.map (fun i -> cache.[i]) moreWaits) )                                
+                                let arguments = Array.sub (Array.ofSeq arguments') 0 (Array.length f.Arguments)
                                 let! t = incNumThreads
                                 do! model.SignalNumThreads t
                                 // ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
@@ -135,10 +136,13 @@ type ModelChecker(model : IModel) =
         //
         do! Job.start <| job {
             let mutable exit = false
+            let mutable latest = -1
             while not exit do
                 let! r = BoundedMb.take mb
-                if r >= 0 then        
-                    do! startChecker r rc
+                if r >= 0 then     
+                    let tmp = latest
+                    latest <- r
+                    do! startChecker r rc (if tmp >= 0 then [|tmp|] else [||])
                 else exit <- true
         }
     }
