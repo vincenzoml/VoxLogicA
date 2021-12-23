@@ -318,9 +318,9 @@ type GPUModel(performanceTest) =
             job {
                 let! img1 = getBaseImg
                 let! g = gpu
-                let! output' = g.NewImageOnDevice(img1, 1, Float32)
+                let! output' = (this :> IBooleanModel<_>).BConst false
                 let mutable output = output'
-                let! tmp' = g.NewImageOnDevice(img1, 1, Float32)
+                let! tmp' = (this :> IBooleanModel<_>).BConst false
                 let mutable tmp = tmp'
 
                 let kernelVolume =
