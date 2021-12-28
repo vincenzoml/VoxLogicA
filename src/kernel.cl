@@ -397,6 +397,15 @@ __kernel void castUInt8ToFloat32(__read_only IMG_T input,
   write_imagef(output, gid, ((float)inPix.x > 0));
 }
 
+__kernel void setFloatToZero(__read_only IMG_T input,
+                        __write_only IMG_T output) {
+INIT_GID(gid)
+
+float4 inPix = (float4) read_imagef(input, sampler, gid);
+
+write_imagef(output, gid, 0.0);
+}
+
 __kernel void volume2D(__read_only image2d_t inputImage,
                        __write_only image2d_t outputImage) { // IDX NON SERVE
   int2 gid = (int2)(get_global_id(0), get_global_id(1));

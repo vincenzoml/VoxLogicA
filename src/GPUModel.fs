@@ -318,9 +318,9 @@ type GPUModel(performanceTest) =
             job {
                 let! img1 = getBaseImg
                 let! g = gpu
-                let! output' = (this :> IBooleanModel<_>).BConst false
+                let! output' = g.NewImageOnDevice(img1, 1, Float32)
                 let mutable output = output'
-                let! tmp' = (this :> IBooleanModel<_>).BConst false
+                let! tmp' = g.NewImageOnDevice(img1, 1, Float32)
                 let mutable tmp = tmp'
 
                 let kernelVolume =
@@ -335,10 +335,34 @@ type GPUModel(performanceTest) =
                     else
                         "readFirstPixel2D"
 
+                let! e1 = 
+                    g.Run(img1.Dimension,
+                            "setFloatToZero",
+                            img.GEvt,
+                            seq {
+                                output :> KernelArg
+                                output :> KernelArg
+                            },
+                            img1.Size,
+                            None
+                        )
+
+                let! e2 = 
+                    g.Run(img1.Dimension,
+                            "setFloatToZero",
+                            [|e1|],
+                            seq {
+                                tmp :> KernelArg
+                                tmp :> KernelArg
+                            },
+                            img1.Size,
+                            None
+                        )
+
                 let! evt' =
                     g.Run(img1.Dimension,
                             "castUInt8ToFloat32",
-                            img.GEvt,
+                            [|e2|],
                             seq {
                                 img.GVal :> KernelArg
                                 tmp :> KernelArg
