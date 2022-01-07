@@ -14,13 +14,13 @@ TACAS 2019 presentation paper: https://link.springer.com/chapter/10.1007/978-3-0
 
 download: https://github.com/vincenzoml/VoxLogicA/releases
 
-source code for the "master" branch: https://github.com/vincenzoml/VoxLogicA/tree/master
+source code for the *experimental* branch: https://github.com/vincenzoml/VoxLogicA/releases/tag/v1.0-experimental
 
-source code for the gpu implementation: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu
+source code for the *master* branch: https://github.com/vincenzoml/VoxLogicA/tree/master (use experimental for fresher releases)
 
-source code for the gpu implementation with garbage collection: https://github.com/vincenzoml/VoxLogicA/tree/experimental-gpu-GC
+source code for the *gpu* implementation: https://github.com/vincenzoml/VoxLogicA/tree/gpu-new
 
-source code for PolyLogicA, the implementation operating on polyhedra: https://github.com/vincenzoml/VoxLogicA/tree/polyhedra
+source code for *PolyLogicA*, the implementation operating on polyhedra: https://github.com/vincenzoml/VoxLogicA/tree/polyhedra
 
 ESMRM-B 2019 poster: 
 
