@@ -76,6 +76,7 @@ let private parseExpression =
 
 let private command requireSpace s args =  attempt (skipString s) >>. (if requireSpace then spacesOrComment1 else spacesOrComment) >>. args .>> spacesOrComment
 let private lhs = ide <|> operator
+let private baseImageCommand = command false "base" (defeq >>. strConst) |>> (fun fname -> ModelLoad ("baseimage###",fname))
 let private loadCommand = command true "load" ide .>> defeq .>>. strConst |>> ModelLoad
 let private saveCommand = getPosition .>>. command false "save" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> ModelSave (x,y,z))
 let private printCommand = getPosition .>>. command false "print" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Print (x,y,z))
