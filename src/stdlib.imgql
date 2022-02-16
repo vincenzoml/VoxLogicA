@@ -34,7 +34,7 @@ let B+(a) = (near(a)) \ a
 let \(a,b) = and(a,not(b))
 
 // Reachability derived operators
-let mayReach(a,b) = N((b ~> N a) | a)
+let mayReach(a,b) = N((b ~> N a) | a) // This is the \rho operator from TACAS19
 let touch(a,b) = a ~> N b
 let grow(a,b) = (a | touch(b,a))
 let T(a,b) = touch(a,b)
