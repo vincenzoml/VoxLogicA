@@ -288,7 +288,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                     let res = SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
                     img.Dispose()
                     res
-                | (_,y) when y = 3u || y = 4u -> 
+                | (_,y) when y = 3u || y = 4u ->                     
                     Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
                     if y = 4u then 
                         Logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 

@@ -195,7 +195,7 @@ type GPUModel(performanceTest) =
                 let! img = getBaseImg
                 let! g = gpu
                 let! output = g.NewImageOnDevice(img, 1, Float32)
-                let f = g.Float32(1f)
+                let f = g.Float32(0f)
 
                 let! event =
                     g.Run(img.Dimension,
@@ -237,11 +237,11 @@ type GPUModel(performanceTest) =
             }
 
         member __.Blue(imgIn: GPUModelValue) =
-            job {
+            job {                
                 let! img = getBaseImg
-                let! g = gpu
+                let! g = gpu                
                 let! output = g.NewImageOnDevice(img, 1, Float32)
-                let f = g.Float32(3f)
+                let f = g.Float32(2f)
 
                 let! event =
                     g.Run(img.Dimension,
@@ -254,7 +254,7 @@ type GPUModel(performanceTest) =
                             },
                             img.Size,
                             None
-                        )
+                        )                
 
                 return GPUModelValue(output, [| event |],g)
             }
@@ -264,7 +264,7 @@ type GPUModel(performanceTest) =
                 let! img = getBaseImg
                 let! g = gpu
                 let! output = g.NewImageOnDevice(img, 1, Float32)
-                let f = g.Float32(4f)
+                let f = g.Float32(3f)
 
                 let! event =
                     g.Run(img.Dimension,

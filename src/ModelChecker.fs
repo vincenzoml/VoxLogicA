@@ -63,7 +63,7 @@ type ModelChecker(model : IModel) =
             do! (Job.start dispose)            
     }
 
-    let startChecker i (referenceCount : array<ref<int>>) moreWaits = 
+    let startChecker i moreWaits = 
         job {
             let iv = cache.[i]
             let f = formulaFactory.[i]
@@ -135,14 +135,11 @@ type ModelChecker(model : IModel) =
         //             do! startChecker i referenceCount               
         //
         do! Job.start <| job {
-            let mutable exit = false
-            let mutable latest = -1
+            let mutable exit = false            
             while not exit do
                 let! r = BoundedMb.take mb
-                if r >= 0 then     
-                    let tmp = latest
-                    latest <- r
-                    do! startChecker r rc (if tmp >= 0 then [|tmp|] else [||])
+                if r >= 0 then                        
+                    do! startChecker r [||] // TODO: URGENT: (if tmp >= 0 then [|tmp|] else [||])
                 else exit <- true
         }
     }
@@ -154,23 +151,23 @@ type ModelChecker(model : IModel) =
         ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" f.Uid
         let r = rc.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1)
+
+        let mutable frontier = [f.Uid]
+        let mutable res = Set.empty
+        while frontier <> [] do            
+            let hd = List.head frontier   
+            frontier <- List.tail frontier                                 
+            res <- Set.add hd res // BoundedMb.put mb hd
+            for d in Array.map (fun (x : Formula) -> x.Uid) (formulaFactory.[hd].Arguments) do
+                frontier <- d::frontier      
+        
         do! Lock.duringJob globalLock <| job {
-            if not (inProgress.ContainsKey f.Uid) then 
-                let mutable frontier = [f.Uid]
-                let mutable res = []
-                while frontier <> [] do            
-                    let hd = List.head frontier   
-                    frontier <- List.tail frontier             
-                    if not (inProgress.ContainsKey hd) then 
-                        inProgress.[hd] <- ()
-                        res <- hd::res // BoundedMb.put mb hd
-                    for d in Array.map (fun (x : Formula) -> x.Uid) (formulaFactory.[hd].Arguments) do
-                        if not (inProgress.ContainsKey d) 
-                        then frontier <- d::frontier      
-                for x in List.sort res do
-                    do! BoundedMb.put mb x
-                let! t = incNumThreads
-                do! model.SignalNumThreads t              
+            for task in List.sort (Set.toList res) do
+                if (not (inProgress.ContainsKey task)) &&  (not (IVar.Now.isFull cache.[task]))
+                then 
+                    do! BoundedMb.put mb task
+                    let! t = incNumThreads
+                    do! model.SignalNumThreads t              
         }
         let! result = IVar.read cache.[f.Uid]
         let! t = decNumThreads
