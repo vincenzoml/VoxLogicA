@@ -6,4 +6,6 @@
 
 - switch to example-based json serialier?
 
+- make coordinates an array in the program
 
+- save results properly (and with a specific name)

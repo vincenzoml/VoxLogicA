@@ -6,13 +6,13 @@ load graph = "testGraph.json"
 let p = ap("p")
 let q = ap("q")
 
-save "p" p
-save "q" q
-
-save "near p" near(p)
-save "near q" near(q)
-
-save "q reach p" through(q,p)
-save "p reach q" through(p,q)
+//save "p" p
+//save "q" q
+//
+//save "near p" near(p)
+//save "near q" near(q)
+//
+//save "q reach p" through(q,p)
+//save "p reach q" through(p,q)
 
 save "path from p to q" and(p,through(not(ff),q))

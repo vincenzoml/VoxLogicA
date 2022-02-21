@@ -6,7 +6,7 @@ open FSharp.Json
 
 // Loading data format
 type IntSimplex = { id : string; points : int list; atoms : string list }
-type IntFileTriaGraph = { numberOfPoints : int; coordinatesOfPoints : int list list; atomNames : string list; simplexes : IntSimplex list }
+type IntFileTriaGraph = { numberOfPoints : int; coordinatesOfPoints : int array list; atomNames : string list; simplexes : IntSimplex list }
 
 let private loadFileTriaGraph filename = 
     Json.deserialize<IntFileTriaGraph>(System.IO.File.ReadAllText(filename))
@@ -31,7 +31,7 @@ type TriaGraph =
 
 let mkIntFileTriaGraph triaGraph atomName (truth : Truth) =
     let coordPoint point =
-        [ for i in [0..2] -> triaGraph.CoordinatesOfPoint.[point, i] ]
+        [| for i in [0..2] -> triaGraph.CoordinatesOfPoint.[point, i] |]
     {
         numberOfPoints = triaGraph.NumPoints
         coordinatesOfPoints = [for point in [0..triaGraph.NumPoints-1] -> coordPoint point]
@@ -130,7 +130,7 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
     List.iteri
         (fun idx simplex ->
             points.[idx] <- simplex.points.[0]
-            List.iteri
+            Array.iteri
                 (fun i c ->
                     coordinatesOfPoint.[idx, i] <- c
                     )
