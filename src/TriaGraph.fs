@@ -6,7 +6,7 @@ open FSharp.Json
 
 // Loading data format
 type IntSimplex = { id : string; points : int list; atoms : string list }
-type IntFileTriaGraph = { numberOfPoints : int; coordinatesOfPoints : int array list; atomNames : string list; simplexes : IntSimplex list }
+type IntFileTriaGraph = { coordinatesOfPoints : int array list; atomNames : string list; simplexes : IntSimplex list }
 
 let private loadFileTriaGraph filename = 
     Json.deserialize<IntFileTriaGraph>(System.IO.File.ReadAllText(filename))
@@ -33,7 +33,6 @@ let mkIntFileTriaGraph triaGraph atomName (truth : Truth) =
     let coordPoint point =
         [| for i in [0..2] -> triaGraph.CoordinatesOfPoint.[point, i] |]
     {
-        numberOfPoints = triaGraph.NumPoints
         coordinatesOfPoints = [for point in [0..triaGraph.NumPoints-1] -> coordPoint point]
         atomNames = Array.toList( triaGraph.NameOfAtom )
         simplexes = [
@@ -62,11 +61,11 @@ let saveTriaGraph triaGraph (filename : string) atom truth =
 
 let private mkTriaGraph (fg : IntFileTriaGraph) =
     
-    let numPoints = fg.numberOfPoints
+    let numPoints = fg.coordinatesOfPoints.Length    
     let numSimplexes = fg.simplexes.Length
     // let numAtoms = List.sumBy (fun simplex -> List.length simplex.atoms) fg.simplexes
 
-    let points = Array.create fg.numberOfPoints 0
+    let points = Array.create numPoints 0
     let coordinatesOfPoint = Array2D.create numPoints 3 0 
 
     let parentsNext = Array.create numSimplexes Set.empty
@@ -89,7 +88,6 @@ let private mkTriaGraph (fg : IntFileTriaGraph) =
     let nameOfAtom = Array.ofList fg.atomNames
     let atomOfName = fun s -> Array.findIndex (fun x -> x = s) nameOfAtom
     let mutable atomsSet = Set.empty
-
 
     // let nameOfAtom = Array.create numAtoms List.empty
     // let atomOfName = string -> int
