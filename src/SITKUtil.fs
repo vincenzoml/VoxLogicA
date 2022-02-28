@@ -511,17 +511,25 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member Dt (img : VoxImage) =
         use flt = new SignedMaurerDistanceMapImageFilter()
-        new VoxImage(flt.Execute(img.Image, false, false, true, 0.0))
+        flt.SetInsideIsPositive(false)
+        flt.SetSquaredDistance(false)
+        flt.SetUseImageSpacing(true)
+        flt.SetBackgroundValue(0.0)
+        new VoxImage(flt.Execute(img.Image))
 
     static member Eq (value : float) (img : VoxImage) =        
         use flt = new BinaryThresholdImageFilter() 
-        new VoxImage(flt.Execute(img.Image,value,value,1uy,0uy))
+        flt.SetLowerThreshold(value)
+        flt.SetUpperThreshold(value)
+        flt.SetInsideValue(1uy)
+        flt.SetOutsideValue(0uy)
+        new VoxImage(flt.Execute(img.Image))
 
     static member Geq (value : float) (img : VoxImage) =
         use flt = new GreaterEqualImageFilter()
         new VoxImage(flt.Execute(img.Image,value))
 
-    static member Leq (value : float) (img : VoxImage) =    
+    static member Leq (value : float) (img : VoxImage) =
         use flt = new LessEqualImageFilter()
         new VoxImage(flt.Execute(img.Image,value))
     
