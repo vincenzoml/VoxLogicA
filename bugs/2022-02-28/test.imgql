@@ -1,5 +1,5 @@
-load aImg = "a.png"
-load bImg = "b.png"
+load aImg = "a.nii.gz"
+load bImg = "b.nii.gz"
 let a = intensity(aImg) >. 0
 let b = intensity(bImg) >. 0
-save "00_through.png" through(a, b)
+save "00_through.nii.gz" through(a, b)
