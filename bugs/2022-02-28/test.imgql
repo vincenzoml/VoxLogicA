@@ -1,0 +1,5 @@
+load aImg = "a.png"
+load bImg = "b.png"
+let a = intensity(aImg) >. 0
+let b = intensity(bImg) >. 0
+save "00_through.png" through(a, b)
