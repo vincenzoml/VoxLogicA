@@ -227,6 +227,12 @@ let private snake (innerSize : array<int>) (radius : array<int>) = // TODO: does
     (pathidx,pathdir)  
 
 type VoxImage private (img : Image,uniqueName : string) =
+    static let n = ref 0
+    let _ = 
+        ErrorMsg.Logger.Debug (sprintf "Called new uniqueName %s saving to saved_new_%d_.nii.gz" uniqueName n.Value)
+        SimpleITK.WriteImage(img,sprintf "saved_new_%d_.nii.gz" n.Value)
+        n.Value <- n.Value + 1
+    
     //let threadid = System.Threading.Thread.CurrentThread       
     let hashImg = img.GetHashCode().ToString() // TODO: hash the image data (voxels and headers) instead of using .NET's hashing (what's that based on, in this case, anyway?)
     let disposed = ref false
@@ -259,9 +265,11 @@ type VoxImage private (img : Image,uniqueName : string) =
     override __.ToString() = sprintf "{ hash: \"%s\"; uniqueName: \"%s\"; progressiveId: %d; }" hashImg uniqueName internalId
 
     new (img : Image) =
+        let _ = ErrorMsg.Logger.Debug (sprintf "Called new")
         new VoxImage(img,"") 
 
     new (filename : string) = 
+        let _ = ErrorMsg.Logger.Debug (sprintf "Called new filename %s" filename)
         // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
         let loadedImg =
             Logger.DebugOnly <| sprintf "Loading file %s" filename
@@ -286,6 +294,11 @@ type VoxImage private (img : Image,uniqueName : string) =
                 | (_,y) when y = 1u -> 
                     Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)                    
                     let res = SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
+                    let _ = 
+                        ErrorMsg.Logger.Debug (sprintf "Called cast saving to orig_%d_.nii.gz and cast_%d_.nii.gz" n.Value n.Value)
+                        SimpleITK.WriteImage(img,sprintf "orig_%d_.nii.gz" n.Value)
+                        SimpleITK.WriteImage(res,sprintf "cast_%d_.nii.gz" n.Value)
+                        n.Value <- n.Value + 1
                     img.Dispose()
                     res
                 | (_,y) when y = 3u || y = 4u ->                     
@@ -300,13 +313,15 @@ type VoxImage private (img : Image,uniqueName : string) =
                 | (x,y) -> img.Dispose(); raise <| UnsupportedImageTypeException (x.ToString() + "-" + y.ToString())
         new VoxImage(loadedImg,sprintf "file:%s" filename)  // TODO: canonicize filename and / or use the file hash
 
-    new (img : VoxImage, pixeltype : PixelIDValueEnum) =        
+    new (img : VoxImage, pixeltype : PixelIDValueEnum) =
+        let _ = ErrorMsg.Logger.Debug (sprintf "Called new pixeltype %A" pixeltype)        
         new VoxImage(
                 allocate(img.Image,pixeltype),
                 (   Logger.DebugOnly <| sprintf "Allocating image based on %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
                     sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))
 
     new (img : VoxImage, ncomponents : int, pixeltype : PixelIDValueEnum) =
+        let _ = ErrorMsg.Logger.Debug (sprintf "Called new pixeltype ncomponents")
         match ncomponents with
         | 1 -> new VoxImage(img)
         | 3 -> 
@@ -328,7 +343,9 @@ type VoxImage private (img : Image,uniqueName : string) =
             let _ = raise <| UnsupportedNumberOfComponentsPerPixelException(x)
             new VoxImage(img.Image,"")
 
-    new (img : VoxImage) = new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
+    new (img : VoxImage) = 
+        let _ = ErrorMsg.Logger.Debug (sprintf "Called new img %A" img)
+        new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
     
     member __.Save (filename : string) =
         let fname = System.IO.Path.GetFileName(filename)
