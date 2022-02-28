@@ -796,7 +796,7 @@ type GPUModel(performanceTest) =
                                 let! evt' =
                                     gpu()
                                         .Run(
-                                            "iterateCCL3D", // kernelIterate,
+                                            kernelIterate, // kernelIterate,
                                             [| evt |],
                                             seq {
                                                 meaningful :> KernelArg
@@ -832,7 +832,6 @@ type GPUModel(performanceTest) =
                         gpu().Wait([| evt2 |]) // DO NOT REMOVE THIS
                         meaningful <- t // double buffering again
                         temporary <- m // double buffering again 
-                        
                         if flag.Get().[0] > 0uy then     
                            let! whileEvtTmp =
                                gpu()
