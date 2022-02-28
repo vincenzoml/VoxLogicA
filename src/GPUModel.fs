@@ -193,7 +193,7 @@ type GPUModel(performanceTest) =
             job {
                 let img = getBaseImg ()
                 let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(1f)
+                let f = gpu().Float32(0f)
 
                 let! event =
                     gpu()
@@ -239,7 +239,7 @@ type GPUModel(performanceTest) =
             job {
                 let img = getBaseImg ()
                 let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(3f)
+                let f = gpu().Float32(2f)
 
                 let! event =
                     gpu()
@@ -262,7 +262,7 @@ type GPUModel(performanceTest) =
             job {
                 let img = getBaseImg ()
                 let! output = gpu().NewImageOnDevice(img, 1, Float32)
-                let f = gpu().Float32(4f)
+                let f = gpu().Float32(3f)
 
                 let! event =
                     gpu()
