@@ -2,6 +2,10 @@ open Hopac
 open Hopac.Infixes
 open System.Threading.Tasks
 
+/// THIS MUST BE RUN WITH SERVER GC ENABLED
+/// TPL SEEMS THE WINNER IN 2022
+/// TO ENABLE SERVER GC JUST COPY THE FILE runtimeconfig.template.json from "src" to the root of your project.
+
 let rec fib n = 
     if n < 2 then n
     else fib (n - 1) + fib (n - 2)
