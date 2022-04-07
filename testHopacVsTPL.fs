@@ -2,6 +2,8 @@ open Hopac
 open Hopac.Infixes
 open System.Threading.Tasks
 
+/// Credits and kudos to http://vaskir.blogspot.com/2015/01/fibanacci-hopac-vs-async.html
+
 /// THIS MUST BE RUN WITH SERVER GC ENABLED
 /// TPL SEEMS THE WINNER IN 2022
 /// TO ENABLE SERVER GC JUST COPY THE FILE runtimeconfig.template.json from "src" to the root of your project.
