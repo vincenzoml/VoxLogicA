@@ -1,6 +1,7 @@
 example/output
 bin
 obj
+src/lib
 releases/
 .ionide
 High-grade-Glioblastoma_BRATS/output
@@ -8,8 +9,8 @@ High-grade-Glioblastoma_BRATS/output
 .fake
 .vscode/settings.json
 examples/*/output
-src/tests/*/output
-src/tests/*/output-gpu
-src/tests/*/output-cpu.config
+tests/*/output
+tests/*/output-gpu
+tests/*/output-cpu.config
 .vscode/
 .config

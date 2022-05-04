@@ -57,6 +57,9 @@ publish-internal:
 clean:
 	rm -rf bin obj
 
+cleanlib: clean
+	rm -rf lib
+
 release-linux:
 	make publish-internal RID=linux-x64
 

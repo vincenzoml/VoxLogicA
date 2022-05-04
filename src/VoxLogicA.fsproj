@@ -2,11 +2,57 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net6.0</TargetFramework>
+		<SelfContained>true</SelfContained>
+		<DebugType>embedded</DebugType>
 		<PublishSingleFile>false</PublishSingleFile>
-		<PublishReadyToRun>false</PublishReadyToRun>
-		<PublishReadyToRunShowWarnings>false</PublishReadyToRunShowWarnings>
-		<PublishTrimmed>false</PublishTrimmed>
 	</PropertyGroup>
+
+	<PropertyGroup>
+		<SimpleITKVersionString>SimpleITK-2.2.0rc2.post79</SimpleITKVersionString>
+
+		<RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
+		<RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
+		<RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>
+
+		<SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macosx-10.9-anycpu</SimpleITKArchString>
+		<SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'win-x64'">win64-x64</SimpleITKArchString>
+		<SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'linux-x64'">linux</SimpleITKArchString>
+
+		<SimpleITKFullName>$(SimpleITKVersionString)-CSharp-$(SimpleITKArchString)</SimpleITKFullName>
+
+		<SimpleITKManaged>lib/$(SimpleITKFullName)/SimpleITKCSharpManaged.dll</SimpleITKManaged>
+
+		<SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'osx-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.so</SimpleITKNative>
+		<SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'win-x64'">lib/$(SimpleITKFullName)/SimpleITKCSharpNative.dll</SimpleITKNative>
+		<SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.so</SimpleITKNative>
+
+		<DownloadPath>https://github.com/SimpleITK/SimpleITK/releases/download/latest/$(SimpleITKFullName).zip</DownloadPath>
+		<ZipFile>lib/$(SimpleITKFullName).zip</ZipFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Reference Include="SimpleITKCSharpManaged">
+			<HintPath>$(SimpleITKManaged)</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<Target Name="DownloadContentFiles" BeforeTargets="UnzipLibs">
+		<DownloadFile SourceUrl="$(DownloadPath)" DestinationFolder="./lib" />
+	</Target>
+
+	<Target Name="UnzipLibs" BeforeTargets="BeforeBuild">
+		<Unzip SourceFiles="$(ZipFile)" DestinationFolder="lib" />
+	</Target>
+
+	<Target Name="CopyLibs" AfterTargets="AfterBuild">
+		<Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(OutDir)" />
+		<Message Importance="High" Text="Copy $(SimpleITKNative) to $(OutDir)"/>
+	</Target>
+
+	<Target Name="CopyLibsOnPublish" AfterTargets="Publish">
+		<Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(PublishDir)" />
+	</Target>
+
 	<ItemGroup>
 		<Compile Include="Exceptions.fs"/>
 		<Compile Include="Util.fs"/>
@@ -27,15 +73,13 @@
 		<Compile Include="GPUModel.fs"/>
 		<Compile Include="Program.fs"/>
 	</ItemGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Silk.Net.OpenCL" Version="2.15.0"/>
 		<PackageReference Include="Argu" Version="6.1.1"/>
 		<PackageReference Include="FParsec" Version="1.1.1"/>
 		<PackageReference Include="FSharp.Data" Version="4.2.8"/>
 		<PackageReference Include="hopac" Version="0.5.1"/>
-		<Reference Include="SimpleITKCSharpManaged">
-			<HintPath>../lib/SimpleITKCSharpManaged.dll</HintPath>
-		</Reference>
 	</ItemGroup>
 	<Target Name="SetVersion" BeforeTargets="BeforeBuild">
 		<ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
@@ -46,25 +90,15 @@
 			<Version>@(version)</Version>
 		</PropertyGroup>
 	</Target>
-	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-		<Message Text="Copying files after build with RID=$(RuntimeIdentifier)" Importance="high"/>
-		<Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64"/>
-		<Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)"/>
-		<Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)"/>
+	<Target Name="CopyLibs" AfterTargets="AfterBuild">
+		<Copy SourceFiles="imgql/RegionCalculus.imgql" DestinationFolder="$(OutDir)/imgql"/>
+		<Copy SourceFiles="imgql/stdlib.imgql" DestinationFolder="$(OutDir)/imgql"/>
 		<Copy SourceFiles="kernel.cl" DestinationFolder="$(OutDir)"/>
-		<Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(OutDir)"/>
-		<Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(OutDir)"/>
-		<Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(OutDir)"/>
 	</Target>
-	<Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
-		<Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high"/>
-		<Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64"/>
-		<Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)"/>
-		<Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)"/>
+
+	<Target Name="CopyLibsAfterPublish" AfterTargets="Publish">		
+		<Copy SourceFiles="imgql/RegionCalculus.imgql" DestinationFolder="$(PublishDir)/imgql"/>
+		<Copy SourceFiles="imgql/stdlib.imgql" DestinationFolder="$(PublishDir)/imgql"/>
 		<Copy SourceFiles="kernel.cl" DestinationFolder="$(PublishDir)"/>
-		<Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)"/>
-		<Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(PublishDir)"/>
-		<Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(PublishDir)"/>
-		<Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(PublishDir)"/>
 	</Target>
 </Project>

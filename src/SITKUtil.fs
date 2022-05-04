@@ -522,7 +522,7 @@ type VoxImage private (img : Image,uniqueName : string) =
     static member Logor (img1 : VoxImage) (img2 : VoxImage) = new VoxImage(SimpleITK.Or(img1.Image,img2.Image))
     static member Lognot (img : VoxImage) = new VoxImage(SimpleITK.Not(img.Image))
 
-    static member Near (img : VoxImage) = new VoxImage(SimpleITK.DilateObjectMorphology(img.Image,1ul,KernelEnum.sitkBox,1.0))
+    static member Near (img : VoxImage) = new VoxImage(SimpleITK.BinaryDilate img.Image)
     static member Interior (img : VoxImage) = new VoxImage(SimpleITK.BinaryErode img.Image)
 
     static member Subtract (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Subtract(img1.Image,img2.Image))
@@ -537,11 +537,19 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member Dt (img : VoxImage) =
         use flt = new SignedMaurerDistanceMapImageFilter()
-        new VoxImage(flt.Execute(img.Image, false, false, true, 0.0))
+        flt.SetBackgroundValue(0.0)
+        flt.SetSquaredDistance(false)
+        flt.SetInsideIsPositive(false)
+        flt.SetUseImageSpacing(true)
+        new VoxImage(flt.Execute(img.Image))
 
     static member Eq (value : float) (img : VoxImage) =        
         use flt = new BinaryThresholdImageFilter() 
-        new VoxImage(flt.Execute(img.Image,value,value,1uy,0uy))
+        flt.SetLowerThreshold(value)
+        flt.SetUpperThreshold(value)
+        flt.SetInsideValue(1uy)
+        flt.SetOutsideValue(0uy)
+        new VoxImage(flt.Execute(img.Image))
 
     static member Geq (value : float) (img : VoxImage) =
         use flt = new GreaterEqualImageFilter()
