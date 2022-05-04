@@ -1,72 +1,70 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net5.0</TargetFramework>
-    <PublishSingleFile>false</PublishSingleFile>
-    <PublishReadyToRun>false</PublishReadyToRun>
-    <PublishReadyToRunShowWarnings>false</PublishReadyToRunShowWarnings>
-    <PublishTrimmed>false</PublishTrimmed>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="Exceptions.fs" />
-    <Compile Include="Util.fs" />
-    <Compile Include="ErrorMsg.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="UniqueFactory.fs" />
-    <Compile Include="Operator.fs" />
-    <Compile Include="Formula.fs" />
-    <Compile Include="Coreops.fs" />
-    <Compile Include="Model.fs" />
-    <Compile Include="ModelChecker.fs" />
-    <Compile Include="LogicFragments.fs" />
-    <Compile Include="Parser.fs" />
-    <Compile Include="NativeArray.fs" />
-    <Compile Include="Interpreter.fs" />
-    <Compile Include="SITKUtil.fs" />
-    <Compile Include="GPU.fs" />
-    <Compile Include="GPUModel.fs" />    
-    <Compile Include="Program.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Silk.Net.OpenCL" Version="2.11.0" />
-    <PackageReference Include="Argu" Version="6.1.1" />
-    <PackageReference Include="FParsec" Version="1.1.1" />
-    <PackageReference Include="FSharp.Data" Version="4.2.6" />
-    <PackageReference Include="hopac" Version="0.5.1" />
-    <Reference Include="SimpleITKCSharpManaged">
-      <HintPath>../lib/SimpleITKCSharpManaged.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-  <Target Name="SetVersion" BeforeTargets="BeforeBuild">
-    <ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
-      <Output TaskParameter="Lines" ItemName="Version" />
-    </ReadLinesFromFile>
-    <Message Text="Current version is - @(Version)" Importance="high" />
-    <PropertyGroup>
-      <Version>@(version)</Version>
-    </PropertyGroup>
-  </Target>
-  <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-    <Message Text="Copying files after build with RID=$(RuntimeIdentifier)" Importance="high">
-    </Message>
-    <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
-    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="kernel.cl" DestinationFolder="$(OutDir)" />
-    <Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(OutDir)" />
-    <Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(OutDir)" />
-    <Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(OutDir)" />
-  </Target>
-  <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
-    <Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high">
-    </Message>
-    <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
-    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
-    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
-    <Copy SourceFiles="kernel.cl" DestinationFolder="$(PublishDir)" />
-    <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
-    <Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(PublishDir)" />
-    <Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(PublishDir)" />
-    <Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(PublishDir)" />
-  </Target>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+		<PublishSingleFile>false</PublishSingleFile>
+		<PublishReadyToRun>false</PublishReadyToRun>
+		<PublishReadyToRunShowWarnings>false</PublishReadyToRunShowWarnings>
+		<PublishTrimmed>false</PublishTrimmed>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Include="Exceptions.fs"/>
+		<Compile Include="Util.fs"/>
+		<Compile Include="ErrorMsg.fs"/>
+		<Compile Include="Types.fs"/>
+		<Compile Include="UniqueFactory.fs"/>
+		<Compile Include="Operator.fs"/>
+		<Compile Include="Formula.fs"/>
+		<Compile Include="Coreops.fs"/>
+		<Compile Include="Model.fs"/>
+		<Compile Include="ModelChecker.fs"/>
+		<Compile Include="LogicFragments.fs"/>
+		<Compile Include="Parser.fs"/>
+		<Compile Include="NativeArray.fs"/>
+		<Compile Include="Interpreter.fs"/>
+		<Compile Include="SITKUtil.fs"/>
+		<Compile Include="GPU.fs"/>
+		<Compile Include="GPUModel.fs"/>
+		<Compile Include="Program.fs"/>
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Silk.Net.OpenCL" Version="2.15.0"/>
+		<PackageReference Include="Argu" Version="6.1.1"/>
+		<PackageReference Include="FParsec" Version="1.1.1"/>
+		<PackageReference Include="FSharp.Data" Version="4.2.8"/>
+		<PackageReference Include="hopac" Version="0.5.1"/>
+		<Reference Include="SimpleITKCSharpManaged">
+			<HintPath>../lib/SimpleITKCSharpManaged.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+	<Target Name="SetVersion" BeforeTargets="BeforeBuild">
+		<ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
+			<Output TaskParameter="Lines" ItemName="Version"/>
+		</ReadLinesFromFile>
+		<Message Text="Current version is - @(Version)" Importance="high"/>
+		<PropertyGroup>
+			<Version>@(version)</Version>
+		</PropertyGroup>
+	</Target>
+	<Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+		<Message Text="Copying files after build with RID=$(RuntimeIdentifier)" Importance="high"/>
+		<Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64"/>
+		<Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)"/>
+		<Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)"/>
+		<Copy SourceFiles="kernel.cl" DestinationFolder="$(OutDir)"/>
+		<Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(OutDir)"/>
+		<Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(OutDir)"/>
+		<Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(OutDir)"/>
+	</Target>
+	<Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
+		<Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high"/>
+		<Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64"/>
+		<Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)"/>
+		<Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)"/>
+		<Copy SourceFiles="kernel.cl" DestinationFolder="$(PublishDir)"/>
+		<Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)"/>
+		<Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(PublishDir)"/>
+		<Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(PublishDir)"/>
+		<Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(PublishDir)"/>
+	</Target>
 </Project>

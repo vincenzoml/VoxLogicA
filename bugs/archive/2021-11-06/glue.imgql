@@ -1,4 +1,0 @@
-load imgPFLAIR$MNAME = "$INPUTDIR/pflair.nii.gz"
-save "$OUTPUTDIR/res-$NAME.nii.gz" imgPFLAIR$MNAME
-
-
