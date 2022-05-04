@@ -1,6 +1,5 @@
 {
   "configProperties": {
-    "System.GC.Server": true,
-    "System.GC.Concurrent": true
-  }
+    "System.GC.Server": true
+    }
 }
