@@ -44,17 +44,16 @@
 		<Unzip SourceFiles="$(ZipFile)" DestinationFolder="lib" />
 	</Target>
 
-	<Target Name="CopyLibs" AfterTargets="AfterBuild">
+	<Target Name="CopySimpleITK" AfterTargets="AfterBuild">
 		<Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(OutDir)" />
 		<Message Importance="High" Text="Copy $(SimpleITKNative) to $(OutDir)"/>
 	</Target>
 
-	<Target Name="CopyLibsOnPublish" AfterTargets="Publish">
+	<Target Name="CopySimpleITKAfterPublish" AfterTargets="Publish">
 		<Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(PublishDir)" />
 	</Target>
 
 	<ItemGroup>
-		<Compile Include="Exceptions.fs"/>
 		<Compile Include="Util.fs"/>
 		<Compile Include="ErrorMsg.fs"/>
 		<Compile Include="Types.fs"/>

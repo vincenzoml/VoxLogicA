@@ -19,6 +19,8 @@ namespace VoxLogicA
 open System.Collections.Generic
 open Hopac
 
+exception OperatorException of s : string
+    with override this.Message = sprintf "Error in operator definition: %s" this.s        
 type OperatorAttribute (name : string, argtype : string array, rettype : string, commutative : bool, docstring : string) =
     inherit System.Attribute()
     let at = Array.map Type.Parse argtype
@@ -37,7 +39,7 @@ type OperatorAttribute (name : string, argtype : string array, rettype : string,
 type Operator(name : string, argtype : array<Type>, rettype : Type, fn : array<obj> -> Job<obj>,commutative : bool,constant : bool, docstring : string) =
     do if commutative && argtype.Length > 0 then 
         if Array.exists (fun t -> t <> argtype.[0]) argtype then 
-            raise (BugException(sprintf "Operator %s declared as commutative, but the type of its arguments is not the same" name))
+            raise (OperatorException(sprintf "Operator %s declared as commutative, but the type of its arguments is not the same" name))
     member __.Constant = constant
     member __.Commutative = commutative           
     member __.Name = name
@@ -68,7 +70,7 @@ and OperatorFactory() =
     
     member __.Create name argtype rettype fn commutative docstring =        
         if dict.ContainsKey name
-        then raise (BugException (sprintf "operator not unique %s" name))
+        then raise (OperatorException (sprintf "operator not unique %s" name))
         else dict.[name] <- new Operator(name,argtype,rettype,fn,commutative,false,docstring)
 
     new(obj : obj) as this =

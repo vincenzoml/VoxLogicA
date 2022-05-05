@@ -20,8 +20,13 @@ open Hopac
 
 open FParsec
 
-type UnsupportedTypeException(t : System.Type) =
-    inherit BugException(sprintf "System type '%s' cannot be converted to VoxLogicA type (you should improve Types.fs to change this)" t.Name)
+
+exception UnsupportedTypeException of t : System.Type
+    with override this.Message = sprintf "System type '%s' cannot be converted to VoxLogicA type (you should improve Types.fs to change this)" this.t.Name
+
+
+exception ParserError of s : string
+    with override this.Message = sprintf "Parser error:"
 
 type Type = 
     TModel | TNumber |TBool | TString | TValuation of Type
@@ -43,7 +48,7 @@ type Type =
         match (run parser s) with  
             | Success (t,_,_) -> t
             | Failure _ as f -> 
-                let xn = BugException (sprintf "parse error in type declaration %s; the parser reported %A" s f)
+                let xn = ParserError(sprintf "parse error in type declaration %s; the parser reported %A" s f)
                 xn.Data.[0] <- f
                 raise xn
                 

@@ -13,8 +13,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 namespace VoxLogicA
+
+exception UniqueFactoryException
+    with override this.Message = "Internal error in module UniqueFactory.fs"
 
 open System
 type UniqueFactory<'Key,'Value when 'Key : equality>() =
@@ -39,7 +41,7 @@ type UniqueFactory<'Key,'Value when 'Key : equality>() =
     member __.Item i = 
         if i < curId 
         then match values.[i] with 
-                | None -> raise (BugException "Internal error in module UniqueFactory.fs") 
+                | None -> raise UniqueFactoryException 
                 | Some x -> x
         else raise (IndexOutOfRangeException())
         
