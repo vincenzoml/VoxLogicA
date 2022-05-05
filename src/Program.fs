@@ -24,6 +24,7 @@ type LoadFlags = { fname: string; numCores: int }
 type CmdLine =
     | [<UniqueAttribute>] Ops
     | [<UniqueAttribute>] JSon
+    | [<UniqueAttribute>] Version
     | [<UniqueAttribute>] Sequential
     | [<UniqueAttribute>] PerformanceTest
     | [<UniqueAttribute>] SaveTaskGraph of string
@@ -36,6 +37,8 @@ type CmdLine =
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
             | Sequential ->
                 "wait for each thread to complete before starting a new one; useful for debugging"
+            | Version -> 
+                "print the voxlogica version and exit"
             | PerformanceTest _ ->
                 "do not load or save actual images; always use the given file instead; useful to measure raw speed" 
             | SaveTaskGraph _ -> 
@@ -53,7 +56,9 @@ let main (argv: string array) =
         ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
 
     let parsed = cmdLineParser.Parse argv
-    ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
+    if Option.isSome (parsed.TryGetResult Version) then 
+        printfn "%s" informationalVersion
+        exit 0
     let finish = 
         if Option.isSome (parsed.TryGetResult JSon) then 
             let readLog = ErrorMsg.Logger.LogToMemory()
@@ -102,10 +107,7 @@ let main (argv: string array) =
                 printf "%s" <| json.ToString()                 
         else 
             ErrorMsg.Logger.LogToStdout ()
-            ignore
-    let performance = parsed.Contains PerformanceTest        
-    let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
-    let checker = ModelChecker model
+            ignore    
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning
             (sprintf
@@ -115,15 +117,26 @@ let main (argv: string array) =
                  version.Minor
                  version.Build)
     try
-        if parsed.Contains Ops then
-            Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
-            exit 0
+
         // if sequential
         // then
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
         //     proc.ProcessorAffinity <- nativeint 0x1                
 
-
+        if (parsed.TryGetResult Filename) = None && (not (Util.isDebug ())) then 
+            printfn "%s version: %s" name.Name informationalVersion
+            printfn "%s\n" (cmdLineParser.PrintUsage())
+            exit 0
+        
+        ErrorMsg.Logger.Debug(sprintf "%s version: %s" name.Name informationalVersion)
+        let performance = parsed.Contains PerformanceTest        
+        let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
+        let checker = ModelChecker model
+        
+        if parsed.Contains Ops then
+            Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
+            exit 0
+        
         let run filename =
             let interpreter = Interpreter(model, checker)
             interpreter.Batch interpreter.DefaultLibDir filename
@@ -132,14 +145,11 @@ let main (argv: string array) =
             checker.WriteOnlyDot (parsed.GetResult SaveTaskGraph)            
 
         match (parsed.TryGetResult Filename, Util.isDebug ()) with
-        | None, false ->
-            printfn "%s\n" (cmdLineParser.PrintUsage())
-            0
         | Some filename, _ ->            
             run filename
             finish None
             0
-        | None, true ->
+        | None, _ ->
             run "test.imgql"
             0
     with e ->
