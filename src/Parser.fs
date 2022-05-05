@@ -21,6 +21,11 @@ open FParsec
 exception ParseErrorException of s : string
     with override this.Message = sprintf "Parse error: %s" this.s
 
+type Position = string
+
+let positionOfFParsecPosition (p : FParsec.Position) =
+    p.ToString()
+
 type Expression = 
     | Call of Position * string * (Expression list)
     | Float of float
@@ -64,13 +69,13 @@ let private parseExpression =
         let expr = expr' <?> "expression"
         let application = optlst (brackets (commaSepList expr)) <?> "actual arguments list"
         let opapplication = optlst (sqbrackets (commaSepList expr)) <?> "operator arguments list"
-        callImpl := getPosition .>>. (attempt ide) .>>. application |>> (fun ((x,y),z) -> Call (x,y,z))
+        callImpl := getPosition .>>. (attempt ide) .>>. application |>> (fun ((x,y),z) -> Call (positionOfFParsecPosition x,y,z))
         exprImpl := 
-            ((attempt (getPosition .>>. (simpleExpr <|> brackets expr) .>>. operator) .>>. opapplication .>>. expr) |>> (fun ((((p,x),y),t),z) -> Call (p,y,[x;z]@t)))
+            ((attempt (getPosition .>>. (simpleExpr <|> brackets expr) .>>. operator) .>>. opapplication .>>. expr) |>> (fun ((((p,x),y),t),z) -> Call (positionOfFParsecPosition p,y,[x;z]@t)))
             <|>            
             (attempt simpleExpr)
             <|>
-            ((getPosition .>>. (attempt operator) .>>. expr) |>> (fun ((p,x),y) -> Call (p,x,[y])))
+            ((getPosition .>>. (attempt operator) .>>. expr) |>> (fun ((p,x),y) -> Call (positionOfFParsecPosition p,x,[y])))
             <|>                         
             (brackets expr)
         expr
@@ -79,8 +84,8 @@ let private command requireSpace s args =  attempt (skipString s) >>. (if requir
 let private lhs = ide <|> operator
 let private baseImageCommand = command false "base" (defeq >>. strConst) |>> BaseImage
 let private loadCommand = command true "load" ide .>> defeq .>>. strConst |>> ModelLoad
-let private saveCommand = getPosition .>>. command false "save" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> ModelSave (x,y,z))
-let private printCommand = getPosition .>>. command false "print" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Print (x,y,z))
+let private saveCommand = getPosition .>>. command false "save" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> ModelSave (positionOfFParsecPosition x,y,z))
+let private printCommand = getPosition .>>. command false "print" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Print (positionOfFParsecPosition x,y,z))
 
 let private importCommand = command false "import" strConst |>> Import
 let private letCommand = command true "let" (lhs .>>. optlst farglist .>>. (defeq >>. parseExpression)) |>> (fun ((x,y),z) -> Declaration (x,y,z))    
@@ -97,7 +102,9 @@ let private getResult res =
         | Failure(msg,_,_) -> raise (ParseErrorException msg)
 let private runParser name p stream =
     getResult (runParserOnStream p () name stream System.Text.Encoding.Default) 
+
 let parseProgram name stream =  runParser name program stream
-let  parseImport filename =
+
+let parseImport filename =
     use stream = new System.IO.FileStream(filename,System.IO.FileMode.Open) :> System.IO.Stream   
     runParser filename import stream

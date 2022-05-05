@@ -27,8 +27,6 @@ module Util =
     do debugFlag <- true
     #endif
     let isDebug () = debugFlag
-
-    let inline (<||) f a = f a
     module Concurrent =
         open Hopac
 

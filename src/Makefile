@@ -28,20 +28,13 @@ ifeq ($(VERSION),"")
 		$(error "VERSION is not set; set the release number (e.g. 0.5.1) in VERSION.txt") 
 endif
 	
-
-ifeq ($(UNAME),Linux)
-CURRENTRID=linux-x64
-else
-CURRENTRID=osx-x64
-endif
-
 .PHONY: build clean restore release-linux release-osx release-win publish-internal release upgrade
 
 build: *.fs $(PROJ).fsproj
-	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release -r $(CURRENTRID) 
+	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release
 
 build-dbg: *.fs $(PROJ).fsproj
-	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c Debug -r $(CURRENTRID) 
+	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c Debug
 
 restore:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet restore

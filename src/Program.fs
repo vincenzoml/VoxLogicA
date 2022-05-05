@@ -129,29 +129,33 @@ let main (argv: string array) =
             exit 0
         
         ErrorMsg.Logger.Debug(sprintf "%s version: %s" name.Name informationalVersion)
-        let performance = parsed.Contains PerformanceTest        
-        let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
-        let checker = ModelChecker model
         
-        if parsed.Contains Ops then
-            Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
-            exit 0
+        // let performance = parsed.Contains PerformanceTest        
+        // let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
+        // let checker = ModelChecker model
         
-        let run filename =
-            let interpreter = Interpreter(model, checker)
-            interpreter.Batch interpreter.DefaultLibDir filename
+        // if parsed.Contains Ops then
+        //     Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
+        //     exit 0
+        
 
-        if parsed.Contains SaveTaskGraph then
-            checker.WriteOnlyDot (parsed.GetResult SaveTaskGraph)            
 
-        match (parsed.TryGetResult Filename, Util.isDebug ()) with
-        | Some filename, _ ->            
-            run filename
-            finish None
-            0
-        | None, _ ->
-            run "test.imgql"
-            0
+        // if parsed.Contains SaveTaskGraph then
+        //     checker.WriteOnlyDot (parsed.GetResult SaveTaskGraph)            
+        
+        // let run filename =
+        //     let interpreter = Interpreter(model, checker)
+        //     interpreter.Batch interpreter.DefaultLibDir filename
+
+        // match (parsed.TryGetResult Filename, Util.isDebug ()) with
+        // | Some filename, _ ->            
+        //     run filename
+        //     finish None
+        //     0
+        // | None, _ ->
+        //     run "test.imgql"
+        
+        0
     with e ->
         ErrorMsg.Logger.DebugExn e
         ErrorMsg.Logger.Failure "exiting."
