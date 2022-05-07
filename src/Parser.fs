@@ -1,46 +1,28 @@
-// Copyright 2018 Vincenzo Ciancia.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-//
-// A copy of the license is available in the file "Apache_License.txt".
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 module VoxLogicA.Parser
 
 open FParsec
-
-exception ParseErrorException of s : string
-    with override this.Message = sprintf "Parse error: %s" this.s
 
 type Position = string
 
 let positionOfFParsecPosition (p : FParsec.Position) =
     p.ToString()
 
+let unknownPosition : Position = "unknown"
 type Expression = 
     | Call of Position * string * (Expression list)
-    | Float of float
+    | Number of float
     | Bool of bool
     | String of string
-
-type ParsedItem = 
-    | Declaration of string * (string list) * Expression
-    | BaseImage of string
-    | ModelLoad of string * string    
-    | ModelSave of Position * string * Expression 
+type Command = 
+    | Declaration of string * (string list) * Expression    
+    | Save of Position * string * Expression 
     | Print of Position * string * Expression
     | Import of string
 
-type private Program = ParsedItem list
+type Program = Program of list<Command>
+
+type Library = Library of list<Command>
+
 let private commentLine = skipString "//" >>. skipRestOfLine true >>. spaces
 
 let private spacesOrComment = spaces .>> skipMany commentLine <?> "whitespace"
@@ -64,7 +46,7 @@ let private farglist = brackets (commaSepList ide) <?> "formal arguments list" .
 let private parseExpression = 
         let (call,callImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()      
         let pbool = (attempt (pstring "true" >>. parse {return true}) <|> attempt (pstring "false" >>. parse {return false})) <?> "boolean value"
-        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> Float) <|> ((attempt pbool) .>> spacesOrComment |>> Bool) <|> ((attempt strConst) .>> spacesOrComment |>> String) <|> call 
+        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> Number) <|> ((attempt pbool) .>> spacesOrComment |>> Bool) <|> ((attempt strConst) .>> spacesOrComment |>> String) <|> call 
         let (expr',exprImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()
         let expr = expr' <?> "expression"
         let application = optlst (brackets (commaSepList expr)) <?> "actual arguments list"
@@ -82,9 +64,7 @@ let private parseExpression =
 
 let private command requireSpace s args =  attempt (skipString s) >>. (if requireSpace then spacesOrComment1 else spacesOrComment) >>. args .>> spacesOrComment
 let private lhs = ide <|> operator
-let private baseImageCommand = command false "base" (defeq >>. strConst) |>> BaseImage
-let private loadCommand = command true "load" ide .>> defeq .>>. strConst |>> ModelLoad
-let private saveCommand = getPosition .>>. command false "save" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> ModelSave (positionOfFParsecPosition x,y,z))
+let private saveCommand = getPosition .>>. command false "save" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Save (positionOfFParsecPosition x,y,z))
 let private printCommand = getPosition .>>. command false "print" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Print (positionOfFParsecPosition x,y,z))
 
 let private importCommand = command false "import" strConst |>> Import
@@ -92,18 +72,17 @@ let private letCommand = command true "let" (lhs .>>. optlst farglist .>>. (defe
 let private file contents = spacesOrComment >>. contents .>> eof
 let private import = file <| many (importCommand <|> letCommand) 
 let private program = file <| parse {
-    let! b = baseImageCommand
-    let! c = many (choice [ baseImageCommand; loadCommand; saveCommand; printCommand; importCommand; letCommand])
-    return b::c
+    return! many (choice [ saveCommand; printCommand; importCommand; letCommand])    
 }
 let private getResult res = 
     match res with  
         | Success (result,_,_) -> result
-        | Failure(msg,_,_) -> raise (ParseErrorException msg)
+        | Failure(msg,_,_) -> raise (ErrorMsg.VLExn msg)
+
 let private runParser name p stream =
     getResult (runParserOnStream p () name stream System.Text.Encoding.Default) 
 
-let parseProgram name stream =  runParser name program stream
+let parseProgram name stream = Program <| runParser name program stream
 
 let parseImport filename =
     use stream = new System.IO.FileStream(filename,System.IO.FileMode.Open) :> System.IO.Stream   

@@ -1,23 +1,18 @@
-// Copyright 2018 Vincenzo Ciancia.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-//
-// A copy of the license is available in the file "Apache_License.txt".
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 module VoxLogicA.ErrorMsg
 
 open System.IO
 // TODO: convert into a new type called Logger
+
+exception private VLExn of msg: string * stackTrace: List<string * string>
+    with override this.Message = 
+        match this.stackTrace with
+        | [] -> this.msg
+        | _ -> List.fold (fun str (id, pos) -> (sprintf "%s\n%s at %s" str id (pos.ToString()))) "" this.stackTrace
+
+type Stack = list<string * string>
+
+let fail msg = raise (VLExn (msg,[]))
+let failWithStacktrace msg (stackTrace : Stack) = raise (VLExn (msg,stackTrace))
 
 type Report private () = 
     static let mutable print = []
@@ -62,7 +57,6 @@ type Logger private () =
                 sr.ReadToEnd())
 
     static member Debug s = print "info" s
-    static member DebugOnly s = if Util.isDebug () then print "dbug" s
     static member Warning s = print "warn" s
     static member Failure s = print "fail" s
 
@@ -70,6 +64,9 @@ type Logger private () =
         print "user" (sprintf "%s=%A" name value)
 
     static member DebugExn(exn: exn) =
-        Logger.Debug
-        <| if Util.isDebug () then exn.ToString() else exn.Message
-
+        Logger.Debug <|
+            #if DEBUG
+            exn.ToString()
+            #else
+            exn.Message
+            #endif

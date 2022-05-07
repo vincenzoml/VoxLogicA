@@ -16,7 +16,7 @@
 
 namespace VoxLogicA
 
-exception NoModelLoadedException with
+exception NoLoadedException with
     override __.Message = "No model loaded"
 
 open Hopac
@@ -91,12 +91,12 @@ type GPUModel(performanceTest) =
         | _ -> false
 
     override __.Save filename v = job {
-        ErrorMsg.Logger.DebugOnly(sprintf "Retrieving from GPU: %A" filename)
+
         let gmv = (v :?> GPUModelValue)
         let! g = gpu
         g.Wait <| gmv.GEvt
         let img = gmv.GVal.Get()
-        ErrorMsg.Logger.DebugOnly(sprintf "saving image: %A" <| img.GetHashCode())
+
         if performanceTest then
             return (0.0,0.0)        
         else
@@ -145,7 +145,7 @@ type GPUModel(performanceTest) =
                     else
                         return! Job.raises (DifferentPhysicalAndLogicalSpaceException s)
             }
-            ErrorMsg.Logger.DebugOnly(sprintf "loaded image: %A" <| res.GetHashCode())            
+
             let! g = gpu
             let! img = (g.CopyImageToDevice res)       
             return GPUModelValue(img, [| |],g) :> obj

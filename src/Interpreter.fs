@@ -23,7 +23,7 @@ open System.Collections.Generic
 open System.IO
 
 type StackTrace =
-    | StackTrace of list<string * FParsec.Position>
+    | StackTrace of list<string * Position>
     override this.ToString() =
         match this with
         | StackTrace trace -> List.fold (fun str (id, pos) -> (sprintf "%s\n%s at %s" str id (pos.ToString()))) "" trace
@@ -84,18 +84,18 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                                 =
         match expression with
         | Float f ->
-            // // ErrorMsg.Logger.DebugOnly (sprintf "Translating float(%A)" f)
+
             formFactory.CreateConst(f, TNumber)
         | Bool b -> formFactory.CreateConst(b, TBool)
         | String s ->
-            // ErrorMsg.Logger.DebugOnly (sprintf "Translating string(%A)" s)
+
             formFactory.CreateConst(s, TString)
         | Call (pos, ide, args) ->
-            // ErrorMsg.Logger.DebugOnly (sprintf "Translating call(%s)" ide)
+
             if env.ContainsKey ide then
                 match env.[ide] with
                 | Form f ->
-                    // ErrorMsg.Logger.DebugOnly (sprintf "%s is a formula: %s %d %A" ide f.Operator.Name f.Uid (Array.map (fun (a : Formula) -> a.Operator.Name) f.Arguments))
+
                     if args.Length = 0 then
                         f
                     else
@@ -103,7 +103,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                             (InterpreterException
                                 (StackTrace((ide, pos) :: stack), WrongNumberOfArgumentsException(ide, 0, args.Length)))
                 | Fun (fargs, body, declenv) ->
-                    // ErrorMsg.Logger.DebugOnly (sprintf "%s is a function" ide)
+
                     let actargs =
                         List.map (fun e -> Form(translateExpression stack model formFactory opFactory env e)) args
 
@@ -135,30 +135,26 @@ type Interpreter(model: IModel, checker: ModelChecker) =
     let interpreterJob libdir filename (model: #IModel) (checker: ModelChecker) (s: System.IO.Stream) =
         let rec evaluate (env: Env) (parsedImports: Set<string>) syn jobs =
             match syn with            
-            | BaseImage filename::rest -> job {
-                    do! model.SetBaseImage filename
-                    return! evaluate env parsedImports rest jobs
-                }
-            | ModelLoad (ide,filename)::rest ->
+            | Load (ide,filename)::rest ->
                 ErrorMsg.Logger.Warning "'load' command is deprecated. Use 'let x = load(\"filename\")'."                
-                let p = FParsec.Position("generated",0L,0L,0L)
+                let p = unknownPosition
                 let lexpr = Call(p,"load",[String filename])
                 evaluate env parsedImports (Declaration (ide,[],lexpr)::rest) jobs 
-            // | ModelLoad (ide, filename) :: rest -> job {
+            // | Load (ide, filename) :: rest -> job {
             //         let filename = System.IO.Path.GetFullPath filename
-            //         // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelLoad \"%s\"" filename
+
             //         let! v = model.Load filename
             //         let fmla =
             //             checker.FormulaFactory.CreateConst(v, TModel)                 
-            //         // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: loaded image %A name %s from file %s fmla uid %d" (v.GetHashCode()) ide filename fmla.Uid)
+
             //         let env = env.Add(ide, Form fmla)
             //         return! evaluate env parsedImports rest jobs 
             //     }
             | Declaration (ide, fargs, body) :: rest ->
-                // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: Declaration \"%s\"" ide
+
                 evaluate (env.Add(ide, Fun(fargs, body, env))) parsedImports rest jobs
-            | ModelSave (pos, fname, expression) :: rest -> // TODO Use interpreterexception also in load and import
-                // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: ModelSave \"%s\"" filename
+            | Save (pos, fname, expression) :: rest -> // TODO Use interpreterexception also in load and import
+
                 let formula =
                     translateExpression [] model checker.FormulaFactory checker.OperatorFactory env expression
 
@@ -171,7 +167,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                             let rpath = Path.GetRelativePath(System.IO.Directory.GetCurrentDirectory(),filename)
                             let dirname = System.IO.Path.GetDirectoryName filename
                             ignore <| Directory.CreateDirectory(dirname)
-                            // ErrorMsg.Logger.DebugOnly (sprintf "Interpreter: About to save image: %A" <| res.GetHashCode())
+
                             let! (min,max) = model.Save filename res
                             ErrorMsg.Report.Save (fname,typ.ToString(), min, max, rpath)
                             do! checker.Unref formula // Very important 
@@ -181,7 +177,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                     raise
                     <| InterpreterException(StackTrace([ "save", pos ]), CantSaveException(typ, filename))
             | Print (pos, name, expression) :: rest -> // TODO Use interpreterexception also in load and import
-                // ErrorMsg.Logger.DebugOnly <| sprintf "Interpreter: Print \"%s\"" filename
+
                 let formula =
                     translateExpression [] model checker.FormulaFactory checker.OperatorFactory env expression
 
@@ -229,12 +225,11 @@ type Interpreter(model: IModel, checker: ModelChecker) =
                         else
                             raise <| ImportNotFoundException(fname, libdir)
 
-                ErrorMsg.Logger.DebugOnly
-                <| sprintf "Import \"%s\"" fname
+
                 if not (parsedImports.Contains(path)) then
                     ErrorMsg.Logger.Debug
                     <| sprintf "Importing file \"%s\"" path
-                    let parsed = parseImport path
+                    let (Library parsed) = parseImport path
                     evaluate env (parsedImports.Add path) (parsed @ rest) jobs
                 else
                     evaluate env parsedImports rest jobs
@@ -243,7 +238,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
 
         job {
             ErrorMsg.Logger.Debug <| sprintf "Parsing input %s ..." filename
-            let p = parseProgram filename s
+            let (Program p) = parseProgram filename s
             ErrorMsg.Logger.Debug "Preparing computation..."
 
             let! jobs =
@@ -261,7 +256,7 @@ type Interpreter(model: IModel, checker: ModelChecker) =
         match Scheduler.run scheduler (Job.catch job) with
         | Choice1Of2 () -> ()
         | Choice2Of2 e ->             
-            ErrorMsg.Logger.DebugOnly <| sprintf "Exception in Job:\n %A" (e.ToString())
+
             raise e
 
     member __.DefaultLibDir = defaultLibDir

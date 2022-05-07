@@ -1,26 +1,10 @@
-// Copyright 2018 Vincenzo Ciancia.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-//
-// A copy of the license is available in the file "Apache_License.txt".
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 module VoxLogicA.Main
 
 open System.Reflection
 open Argu
 
 type LoadFlags = { fname: string; numCores: int }
-
+type JSonOutput = FSharp.Data.JsonProvider<"example.json">
 type CmdLine =
     | [<UniqueAttribute>] Ops
     | [<UniqueAttribute>] JSon
@@ -123,7 +107,7 @@ let main (argv: string array) =
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
         //     proc.ProcessorAffinity <- nativeint 0x1                
 
-        if (parsed.TryGetResult Filename) = None && (not (Util.isDebug ())) then 
+        if (parsed.TryGetResult Filename) = None then 
             printfn "%s version: %s" name.Name informationalVersion
             printfn "%s\n" (cmdLineParser.PrintUsage())
             exit 0

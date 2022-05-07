@@ -1,19 +1,3 @@
-// Copyright 2018 Vincenzo Ciancia.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-//
-// A copy of the license is available in the file "Apache_License.txt".
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 namespace VoxLogicA
 
 // TODO: URGENT: when saving the same formula multiple times, task count is wrong?
@@ -52,11 +36,11 @@ type ModelChecker(model : IModel) =
                     let n = r.Value - 1
                     r.Value <- n
                     (o,n))
-        ErrorMsg.Logger.DebugOnly <| sprintf "Model checker deref: %d oldrefs: %d newrefs: %d" i oldrefc newrefc
+
         if newrefc <= 0 then 
-            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker disposing %d" i
+
             let! (y : obj) = IVar.read cache.[i]
-            ErrorMsg.Logger.DebugOnly <| sprintf "Model checker read from cache for disposal: %d=%A" i (y.GetHashCode())
+
             let dispose = 
                 try (y :?> IDisposableJob).Dispose
                 with :? System.InvalidCastException -> job { return () }
@@ -80,7 +64,7 @@ type ModelChecker(model : IModel) =
                                 let arguments = Array.sub (Array.ofSeq arguments') 0 (Array.length f.Arguments)
                                 let! t = incNumThreads
                                 do! model.SignalNumThreads t
-                                // ErrorMsg.Logger.DebugOnly (sprintf "Model checker running: %s (id: %d)\nArguments: %A\nHash codes: %A" 
+
                                 //                                 f.Operator.Name f.Uid 
                                 //                                 (Array.map (fun (f : Formula) -> f.Uid) f.Arguments) 
                                 //                                 (Array.map (fun x -> x.GetHashCode()) (Array.ofSeq arguments)))
@@ -95,7 +79,7 @@ type ModelChecker(model : IModel) =
                                     do! deref uid            
                             } )
                             (fun exn -> job {
-                                ErrorMsg.Logger.DebugOnly (exn.ToString())
+
                                 do! IVar.FillFailure (iv,exn)                        
                             })  
                     let! t = decNumThreads 
@@ -131,7 +115,7 @@ type ModelChecker(model : IModel) =
             // printfn "formula: %d operator: %A args: %A refcount: %d" i f.Operator.Name (Array.map (fun (arg : Formula) -> arg.Uid) f.Arguments) !referenceCount.[i]
         //    
         //         for i = 0 to formulaFactory.Count - 1 do                                           
-        //             ErrorMsg.Logger.DebugOnly (sprintf "Starting task %d" i)
+
         //             do! startChecker i referenceCount               
         //
         do! Job.start <| job {
@@ -148,7 +132,7 @@ type ModelChecker(model : IModel) =
 
     member __.Get (f : Formula) =  job {
         let! rc = IVar.read referenceCount
-        ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" f.Uid
+
         let r = rc.[f.Uid]
         lock r (fun () -> r.Value <- r.Value + 1)
 

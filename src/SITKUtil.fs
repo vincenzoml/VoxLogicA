@@ -272,7 +272,7 @@ type VoxImage private (img : Image,uniqueName : string) =
         let _ = ErrorMsg.Logger.Debug (sprintf "Called new filename %s" filename)
         // WARNING: the program assumes this function always returns a float32 image. Be cautious before changing this.
         let loadedImg =
-            Logger.DebugOnly <| sprintf "Loading file %s" filename
+
             let img = SimpleITK.ReadImage(filename)
             let fname = System.IO.Path.GetFileName(filename)
             let sz = img.GetSize()
@@ -287,12 +287,12 @@ type VoxImage private (img : Image,uniqueName : string) =
                     img.Dispose()
                     res
                 else img
-            Logger.DebugOnly (sprintf "Loaded image %s components per pixel: %d, pixel type: %A" fname (img.GetNumberOfComponentsPerPixel()) (img.GetPixelID()))
+
             match img.GetPixelID(),img.GetNumberOfComponentsPerPixel() with 
                 | (x,_) when x = PixelIDValueEnum.sitkFloat32 -> img
                 | (x,_) when x = PixelIDValueEnum.sitkVectorFloat32 -> img
                 | (_,y) when y = 1u -> 
-                    Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)                    
+
                     let res = SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
                     let _ = 
                         ErrorMsg.Logger.Debug (sprintf "Called cast saving to orig_%d_.nii.gz and cast_%d_.nii.gz" n.Value n.Value)
@@ -302,7 +302,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                     img.Dispose()
                     res
                 | (_,y) when y = 3u || y = 4u ->                     
-                    Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
+
                     if y = 4u then 
                         Logger.Warning <| sprintf "image %s\nhas 4 color components per voxel. Assuming RGBA color space (CMYK is not supported)." fname 
                         if fname.EndsWith ".jpg" then 
@@ -317,7 +317,7 @@ type VoxImage private (img : Image,uniqueName : string) =
         let _ = ErrorMsg.Logger.Debug (sprintf "Called new pixeltype %A" pixeltype)        
         new VoxImage(
                 allocate(img.Image,pixeltype),
-                (   Logger.DebugOnly <| sprintf "Allocating image based on %s pixeltype: %s" (img.ToString()) (pixeltype.ToString()); 
+
                     sprintf "allocate:[%s][%s]" (img.ToString()) (pixeltype.ToString())))
 
     new (img : VoxImage, ncomponents : int, pixeltype : PixelIDValueEnum) =
@@ -372,7 +372,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                             SimpleITK.Multiply(img,255.0)                            
                     else raise <| UnsupportedImageSizeException (Path.GetExtension filename)
                 else raise <| UnsupportedImageTypeException (Path.GetExtension filename)
-        Logger.DebugOnly <| sprintf "Saving file %s" filename        
+
         SimpleITK.WriteImage(tmp,filename)
         
     member __.Dimension = int (img.GetDimension())

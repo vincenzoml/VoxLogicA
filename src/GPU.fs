@@ -65,7 +65,7 @@ type Pool() =
 
     member __.Put (x : nativeint) =
         lock lck (fun () -> 
-                    ErrorMsg.Logger.DebugOnly <| sprintf "PUT: %A" x 
+
                     match waitingList with
                     | [] -> 
                         queue <- x::queue
@@ -77,18 +77,17 @@ type Pool() =
 
     member __.TryGet () =
         job {
-            ErrorMsg.Logger.DebugOnly "TRYGET"
             return lock lck (fun () -> 
                 match queue with
-                | [] -> ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: None"; None
+
                 | x::xs -> 
                     queue <- xs
-                    ErrorMsg.Logger.DebugOnly <| sprintf "GET returned: %A" x;
+
                     Some x)
         }
 
     member __.Wait () =           
-        ErrorMsg.Logger.DebugOnly "WAIT started"
+
         let r = lock lck (fun () -> 
                 match queue with
                 | [] -> 
@@ -96,7 +95,7 @@ type Pool() =
                     waitingList <- iv::waitingList                                     
                     job {
                         let! r = IVar.read iv                    
-                        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT returned: %A" r 
+
                         return r
                     }
                 | x::xs ->
@@ -122,7 +121,7 @@ type GPUMemory() =
     static member OnWait j = onWait <- j
 
     static member Put key mem = 
-        ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A %A" key mem
+
         let pool = 
             lock globalLock (fun () -> 
                 try pools.[key]
@@ -134,7 +133,7 @@ type GPUMemory() =
         pool.Put mem        
 
     static member TryGet key = job {
-        ErrorMsg.Logger.DebugOnly <| sprintf "TRYGET %A" key
+
         let pool =
             lock globalLock (fun () ->
                 try 
@@ -150,7 +149,7 @@ type GPUMemory() =
     }
 
     static member Wait key = job {
-        ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A" key        
+
         let pool =
             lock globalLock (fun () ->
                 try 
@@ -170,7 +169,7 @@ type GPUMemory() =
         lock globalLock (fun () -> Seq.sumBy (fun (kv : KeyValuePair<MemoryKey,Pool>) -> kv.Value.NumBlockedThreads()) pools)
 
     // static member Get key = 
-    //     ErrorMsg.Logger.DebugOnly <| sprintf "GET %A" key
+
     //     lock globalLock (fun () ->
     //         try 
     //             pools.[key].Get()
@@ -211,7 +210,7 @@ type private GPUArray<'a when 'a : unmanaged> (dataPointer : nativeint,length : 
 type private GPUImage (dataPointer : nativeint,img : VoxImage, nComponents : int, bufferType : PixelType, queue : Pointer) =     
     inherit GPUValue<VoxImage>() 
     override __.Delete =
-        ErrorMsg.Logger.DebugOnly <| sprintf "PUT %A %A" nComponents bufferType
+
         GPUMemory.Put (Image { 
             NComponents = nComponents
             BufferType = bufferType
@@ -459,7 +458,7 @@ and GPU(kernelsFilename : string) =
             p <- mem
         | None ->
             if c < 60 then // TODO: URGENT: PROVISIONAL     
-                ErrorMsg.Logger.DebugOnly <| sprintf "ALLOC %A %A" nComponents bufferType
+
                 lock imageCount (fun () -> imageCount.[memoryKey] <- c + 1)
                 p <-
                     let imgFormatOUT = ImageFormat(uint32 channelOrder,uint32 channelDataType)
@@ -484,7 +483,7 @@ and GPU(kernelsFilename : string) =
                             vNullPtr,
                             p))
             else
-                ErrorMsg.Logger.DebugOnly <| sprintf "WAIT %A %A" nComponents bufferType
+
                 let! w = GPUMemory.Wait memoryKey                   
                 p <- w
         
@@ -574,7 +573,7 @@ and GPU(kernelsFilename : string) =
   
     member this.Run (dimension : int,kernelName : string,events : array<Event>,args : seq<KernelArg>, globalWorkSize : array<int>,oLocalWorkSize : Option<array<int>>) =  
         job {
-            ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run kernelname %A %A" kernelName args
+
             do! Lock.duringFun numThreadsLock (fun () -> numInternalThreads <- numInternalThreads + 1)
             // ErrorMsg.Logger.Debug <| sprintf "start %A" kernelName
             let args = Seq.cache args
@@ -614,7 +613,7 @@ and GPU(kernelsFilename : string) =
                 )
             let! _ = Job.queue <| job {                
                 this.Wait [|res|]     
-                ErrorMsg.Logger.DebugOnly <| sprintf "Gpu.Run finished %A" kernelName
+
                 do! Job.seqIgnore (Seq.map (fun (arg : KernelArg) -> arg.Dereference()) (Seq.distinct args) )                
                 do! Lock.duringJob numThreadsLock <| job {                    
                     numInternalThreads <- numInternalThreads - 1
