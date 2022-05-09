@@ -7,7 +7,7 @@
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <PropertyGroup>
-    <SimpleITKVersionString>SimpleITK-2.2.0rc2.post79</SimpleITKVersionString>
+    <SimpleITKVersionString>SimpleITK-2.2.0rc2.post81</SimpleITKVersionString>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>

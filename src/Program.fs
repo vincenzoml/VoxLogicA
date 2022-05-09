@@ -107,14 +107,24 @@ let main (argv: string array) =
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
         //     proc.ProcessorAffinity <- nativeint 0x1                
 
-        if (parsed.TryGetResult Filename) = None then 
-            printfn "%s version: %s" name.Name informationalVersion
-            printfn "%s\n" (cmdLineParser.PrintUsage())
-            exit 0
-        
+        let filename =
+            try (parsed.GetResult Filename) 
+            with _ ->  
+                printfn "%s version: %s" name.Name informationalVersion
+                printfn "%s\n" (cmdLineParser.PrintUsage())
+                exit 0
+
         ErrorMsg.Logger.Debug(sprintf "%s version: %s" name.Name informationalVersion)
-        
+                
         // let performance = parsed.Contains PerformanceTest        
+
+
+        let syntax = Parser.parseProgram filename
+
+        let x = Reducer.reduceProgram syntax
+
+        printfn "%A" x
+
         // let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
         // let checker = ModelChecker model
         
@@ -142,6 +152,5 @@ let main (argv: string array) =
         0
     with e ->
         ErrorMsg.Logger.DebugExn e
-        ErrorMsg.Logger.Failure "exiting."
         finish (Some e)
         1

@@ -1,4 +1,4 @@
-module VoxLogicA.Task
+module VoxLogicA.Reducer
 
 open Parser
 open FSharp.Collections
@@ -16,15 +16,13 @@ type Arguments = List<int>
 
 type Taskid = int
 
-type Task =
+type private TaskInt =
     { id: Taskid
       operator: Operator
       arguments: Arguments }
-
-type Tasks =
-    private
-        { byTerm: Map<(Operator * Arguments), Task>
-          byId: Map<Taskid, Task> }
+type private Tasks =    
+    {   byTerm: Map<(Operator * Arguments), TaskInt>
+        byId: Map<Taskid, TaskInt> }
 
     member this.FindOrCreate operator arguments =
         try
@@ -48,15 +46,14 @@ type Tasks =
         let byId' = Map.add newId newTask this.byId
         (newId, { byTerm = byTerm'; byId = byId' })
 
+let private emptyTasks = { byTerm = Map.empty; byId = Map.empty }
+
 type Goal =
     | GoalSave of string * Taskid
     | GoalPrint of string * Taskid
 
-type WorkPlan = { tasks: Tasks; goals: Set<Goal> }
-
-type DVal = Task of Taskid | Fun of List<identifier> * Parser.Expression
-
-type private Environment = Environment of Map<identifier, DVal> with
+type private DVal = Task of Taskid | Fun of Environment * List<identifier> * Parser.Expression 
+and private Environment = Environment of Map<identifier, DVal> with
     member this.Find ide = Map.find ide (match this with Environment env -> env)
     member this.Bind ide expr = Environment (Map.add ide expr (match this with Environment env -> env))
     member this.BindList idelist exprlist =
@@ -66,24 +63,28 @@ type private Environment = Environment of Map<identifier, DVal> with
         | ([],[]) -> this
         | _ -> fail "Internal error in module Reducer. Please report."
 
-let rec private reduceProgram (env, tasks, goals) (Program p) =
+let private emptyEnvironment = Environment Map.empty
+
+let rec private reduceProgramRec (env, tasks, goals) (Program p) =
     match p with
-    | [] -> { tasks = tasks; goals = goals }
-    | command :: commands -> reduceProgram (reduceCommand (env, tasks, goals) command) (Program commands)
+    | [] -> (tasks, goals)
+    | command :: commands -> reduceProgramRec (reduceCommand (env, tasks, goals) command) (Program commands)
 
 and private reduceCommand (env, tasks, goals) command =
     match command with
     | Save (pos, filename, expr) -> // TODO: use pos
-        let (taskId, tasks') = reduceExpr [] (env, tasks) expr
+        let (taskId, tasks') = reduceExpr [($"save {filename}",pos) ] (env, tasks) expr
         (env, tasks', Set.add (GoalSave(filename, taskId)) goals)
+    | Declaration (ide,formalArgs,body) ->
+        (env.Bind ide (Fun (env,formalArgs,body)),tasks,goals)   
     | _ -> failwith "stub"
 
-and private reduceExpr (stack : ErrorMsg.Stack) (env : Environment, tasks) expr =
+and private reduceExpr (stack : ErrorMsg.Stack) (env : Environment, tasks : Tasks) expr =
     match expr with
     | Parser.Number f -> tasks.FindOrCreate (Number f) []
     | Parser.Bool b -> tasks.FindOrCreate (Bool b) []
     | Parser.String s -> tasks.FindOrCreate (String s) []
-    | Parser.Call (pos, ide, args) -> // TODO: use pos
+    | Call (pos, ide, args) -> // TODO: use pos
         let stack' = (ide,pos)::stack
         let rec reduceArgs args (reducedArgs, tasks') =
             match args with
@@ -100,12 +101,23 @@ and private reduceExpr (stack : ErrorMsg.Stack) (env : Environment, tasks) expr 
         | :? System.Collections.Generic.KeyNotFoundException -> 
             try 
                 match env.Find ide with
-                | Fun (formalArgs,body) ->
+                | Fun (denv,formalArgs,body) ->
                     let callEnv = 
                         if formalArgs.Length = args.Length then 
-                            env.BindList formalArgs (List.map Task actualArgs)
+                            denv.BindList formalArgs (List.map Task actualArgs)
                         else failWithStacktrace (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length) stack'           
                     reduceExpr stack' (callEnv, tasks') body
                 | Task t -> (t,tasks)
             with :? System.Collections.Generic.KeyNotFoundException -> 
-                tasks'.Create (Identifier ide) actualArgs 
+                // tasks'.Create (Identifier ide) actualArgs 
+                failWithStacktrace $"Unbound identifier {ide}" stack'
+
+
+type Task = { operator : Operator; arguments : list<int> }
+type WorkPlan = { tasks: array<Task>; goals: Set<Goal> }
+
+let private taskOfTaskInt (t: TaskInt) : Task = { operator = t.operator; arguments = t.arguments }
+
+let reduceProgram prog = 
+    let (tasks,goals) = reduceProgramRec (emptyEnvironment,emptyTasks, Set.empty) prog
+    { tasks = Array.init tasks.byId.Count (fun i -> taskOfTaskInt tasks.byId[i]); goals = goals }

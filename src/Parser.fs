@@ -77,12 +77,14 @@ let private program = file <| parse {
 let private getResult res = 
     match res with  
         | Success (result,_,_) -> result
-        | Failure(msg,_,_) -> raise (ErrorMsg.VLExn msg)
+        | Failure(msg,_,_) -> ErrorMsg.fail msg // raise (ErrorMsg.VLExn msg)
 
 let private runParser name p stream =
     getResult (runParserOnStream p () name stream System.Text.Encoding.Default) 
 
-let parseProgram name stream = Program <| runParser name program stream
+let parseProgram filename = 
+    use stream = new System.IO.FileStream(filename,System.IO.FileMode.Open) :> System.IO.Stream   
+    Program <| runParser filename program stream
 
 let parseImport filename =
     use stream = new System.IO.FileStream(filename,System.IO.FileMode.Open) :> System.IO.Stream   

@@ -4,10 +4,14 @@ open System.IO
 // TODO: convert into a new type called Logger
 
 exception private VLExn of msg: string * stackTrace: List<string * string>
-    with override this.Message = 
-        match this.stackTrace with
-        | [] -> this.msg
-        | _ -> List.fold (fun str (id, pos) -> (sprintf "%s\n%s at %s" str id (pos.ToString()))) "" this.stackTrace
+    with 
+        override this.Message = 
+            match this.stackTrace with
+            | [] -> this.msg
+            | _ -> this.msg + List.fold (fun str (id, pos) -> (sprintf "%s\n%s at %s" str id (pos.ToString()))) "" this.stackTrace
+        
+        override this.ToString() = 
+            this.Message
 
 type Stack = list<string * string>
 
@@ -57,14 +61,14 @@ type Logger private () =
                 sr.ReadToEnd())
 
     static member Debug s = print "info" s
-    static member Warning s = print "warn" s
+    static member Warning s = print "Warning" s
     static member Failure s = print "fail" s
 
     static member Result name value =
         print "user" (sprintf "%s=%A" name value)
 
     static member DebugExn(exn: exn) =
-        Logger.Debug <|
+        Logger.Failure <|
             #if DEBUG
             exn.ToString()
             #else
