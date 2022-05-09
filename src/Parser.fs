@@ -9,10 +9,10 @@ let positionOfFParsecPosition (p : FParsec.Position) =
 
 let unknownPosition : Position = "unknown"
 type Expression = 
-    | Call of Position * string * (Expression list)
-    | Number of float
-    | Bool of bool
-    | String of string
+    | ECall of Position * string * (Expression list)
+    | ENumber of float
+    | EBool of bool
+    | EString of string
 type Command = 
     | Declaration of string * (string list) * Expression    
     | Save of Position * string * Expression 
@@ -46,18 +46,18 @@ let private farglist = brackets (commaSepList ide) <?> "formal arguments list" .
 let private parseExpression = 
         let (call,callImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()      
         let pbool = (attempt (pstring "true" >>. parse {return true}) <|> attempt (pstring "false" >>. parse {return false})) <?> "boolean value"
-        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> Number) <|> ((attempt pbool) .>> spacesOrComment |>> Bool) <|> ((attempt strConst) .>> spacesOrComment |>> String) <|> call 
+        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> ENumber) <|> ((attempt pbool) .>> spacesOrComment |>> EBool) <|> ((attempt strConst) .>> spacesOrComment |>> EString) <|> call 
         let (expr',exprImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()
         let expr = expr' <?> "expression"
         let application = optlst (brackets (commaSepList expr)) <?> "actual arguments list"
         let opapplication = optlst (sqbrackets (commaSepList expr)) <?> "operator arguments list"
-        callImpl := getPosition .>>. (attempt ide) .>>. application |>> (fun ((x,y),z) -> Call (positionOfFParsecPosition x,y,z))
+        callImpl := getPosition .>>. (attempt ide) .>>. application |>> (fun ((x,y),z) -> ECall (positionOfFParsecPosition x,y,z))
         exprImpl := 
-            ((attempt (getPosition .>>. (simpleExpr <|> brackets expr) .>>. operator) .>>. opapplication .>>. expr) |>> (fun ((((p,x),y),t),z) -> Call (positionOfFParsecPosition p,y,[x;z]@t)))
+            ((attempt (getPosition .>>. (simpleExpr <|> brackets expr) .>>. operator) .>>. opapplication .>>. expr) |>> (fun ((((p,x),y),t),z) -> ECall (positionOfFParsecPosition p,y,[x;z]@t)))
             <|>            
             (attempt simpleExpr)
             <|>
-            ((getPosition .>>. (attempt operator) .>>. expr) |>> (fun ((p,x),y) -> Call (positionOfFParsecPosition p,x,[y])))
+            ((getPosition .>>. (attempt operator) .>>. expr) |>> (fun ((p,x),y) -> ECall (positionOfFParsecPosition p,x,[y])))
             <|>                         
             (brackets expr)
         expr

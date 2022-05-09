@@ -114,7 +114,7 @@ let main (argv: string array) =
                 printfn "%s\n" (cmdLineParser.PrintUsage())
                 exit 0
 
-        ErrorMsg.Logger.Debug(sprintf "%s version: %s" name.Name informationalVersion)
+        ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
                 
         // let performance = parsed.Contains PerformanceTest        
 
@@ -123,7 +123,9 @@ let main (argv: string array) =
 
         let x = Reducer.reduceProgram syntax
 
-        printfn "%A" x
+        ErrorMsg.Logger.Debug $"{x}"
+
+
 
         // let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
         // let checker = ModelChecker model
@@ -134,8 +136,8 @@ let main (argv: string array) =
         
 
 
-        // if parsed.Contains SaveTaskGraph then
-        //     checker.WriteOnlyDot (parsed.GetResult SaveTaskGraph)            
+        if parsed.Contains SaveTaskGraph then
+            System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.AsDot)    
         
         // let run filename =
         //     let interpreter = Interpreter(model, checker)
