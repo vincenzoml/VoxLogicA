@@ -109,8 +109,9 @@ and private reduceExpr (stack : ErrorMsg.Stack) (env : Environment, tasks : Task
                     reduceExpr stack' (callEnv, tasks') body
                 | Task t -> (t,tasks)
             with :? System.Collections.Generic.KeyNotFoundException -> 
-                // tasks'.Create (Identifier ide) actualArgs 
-                failWithStacktrace $"Unbound identifier {ide}" stack'
+                printfn $"**** IDE {ide}"
+                tasks'.Create (Identifier ide) actualArgs 
+                //failWithStacktrace $"Unbound identifier {ide}" stack'
 
 
 type Task = { operator : Operator; arguments : list<int> }
