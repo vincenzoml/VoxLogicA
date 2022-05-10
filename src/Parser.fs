@@ -13,6 +13,15 @@ type Expression =
     | ENumber of float
     | EBool of bool
     | EString of string
+    override this.ToString() = 
+        match this with
+        | ECall (_,ide,l) -> 
+            if l.Length = 0 
+            then $"{ide}" 
+            else $"{ide}({List.map (fun x -> x.ToString()) l})"            
+        | ENumber f -> $"{f}"
+        | EBool b -> $"{b}"
+        | EString s -> s.ToString() // Includes quotes in the output
 type Command = 
     | Declaration of string * (string list) * Expression    
     | Save of Position * string * Expression 

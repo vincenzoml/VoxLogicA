@@ -22,7 +22,8 @@ type Arguments = List<int>
 
 type Taskid = int
 
-type private TaskInt =
+// "Internal" representation of tasks; differs from the "external" because Taskid is not needed as a field after reduction
+type private TaskInt = 
     { id: Taskid
       operator: Operator
       arguments: Arguments }
@@ -41,7 +42,7 @@ type private Tasks =
         (Map.find (operator, arguments) this.byTerm).id
 
     member this.Create operator arguments =
-        let newId = this.byTerm.Count
+        let newId = this.byId.Count
 
         let newTask =
             { id = newId
@@ -51,6 +52,12 @@ type private Tasks =
         let byTerm' = Map.add (operator, arguments) newTask this.byTerm
         let byId' = Map.add newId newTask this.byId
         (newId, { byTerm = byTerm'; byId = byId' })
+
+    member this.Alias operator arguments (taskid : Taskid) =
+        let task = Map.find taskid this.byId
+        let byTerm' = Map.add (operator, arguments) task this.byTerm
+        { byTerm = byTerm'; byId = this.byId }
+
 
 let private emptyTasks = { byTerm = Map.empty; byId = Map.empty }
 
@@ -118,10 +125,11 @@ and private reduceExpr (stack: ErrorMsg.Stack) (env: Environment, tasks: Tasks) 
                 let (taskId, tasks'') = reduceExpr stack' (env, tasks') arg
                 reduceArgs args' (taskId :: reducedArgs, tasks'')
 
+        // TODO: before reduction, one should already have checked if ide is defined in env, and then if the number of arguments matches
         let (actualArgs, tasks') = reduceArgs args ([], tasks)
 
         try
-            (tasks'.Find (Identifier ide) actualArgs, tasks')
+            (tasks'.Find (Identifier ide) actualArgs, tasks') 
         with
         | :? System.Collections.Generic.KeyNotFoundException ->
             try
@@ -134,9 +142,10 @@ and private reduceExpr (stack: ErrorMsg.Stack) (env: Environment, tasks: Tasks) 
                             failWithStacktrace
                                 (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)
                                 stack'
-
-                    reduceExpr stack' (callEnv, tasks') body
-                | Task t -> (t, tasks)
+                    let (task'',tasks'') = reduceExpr stack' (callEnv, tasks') body
+                    let tasks''' = tasks''.Alias (Identifier ide) actualArgs task''
+                    (task'',tasks''')
+                | Task t -> (t, tasks)                
             with
             | :? System.Collections.Generic.KeyNotFoundException -> tasks'.Create (Identifier ide) actualArgs
 
@@ -144,6 +153,10 @@ type Task =
     { operator: Operator
       arguments: list<int> }
 
+let private taskOfTaskInt (t: TaskInt) : Task =
+    { operator = t.operator
+      arguments = t.arguments }
+      
 type WorkPlan =
     { tasks: array<Task>
       goals: Set<Goal> }
@@ -163,12 +176,11 @@ type WorkPlan =
 
         str + "\n}"
 
-let private taskOfTaskInt (t: TaskInt) : Task =
-    { operator = t.operator
-      arguments = t.arguments }
-
 let reduceProgram prog =
     let (tasks, goals) = reduceProgramRec (emptyEnvironment, emptyTasks, Set.empty) prog
 
-    { tasks = Array.init tasks.byId.Count (fun i -> taskOfTaskInt tasks.byId[i])
+    { tasks = Array.init tasks.byId.Count (fun i -> 
+        try taskOfTaskInt tasks.byId[i]
+        with _ ->             
+            fail $"{tasks.byId}\n{tasks.byTerm}\nnot found id {i}")
       goals = goals }
