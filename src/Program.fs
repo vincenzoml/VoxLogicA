@@ -57,11 +57,11 @@ let main (argv : string array) =
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-        if parsed.Contains Convert then             
+        if parsed.Contains Convert then          
             match parsed.GetResult Convert with
             | (s1,s2) ->
-                match (System.IO.Path.GetExtension s1,System.IO.Path.GetExtension s2) with
-                | _,"json" ->
+                match (System.IO.Path.GetExtension s1,System.IO.Path.GetExtension s2) with                
+                | _,".json" ->
                     let (imgf,jsonf) = (s1,s2)
                     let img = new SITKUtil.VoxImage(imgf)                  
                     if img.NComponents < 3 then failwith "Image must be RGB or RGBA"
@@ -103,11 +103,41 @@ let main (argv : string array) =
                             }
                         })                 
                     )
-                | "json",_ ->
+                | ".json",_ ->
                     let j = Graph.loadFileGraph(s1)
-                    seq { for n in j.nodes do
-                            n.id }
-                    failwith "stub"
+                    let parseTriple s = 
+                        let reg = new System.Text.RegularExpressions.Regex "^\s*\((\s*[0-9]+\s*),(\s*[0-9]+\s*),(\s*[0-9]+\s*)\)\s*$"
+                        let m = reg.Match s
+                        if m.Success 
+                        then [|int m.Groups[1].Value;int m.Groups[2].Value;int m.Groups[3].Value|]
+                        else failwith $"Not a triple: {s}"
+
+                    let parseColour s =
+                        let reg = new System.Text.RegularExpressions.Regex "^\s*#([0-9a-fA-F][0-9a-fA-F])([0-9a-fA-F][0-9a-fA-F])([0-9a-fA-F][0-9a-fA-F])\s*$"
+                        let m = reg.Match s
+                        let f x = System.Int32.Parse(x, System.Globalization.NumberStyles.HexNumber)
+                        if m.Success
+                        then [|f m.Groups[1].Value;f m.Groups[2].Value;f m.Groups[3].Value|]
+                        else failwith $"Not a colour: {s}"
+                    
+                    let nodes = 
+                        seq { for n in j.nodes do
+                                yield (parseTriple n.id,parseColour n.atoms[0]) }
+                    let maxdim i = 
+                        let fn (x : array<int> * array<int>) =                             
+                            let coords = fst x
+                            coords[i]
+                        (Seq.max (Seq.map fn nodes))                        
+                    let imgDim = [|maxdim 0;maxdim 1;maxdim 2|]
+                    let img = new SITKUtil.VoxImage(new itk.simple.Image(new itk.simple.VectorUInt32(Array.map uint32 imgDim),itk.simple.PixelIDValueEnum.sitkVectorUInt8,uint32 4))
+                    img.GetBufferAsUInt8 (fun buf ->
+                        for (coords,colour) in nodes do
+                            let linearCoord = coords[0] + (coords[1] * imgDim[0]) + (coords[2] * imgDim[1] * imgDim[0])
+                            for colourId in [0..2] do
+                                buf.Set (linearCoord + colourId) (uint8 colour[colourId])
+                            buf.Set (linearCoord + 3) 255uy
+                    )
+                    img.Save s2
                     
                 | _,_ ->
                     failwith "wrong file exensions for conversion"
