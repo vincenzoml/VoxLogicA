@@ -3,17 +3,10 @@ module VoxLogicA.Reducer
 open Parser
 open FSharp.Collections
 open ErrorMsg
-
-type identifier = string
-
 type Operator =
     | Number of float
     | String of string
     | Identifier of string
-    override this.ToString() =
-        match this with
-        | Number x -> x.ToString()
-        | String x -> x.ToString()
 
 type Task = Task of Operator * List<Task>
 type Tasks = 
@@ -26,10 +19,10 @@ type Tasks =
 
 type DVal =
     | Task of Task
-    | Fun of Environment * List<identifier> * Parser.Expression
+    | Fun of Environment * List<string> * Parser.Expression
 
 and Environment =
-    | Environment of Map<identifier, DVal>
+    | Environment of Map<string, DVal>
     member this.Find ide =
         Map.find
             ide
