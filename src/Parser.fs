@@ -11,8 +11,6 @@ let unknownPosition : Position = "unknown"
 type Expression = 
     | ECall of Position * string * (Expression list)
     | ENumber of float
-    | EBool of bool
-    | EString of string
     override this.ToString() = 
         match this with
         | ECall (_,ide,l) -> 
@@ -20,8 +18,6 @@ type Expression =
             then $"{ide}" 
             else $"{ide}({List.map (fun x -> x.ToString()) l})"            
         | ENumber f -> $"{f}"
-        | EBool b -> $"{b}"
-        | EString s -> s.ToString() // Includes quotes in the output
 type Command = 
     | Declaration of string * (string list) * Expression    
     | Print of Position * string * Expression
@@ -53,7 +49,7 @@ let private farglist = brackets (commaSepList ide) <?> "formal arguments list" .
 let private parseExpression = 
         let (call,callImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()      
         let pbool = (attempt (pstring "true" >>. parse {return true}) <|> attempt (pstring "false" >>. parse {return false})) <?> "boolean value"
-        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> ENumber) <|> ((attempt pbool) .>> spacesOrComment |>> EBool) <|> ((attempt strConst) .>> spacesOrComment |>> EString) <|> call 
+        let simpleExpr = ((attempt pfloat) .>> spacesOrComment |>> ENumber) <|> call 
         let (expr',exprImpl) : (Parser<Expression,unit> * (Parser<Expression,unit> ref)) = createParserForwardedToRef()
         let expr = expr' <?> "expression"
         let application = optlst (brackets (commaSepList expr)) <?> "actual arguments list"

@@ -1,11 +1,19 @@
 module VoxLogicA.Reducer
 
-open Parser
 open FSharp.Collections
-open ErrorMsg
+// SYNTAX
+type Expression = 
+    | ECall of string * (Expression list)
+    | ENumber of float    
+type Command = 
+    | Declaration of string * (string list) * Expression    
+    | Print of string * Expression
+    
+type Program = Program of list<Command>
+    
+// SEMANTICS 
 type Operator =
     | Number of float
-    | String of string
     | Identifier of string
 
 type Task = Task of Operator * List<Task>
@@ -19,7 +27,7 @@ type Tasks =
 
 type DVal =
     | Task of Task
-    | Fun of Environment * List<string> * Parser.Expression
+    | Fun of Environment * List<string> * Expression
 
 and Environment =
     | Environment of Map<string, DVal>
@@ -42,7 +50,7 @@ and Environment =
         match (idelist, exprlist) with
         | (ide :: ides, expr :: exprs) -> (this.Bind ide expr).BindList ides exprs
         | ([], []) -> this
-        | _ -> fail "Internal error in module Reducer. Please report."
+        | _ -> failwith "Internal error in module Reducer. Please report."
 
 let emptyEnvironment = Environment Map.empty
 
@@ -58,22 +66,20 @@ and reduceCommand (env, tasks) command cont =
     match command with
     | Declaration (ide, formalArgs, body) -> 
         cont (env.Bind ide (Fun(env, formalArgs, body)), tasks)
-    | Print (pos, str, expr) -> // TODO: use pos
-        reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr <|
+    | Print (str, expr) -> // TODO: use pos
+        reduceExpr (env, tasks) expr <|
             fun (taskId, tasks') ->
                 cont (env, tasks')
 
-and reduceExpr (stack: ErrorMsg.Stack) (env: Environment, tasks: Tasks) (expr : Expression) (cont : Task * Tasks -> 'a) =
+and reduceExpr (env: Environment, tasks: Tasks) (expr : Expression) (cont : Task * Tasks -> 'a) =
     match expr with
     | ENumber f -> cont <| tasks.Add (Number f) []
-    | EString s -> cont <| tasks.Add (String s) []
-    | ECall (pos, ide, args) -> // TODO: use pos
-        let stack' = (ide, pos) :: stack        
+    | ECall (ide, args) -> // TODO: use pos
         let rec reduceArgs args tasks' accum cont =
             match args with 
             | [] -> cont (List.rev accum,tasks')
             | arg::args' -> 
-                reduceExpr stack' (env,tasks') arg <|
+                reduceExpr (env,tasks') arg <|
                     fun (taskId,tasks'') ->
                         reduceArgs args' tasks'' (taskId::accum) cont
 
@@ -86,11 +92,9 @@ and reduceExpr (stack: ErrorMsg.Stack) (env: Environment, tasks: Tasks) (expr : 
                             if formalArgs.Length = args.Length then
                                 denv.BindList formalArgs (List.map Task actualArgs)
                             else
-                                failWithStacktrace
-                                    (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)
-                                    stack'
+                                failwith (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)                                    
 
-                        reduceExpr stack' (callEnv, tasks') body <| cont                            
+                        reduceExpr (callEnv, tasks') body <| cont                            
                     | Task t -> 
                         cont(t, tasks)
                 with
