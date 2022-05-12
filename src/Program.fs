@@ -121,13 +121,12 @@ let main (argv: string array) =
 
         let syntax = Parser.parseProgram filename
 
-        let x = Reducer.reduceProgram syntax
-        
+        let x = Reducer.reduceProgram syntax        
 
         ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
 
-
-
+        //ErrorMsg.Logger.Debug $"{x}"
+        
         // let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
         // let checker = ModelChecker model
         
