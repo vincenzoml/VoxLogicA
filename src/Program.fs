@@ -1,11 +1,7 @@
 // SYNTAX
 type Expression =
     | ECall of string * (Expression list)
-type Command =
-    | Declaration of string * (string list) * Expression
-    
-type Program = Program of (list<Command> * Expression)
-
+    | EDeclaration of string * (string list) * Expression * Expression
 type DVal =
     | Result of unit
     | Fun of Environment * List<string> * Expression
@@ -18,20 +14,12 @@ let rec bindList env idelist exprlist =
         | ([], []) -> env
         | _ -> failwith "Internal error in module Reducer. Please report."
 
-let rec reduceProgramRec (env: Environment) (Program (p,ret)) cont =
-    match p with
-    | [] -> reduceExpr env ret cont
-    | command :: commands ->
-        reduceCommand env command
-        <| fun env' -> reduceProgramRec env' (Program (commands,ret)) cont
-
-and reduceCommand env command cont =
-    match command with
-    | Declaration (ide, formalArgs, body) -> cont (Map.add ide (Fun(env, formalArgs, body)) env)
-
-and reduceExpr (env: Environment) (expr: Expression) (cont: unit -> unit) =
+let rec reduceExpr (env: Environment) (expr: Expression) (cont: unit -> unit) =
     match expr with
-    | ECall (_,[]) -> ()
+    | EDeclaration (ide, formalArgs, body, rest) -> 
+        let ev' = Map.add ide (Fun(env, formalArgs, body)) env
+        reduceExpr ev' rest cont 
+    | ECall (_,[]) -> cont ()
     | ECall (ide, args) -> // TODO: use pos
         let rec reduceArgs args accum cont =
             match args with
@@ -51,26 +39,24 @@ and reduceExpr (env: Environment) (expr: Expression) (cont: unit -> unit) =
                         failwith (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)
 
                 reduceExpr callEnv body <| cont
-            | (Result r) -> cont r            
+            | (Result r) -> cont r          
 
-let reduceProgram prog =
-    reduceProgramRec Map.empty prog id
-
-let prog n =
-    let declarations =
-        (Declaration("t0", [ "x" ], ECall("x", [])))
-        :: (List.init n (fun i -> Declaration($"t{i + 1}", [ "x" ], ECall($"t{i}", [ ECall("x", []) ]))))
-
-    (declarations, ECall($"t{n}", [ ECall ("finish",[]) ]))
-
-let (decl,ret) =
-    prog
-    <| try
+let rec mkExpr n cont =
+    if n = 0 
+    then cont (EDeclaration("t0", [ "x" ], ECall("x", []), ECall("t0",[ ECall("x",[]) ] )))
+    else mkExpr (n-1) <| fun e -> cont (EDeclaration($"t{n+1}", ["x"], ECall($"t{n}", [ ECall("x", []) ]), e))
+    
+let n = 
+    try
         (int (System.Environment.GetCommandLineArgs()[1]))
-       with
-       | _ -> 1000000
+    with
+       | _ -> 1000000        
 
-printfn $"Program length: {decl.Length}"
-let redux = reduceProgram (Program (decl,ret))
-printfn $"{redux}"
+mkExpr n <|
+    fun expr ->
+        printfn $"Expression prepared"
+        reduceExpr Map.empty expr <|
+            fun redux -> 
+                printfn $"Done ({redux})"
+        printfn "all done"
 
