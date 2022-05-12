@@ -37,7 +37,6 @@ type Taskid = int
 // "Internal" representation of tasks; differs from the "external" because Taskid is not needed after reduction
 type private TaskInt = { id: Taskid; task: Task }
 
-
 type private Tasks =
     { byTerm: Map<(Operator * Arguments), TaskInt>
       byId: Map<Taskid, TaskInt> }

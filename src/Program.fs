@@ -12,6 +12,7 @@ type CmdLine =
     | [<UniqueAttribute>] Sequential
     | [<UniqueAttribute>] PerformanceTest
     | [<UniqueAttribute>] SaveTaskGraph of string
+    | [<UniqueAttribute>] SaveSyntax of string
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
@@ -27,6 +28,8 @@ type CmdLine =
                 "do not load or save actual images; always use the given file instead; useful to measure raw speed" 
             | SaveTaskGraph _ -> 
                 "save the task graph in .dot format and exit"
+            | SaveSyntax _ -> 
+                "save the AST in text format and exit"
             | Filename _ -> "VoxLogicA session file"
 
 [<EntryPoint>]
@@ -120,6 +123,8 @@ let main (argv: string array) =
 
 
         let syntax = Parser.parseProgram filename
+        if parsed.Contains SaveSyntax then
+            System.IO.File.WriteAllText(parsed.GetResult SaveSyntax,$"{syntax}")
 
         let x = Reducer.reduceProgram syntax        
 
