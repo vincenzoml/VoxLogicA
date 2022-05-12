@@ -24,10 +24,8 @@ type Expression =
         | EString s -> s.ToString() // Includes quotes in the output
 type Command = 
     | Declaration of string * (string list) * Expression    
-    | Save of Position * string * Expression 
     | Print of Position * string * Expression
-    | Import of string
-
+    
 type Program = Program of list<Command>
 
 type Library = Library of list<Command>
@@ -73,15 +71,12 @@ let private parseExpression =
 
 let private command requireSpace s args =  attempt (skipString s) >>. (if requireSpace then spacesOrComment1 else spacesOrComment) >>. args .>> spacesOrComment
 let private lhs = ide <|> operator
-let private saveCommand = getPosition .>>. command false "save" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Save (positionOfFParsecPosition x,y,z))
 let private printCommand = getPosition .>>. command false "print" (strConst .>>. parseExpression) |>> (fun (x,(y,z)) -> Print (positionOfFParsecPosition x,y,z))
 
-let private importCommand = command false "import" strConst |>> Import
 let private letCommand = command true "let" (lhs .>>. optlst farglist .>>. (defeq >>. parseExpression)) |>> (fun ((x,y),z) -> Declaration (x,y,z))    
 let private file contents = spacesOrComment >>. contents .>> eof
-let private import = file <| many (importCommand <|> letCommand) 
 let private program = file <| parse {
-    return! many (choice [ saveCommand; printCommand; importCommand; letCommand])    
+    return! many (choice [ printCommand; letCommand])    
 }
 let private getResult res = 
     match res with  
@@ -94,7 +89,3 @@ let private runParser name p stream =
 let parseProgram filename = 
     use stream = new System.IO.FileStream(filename,System.IO.FileMode.Open) :> System.IO.Stream   
     Program <| runParser filename program stream
-
-let parseImport filename =
-    use stream = new System.IO.FileStream(filename,System.IO.FileMode.Open) :> System.IO.Stream   
-    runParser filename import stream

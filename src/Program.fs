@@ -126,35 +126,9 @@ let main (argv: string array) =
         if parsed.Contains SaveSyntax then
             System.IO.File.WriteAllText(parsed.GetResult SaveSyntax,$"{syntax}")
 
-        let x = Reducer.reduceProgram syntax        
+        let (Reducer.Tasks x) = Reducer.reduceProgram syntax        
 
-        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
-
-        //ErrorMsg.Logger.Debug $"{x}"
-        
-        // let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
-        // let checker = ModelChecker model
-        
-        // if parsed.Contains Ops then
-        //     Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
-        //     exit 0
-        
-
-
-        if parsed.Contains SaveTaskGraph then
-            System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.AsDot)    
-        
-        // let run filename =
-        //     let interpreter = Interpreter(model, checker)
-        //     interpreter.Batch interpreter.DefaultLibDir filename
-
-        // match (parsed.TryGetResult Filename, Util.isDebug ()) with
-        // | Some filename, _ ->            
-        //     run filename
-        //     finish None
-        //     0
-        // | None, _ ->
-        //     run "test.imgql"
+        ErrorMsg.Logger.Debug $"Number of tasks: {x.Length}"
         
         0
     with e ->
