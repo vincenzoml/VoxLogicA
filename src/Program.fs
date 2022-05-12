@@ -126,9 +126,16 @@ let main (argv: string array) =
         if parsed.Contains SaveSyntax then
             System.IO.File.WriteAllText(parsed.GetResult SaveSyntax,$"{syntax}")
 
-        let x = Reducer.reduceProgram syntax        
+        let x = Reducer.reduceProgram syntax <|
+                    fun x ->
+                        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
+                        
+                        if parsed.Contains SaveTaskGraph then
+                            System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.AsDot)    
+        
+                        printfn "ALL DONE"     
 
-        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
+        // ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
 
         //ErrorMsg.Logger.Debug $"{x}"
         
@@ -141,9 +148,6 @@ let main (argv: string array) =
         
 
 
-        if parsed.Contains SaveTaskGraph then
-            System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.AsDot)    
-        
         // let run filename =
         //     let interpreter = Interpreter(model, checker)
         //     interpreter.Batch interpreter.DefaultLibDir filename

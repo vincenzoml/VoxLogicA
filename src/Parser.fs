@@ -30,6 +30,23 @@ type Command =
 
 type Program = Program of list<Command>
 
+// let rec sizeP (Program p) =
+//     List.sumBy sizeC p
+
+// and sizeC c =
+//     match c with
+//     | Declaration (_,_,e) -> sizeE e 
+//     | Save (_,_,e) -> sizeE e
+//     | Print (_,_,e) -> sizeE e
+//     | Import _ -> 0
+
+// and sizeE e =
+//     match e with
+//     | ECall (_,_,args) -> 
+//         List.sumBy sizeE args
+//     | _ -> 1
+
+
 type Library = Library of list<Command>
 
 let private commentLine = skipString "//" >>. skipRestOfLine true >>. spaces

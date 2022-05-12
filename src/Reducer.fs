@@ -26,10 +26,13 @@ type Task =
 
     override this.ToString() =
         let sep = ","
-        let args = 
-            if this.arguments.Length > 0 
-            then $"({String.concat sep (List.map (fun x -> x.ToString()) this.arguments)})"
-            else ""
+
+        let args =
+            if this.arguments.Length > 0 then
+                $"({String.concat sep (List.map (fun x -> x.ToString()) this.arguments)})"
+            else
+                ""
+
         $"{this.operator}{args}"
 
 type Taskid = int
@@ -37,18 +40,23 @@ type Taskid = int
 // "Internal" representation of tasks; differs from the "external" because Taskid is not needed after reduction
 type private TaskInt = { id: Taskid; task: Task }
 
+
+let memoize = true
 type private Tasks =
     { byTerm: Map<(Operator * Arguments), TaskInt>
       byId: Map<Taskid, TaskInt> }
 
     member this.FindOrCreate operator arguments =
-        try
-            (this.Find operator arguments, this)
-        with
-        | :? System.Collections.Generic.KeyNotFoundException -> this.Create operator arguments
+        if memoize then
+            match this.TryFind operator arguments with
+            | Some taskId -> (taskId, this)
+            | None -> this.Create operator arguments
+        else this.Create operator arguments
 
-    member this.Find operator arguments =
-        (Map.find (operator, arguments) this.byTerm).id
+    member this.TryFind operator arguments =
+        if memoize
+        then Option.map (fun (x: TaskInt) -> x.id) (Map.tryFind (operator, arguments) this.byTerm)
+        else None
 
     member this.Create operator arguments =
         let newId = this.byId.Count
@@ -59,7 +67,7 @@ type private Tasks =
                 { operator = operator
                   arguments = arguments } }
 
-        let byTerm' = Map.add (operator, arguments) newTask this.byTerm
+        let byTerm' = if memoize then Map.add (operator, arguments) newTask this.byTerm else this.byTerm
         let byId' = Map.add newId newTask this.byId
         (newId, { byTerm = byTerm'; byId = byId' })
 
@@ -81,8 +89,8 @@ type private DVal =
 
 and private Environment =
     | Environment of Map<identifier, DVal>
-    member this.Find ide =
-        Map.find
+    member this.TryFind ide =
+        Map.tryFind
             ide
             (match this with
              | Environment env -> env)
@@ -104,77 +112,81 @@ and private Environment =
 
 let private emptyEnvironment = Environment Map.empty
 
-let rec private reduceProgramRec<'a> (env : Environment, tasks, goals) (Program p) (cont : Tasks * Set<Goal> -> 'a) =
+let rec private reduceProgramRec<'a> (env: Environment, tasks, goals) (Program p) (cont: Tasks * Set<Goal> -> 'a) =
     match p with
     | [] -> cont (tasks, goals)
     | command :: commands ->
-        reduceCommand (env, tasks, goals) command <|
-            fun (env',tasks',goals') -> 
-                reduceProgramRec (env',tasks',goals') (Program commands) cont 
+        reduceCommand (env, tasks, goals) command
+        <| fun (env', tasks', goals') -> reduceProgramRec (env', tasks', goals') (Program commands) cont
 
 and private reduceCommand (env, tasks, goals) command cont =
     match command with
     | Save (pos, filename, expr) -> // TODO: use pos
-        reduceExpr [ ($"save {filename}", pos) ] (env, tasks) expr <|
-            fun (taskId, tasks') ->
-                cont (env, tasks', Set.add (GoalSave(filename, taskId)) goals)
-    | Declaration (ide, formalArgs, body) -> 
-        cont (env.Bind ide (Fun(env, formalArgs, body)), tasks, goals)
+        reduceExpr [ ($"save {filename}", pos) ] (env, tasks) expr
+        <| fun (taskId, tasks') -> cont (env, tasks', Set.add (GoalSave(filename, taskId)) goals)
+    | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), tasks, goals)
     | Print (pos, str, expr) -> // TODO: use pos
-        reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr <|
-            fun (taskId, tasks') ->
-                cont (env, tasks', Set.add (GoalPrint(str, taskId)) goals)
+        reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr
+        <| fun (taskId, tasks') -> cont (env, tasks', Set.add (GoalPrint(str, taskId)) goals)
     | _ -> failwith "stub"
 
-and private reduceExpr (stack: ErrorMsg.Stack) (env: Environment, tasks: Tasks) (expr : Expression) (cont : Taskid * Tasks -> 'a) =
+and private reduceExpr
+    (stack: ErrorMsg.Stack)
+    (env: Environment, tasks: Tasks)
+    (expr: Expression)
+    (cont: Taskid * Tasks -> 'a)
+    =
     match expr with
     | ENumber f -> cont <| tasks.FindOrCreate (Number f) []
     | EBool b -> cont <| tasks.FindOrCreate (Bool b) []
     | EString s -> cont <| tasks.FindOrCreate (String s) []
     | ECall (pos, ide, args) -> // TODO: use pos
-        let stack' = (ide, pos) :: stack        
+        let stack' = (ide, pos) :: stack
+
         let rec reduceArgs args tasks' accum cont =
-            match args with 
-            | [] -> cont (List.rev accum,tasks')
-            | arg::args' -> 
-                reduceExpr stack' (env,tasks') arg <|
-                    fun (taskId,tasks'') ->
-                        reduceArgs args' tasks'' (taskId::accum) cont
+            match args with
+            | [] -> cont (List.rev accum, tasks')
+            | arg :: args' ->
+                reduceExpr stack' (env, tasks') arg
+                <| fun (taskId, tasks'') -> reduceArgs args' tasks'' (taskId :: accum) cont
 
-        reduceArgs args tasks [] <|
-            fun (actualArgs,tasks') ->
+        reduceArgs args tasks []
+        <| fun (actualArgs, tasks') ->
 
-            try
-                cont <| (tasks'.Find (Identifier ide) actualArgs, tasks')
-            with
-            | :? System.Collections.Generic.KeyNotFoundException ->
-                try
-                    match env.Find ide with
-                    | Fun (denv, formalArgs, body) ->
-                        let callEnv =
-                            if formalArgs.Length = args.Length then
-                                denv.BindList formalArgs (List.map Task actualArgs)
-                            else
-                                failWithStacktrace
-                                    (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)
-                                    stack'
+            match tasks'.TryFind (Identifier ide) actualArgs with
+            | Some task'' -> 
+                if memoize then cont (task'', tasks')
+                else fail "Found task in cache without memoization, which is impossible. Please report."
+            | None ->
+                match env.TryFind ide with
+                | Some (Fun (denv, formalArgs, body)) ->
+                    let callEnv =
+                        if formalArgs.Length = args.Length then
+                            denv.BindList formalArgs (List.map Task actualArgs)
+                        else
+                            failWithStacktrace
+                                (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)
+                                stack'
 
-                        reduceExpr stack' (callEnv, tasks') body <|
-                            fun (task'', tasks'') ->                         
-                                let tasks''' = tasks''.Alias (Identifier ide) actualArgs task''
-                                cont (task'', tasks''')
-                    | Task t -> 
-                        cont(t, tasks)
-                with
-                | :? System.Collections.Generic.KeyNotFoundException -> 
-                    cont <| tasks'.Create (Identifier ide) actualArgs
+                    reduceExpr stack' (callEnv, tasks') body
+                    <| fun (task'', tasks'') ->
+                        let tasks''' = tasks''.Alias (Identifier ide) actualArgs task''
+                        cont (task'', tasks''')
+                | Some (Task t) -> cont (t, tasks)
+                | None -> cont <| tasks'.Create (Identifier ide) actualArgs
+// with
+// | :? System.Collections.Generic.KeyNotFoundException ->
+//
 type WorkPlan =
     { tasks: array<Task>
       goals: Set<Goal> }
 
     override this.ToString() =
-        let t = String.concat "\n" <| Array.mapi (fun i el -> $"{i} -> {el}") this.tasks
-        $"goals: STUB\ntasks:\n{t}" 
+        let t =
+            String.concat "\n"
+            <| Array.mapi (fun i el -> $"{i} -> {el}") this.tasks
+
+        $"goals: STUB\ntasks:\n{t}"
 
     member this.AsDot =
         let mutable str = "digraph {"
@@ -184,21 +196,23 @@ type WorkPlan =
 
             str <-
                 str
-                + $"{i} [label=\"{task.operator.ToString()}\"];\n"
+                + $"{i} [label=\"[{i}] {task.ToString()}\"];\n"
 
             for argument in task.arguments do
                 str <- str + $"{i} -> {argument};\n"
 
         str + "\n}"
 
-let reduceProgram prog =
-    let (tasks, goals) = reduceProgramRec (emptyEnvironment, emptyTasks, Set.empty) prog id
-    { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
-      goals = goals }
+let reduceProgram prog cont =
+    reduceProgramRec (emptyEnvironment, emptyTasks, Set.empty) prog
+    <| fun (tasks, goals) ->
+        cont
+            { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
+              goals = goals }
 
 
 
-(* get enumerator of anything 
+(* get enumerator of anything
 let inline private getEnumeratorFromArrayLike x =
     let inline count (t: ^T) : int = (^T : (member Count : int) (t))
     let inline item (t: ^T) (x: int) : ^a = (^T : (member get_Item: int -> ^a) (t, x))
@@ -258,5 +272,5 @@ module CustomList =
         member this.Count with get () = count ()
         member this.Item with get(index:int) = item index
         member this.GetEnumerator(): IEnumerator<'t> = getEnumerator count item
-        
+
 *)

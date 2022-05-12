@@ -1,13 +1,13 @@
 #!/usr/bin/python3
 #%%
 
-m = 1
+m = 5
 
 doc = f'''
 let f(x,y) = x .*. y
 let g(x) = x .*. 2
 let h(x) = x .*. 7
-let F(x) = f(g(h(x)),h(g(x)))
+let F(x) = f(g(h(f(x,g(x)))),h(g(g(x))))
 let t0(x) = F x
 '''
 
