@@ -1,5 +1,0 @@
-load img = "test5.png"
-
-let thr(x) = (1 .<= x) 
-
-save "output/thr.png" intensity(img)

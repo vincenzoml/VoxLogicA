@@ -1,5 +1,3 @@
-
-open FSharp.Collections
 // SYNTAX
 type Expression = 
     | ECall of string * (Expression list)
@@ -11,21 +9,10 @@ type Command =
 type Program = Program of list<Command>
     
 // SEMANTICS 
-type Operator =
-    | Number of float
-    | Identifier of string
-
-type Task = Task of Operator * List<Task>
-type Tasks = 
-    | Tasks of List<Task>
-    member this.Add op args =
-        match this with
-        | Tasks tasks ->           
-            let t = Task (op,args) 
-            (t,Tasks (t::tasks))
+type Eval = float
 
 type DVal =
-    | Task of Task
+    | Result of Eval
     | Fun of Environment * List<string> * Expression
 
 and Environment =
@@ -53,68 +40,64 @@ and Environment =
 
 let emptyEnvironment = Environment Map.empty
 
-let rec reduceProgramRec<'a> (env : Environment, tasks) (Program p) (cont : Tasks -> 'a) =
+let rec reduceProgramRec<'a> (env : Environment,prints : List<Eval>) (Program p) (cont : List<Eval> -> 'a) =
     match p with
-    | [] -> cont tasks
+    | [] -> cont (List.rev prints)
     | command :: commands ->
-        reduceCommand (env, tasks) command <|
+        reduceCommand (env, prints) command <|
             fun (env',tasks') -> 
                 reduceProgramRec (env',tasks') (Program commands) cont 
 
-and reduceCommand (env, tasks) command cont =
+and reduceCommand (env, prints) command cont =
     match command with
     | Declaration (ide, formalArgs, body) -> 
-        cont (env.Bind ide (Fun(env, formalArgs, body)), tasks)
+        cont (env.Bind ide (Fun(env, formalArgs, body)), prints)
     | Print expr -> // TODO: use pos
-        reduceExpr (env, tasks) expr <|
-            fun (taskId, tasks') ->
-                cont (env, tasks')
+        reduceExpr env expr <|
+            fun result ->
+                cont (env, result::prints)
 
-and reduceExpr (env: Environment, tasks: Tasks) (expr : Expression) (cont : Task * Tasks -> 'a) =
+and reduceExpr (env: Environment) (expr : Expression) (cont : Eval -> 'a) =
     match expr with
-    | ENumber f -> cont <| tasks.Add (Number f) []
+    | ENumber f -> cont f
     | ECall (ide, args) -> // TODO: use pos
-        let rec reduceArgs args tasks' accum cont =
+        let rec reduceArgs args accum cont =
             match args with 
-            | [] -> cont (List.rev accum,tasks')
+            | [] -> cont (List.rev accum)
             | arg::args' -> 
-                reduceExpr (env,tasks') arg <|
-                    fun (taskId,tasks'') ->
-                        reduceArgs args' tasks'' (taskId::accum) cont
+                reduceExpr env arg <|
+                    fun eval ->
+                        reduceArgs args' (eval::accum) cont
 
-        reduceArgs args tasks [] <|
-            fun (actualArgs,tasks') ->
+        reduceArgs args [] <|
+            fun actualArgs ->
                 try
                     match env.Find ide with
                     | Fun (denv, formalArgs, body) ->
                         let callEnv =
                             if formalArgs.Length = args.Length then
-                                denv.BindList formalArgs (List.map Task actualArgs)
+                                denv.BindList formalArgs (List.map Result actualArgs)
                             else
                                 failwith (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)                                    
 
-                        reduceExpr (callEnv, tasks') body <| cont                            
-                    | Task t -> 
-                        cont(t, tasks)
+                        reduceExpr callEnv body <| cont                            
+                    | Result r -> 
+                        cont r
                 with
                 | :? System.Collections.Generic.KeyNotFoundException -> 
-                    cont <| tasks'.Add (Identifier ide) actualArgs
+                    failwith $"Undefined identifier {ide}"
 
 
 let reduceProgram prog =
-    reduceProgramRec (emptyEnvironment, Tasks []) prog id
-
-
-
-let n = int (System.Environment.GetCommandLineArgs()[1])
+    reduceProgramRec (emptyEnvironment, []) prog id
 
 let prog n = 
     let declarations = (Declaration ("t0",["x"],ECall ("x",[])))::(List.init n (fun i -> Declaration ($"t{i+1}",["x"],ECall ($"t{i}",[ECall ("x",[])]) )))
     (List.append declarations [Print (ECall ($"t{n}",[ENumber 0]))])
 
-let p = prog n
+let p = prog <| try (int (System.Environment.GetCommandLineArgs()[1])) with _ -> 100000
 printfn $"Program length: {p.Length}"
-let (Tasks redux) = reduceProgram (Program p)
+let redux = reduceProgram (Program p)
 printfn $"Redux length: {redux.Length}"
 
-// To run: dotnet run -c release 1000000
+// To run: dotnet run -c release 100000 (stack overflow); smaller numbers will works (try 10)

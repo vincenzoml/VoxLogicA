@@ -1,8 +1,0 @@
-//2D
-load img1 = "../tests/test1.nii.gz"
-load img2 = "../tests/test2.nii.gz"
-
-let a = 1 .<= intensity(img1)
-let b = 1 .<= intensity(img2)
-
-print "volume" volume(a)
