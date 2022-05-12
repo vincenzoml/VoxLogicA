@@ -71,8 +71,7 @@ and reduceExpr (env: Environment) (expr : Expression) (cont : Eval -> 'a) =
 
         reduceArgs args [] <|
             fun actualArgs ->
-                try
-                    match env.Find ide with
+                match env.Find ide with
                     | Fun (denv, formalArgs, body) ->
                         let callEnv =
                             if formalArgs.Length = args.Length then
@@ -82,11 +81,7 @@ and reduceExpr (env: Environment) (expr : Expression) (cont : Eval -> 'a) =
 
                         reduceExpr callEnv body <| cont                            
                     | Result r -> 
-                        cont r
-                with
-                | :? System.Collections.Generic.KeyNotFoundException -> 
-                    failwith $"Undefined identifier {ide}"
-
+                        cont r                
 
 let reduceProgram prog =
     reduceProgramRec (emptyEnvironment, []) prog id
@@ -95,7 +90,7 @@ let prog n =
     let declarations = (Declaration ("t0",["x"],ECall ("x",[])))::(List.init n (fun i -> Declaration ($"t{i+1}",["x"],ECall ($"t{i}",[ECall ("x",[])]) )))
     (List.append declarations [Print (ECall ($"t{n}",[ENumber 0]))])
 
-let p = prog <| try (int (System.Environment.GetCommandLineArgs()[1])) with _ -> 100000
+let p = prog <| try (int (System.Environment.GetCommandLineArgs()[1])) with _ -> 1000000
 printfn $"Program length: {p.Length}"
 let redux = reduceProgram (Program p)
 printfn $"Redux length: {redux.Length}"
