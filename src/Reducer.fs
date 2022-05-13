@@ -1,7 +1,6 @@
 module VoxLogicA.Reducer
 
 open Parser
-open FSharp.Collections
 open ErrorMsg
 
 type identifier = string
@@ -176,8 +175,6 @@ and private reduceExpr
 // with
 // | :? System.Collections.Generic.KeyNotFoundException ->
 //
-
-type JsonWorkPlan = FSharp.Data.JsonProvider<"WorkPlan.json">
 type WorkPlan =
     { tasks: array<Task>
       goals: array<Goal> }

@@ -134,7 +134,7 @@ let main (argv: string array) =
                         
                         if parsed.Contains SaveTaskGraph then
                             System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.ToDot())    
-        
+                                    
                         printfn "ALL DONE"     
 
         // ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
@@ -147,8 +147,6 @@ let main (argv: string array) =
         // if parsed.Contains Ops then
         //     Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
         //     exit 0
-        
-
 
         // let run filename =
         //     let interpreter = Interpreter(model, checker)
