@@ -105,11 +105,6 @@ let main (argv: string array) =
                  version.Build)
     try
 
-        // if sequential
-        // then
-        //     let proc = System.Diagnostics.Process.GetCurrentProcess()
-        //     proc.ProcessorAffinity <- nativeint 0x1                
-
         let filename =
             try (parsed.GetResult Filename) 
             with _ ->  
@@ -131,12 +126,11 @@ let main (argv: string array) =
 
         let x = Reducer.reduceProgram syntax
         
-        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
-        
         if parsed.Contains SaveTaskGraph then
             System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.ToDot())    
-                    
-        // ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
+        
+        ErrorMsg.Logger.Debug "Program reduced" 
+        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
 
         //ErrorMsg.Logger.Debug $"{x}"
         

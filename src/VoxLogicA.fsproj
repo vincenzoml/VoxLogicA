@@ -27,7 +27,7 @@
       <HintPath>$(SimpleITKManaged)</HintPath>
     </Reference>
   </ItemGroup>
-  <Target Name="DownloadContentFiles" BeforeTargets="UnzipLibs">
+  <Target Name="DownloadContentFiles" BeforeTargets="UnzipLibs" Condition="!Exists('$(ZipFile)')">
     <DownloadFile SourceUrl="$(DownloadPath)" DestinationFolder="./lib" />
   </Target>
   <Target Name="UnzipLibs" BeforeTargets="BeforeBuild">
