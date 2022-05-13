@@ -1,5 +1,6 @@
 module VoxLogicA.Reducer
 
+open System.Collections.Generic
 open Parser
 open ErrorMsg
 
@@ -17,7 +18,7 @@ type Operator =
         | Bool x -> x.ToString()
         | String x -> x.ToString()
 
-type Arguments = List<int>
+type Arguments = list<int>
 
 type Task =
     { operator: Operator
@@ -41,19 +42,22 @@ type private TaskInt = { id: Taskid; task: Task }
 
 let memoize = true
 type private Tasks =
-    { byTerm: Map<(Operator * Arguments), TaskInt>
-      byId: Map<Taskid, TaskInt> }
+    { byTerm: Dictionary<(Operator * Arguments), TaskInt>
+      byId: Dictionary<Taskid, TaskInt> }
 
     member this.FindOrCreate operator arguments =
         if memoize then
             match this.TryFind operator arguments with
-            | Some taskId -> (taskId, this)
+            | Some taskId -> taskId
             | None -> this.Create operator arguments
         else this.Create operator arguments
 
     member this.TryFind operator arguments =
         if memoize
-        then Option.map (fun (x: TaskInt) -> x.id) (Map.tryFind (operator, arguments) this.byTerm)
+        then 
+            if this.byTerm.ContainsKey (operator,arguments)
+            then Some this.byTerm[operator,arguments].id
+            else None        
         else None
 
     member this.Create operator arguments =
@@ -65,17 +69,18 @@ type private Tasks =
                 { operator = operator
                   arguments = arguments } }
 
-        let byTerm' = if memoize then Map.add (operator, arguments) newTask this.byTerm else this.byTerm
-        let byId' = Map.add newId newTask this.byId
-        (newId, { byTerm = byTerm'; byId = byId' })
+        if memoize then this.byTerm[(operator, arguments)] <- newTask            
+
+        this.byId[newId] <- newTask
+        newId
+       
 
     member this.Alias operator arguments (taskid: Taskid) =
-        let task = Map.find taskid this.byId
-        let byTerm' = Map.add (operator, arguments) task this.byTerm
-        { byTerm = byTerm'; byId = this.byId }
+        let task = this.byId[taskid]
+        this.byTerm[(operator, arguments)] <- task
 
 
-let private emptyTasks = { byTerm = Map.empty; byId = Map.empty }
+let private emptyTasks () = { byTerm = new Dictionary<_,_>(10000); byId = new Dictionary<_,_>(10000) }
 
 type Goal =
     | GoalSave of string * Taskid
@@ -83,7 +88,7 @@ type Goal =
 
 type private DVal =
     | Task of Taskid
-    | Fun of Environment * List<identifier> * Parser.Expression
+    | Fun of Environment * list<identifier> * Parser.Expression
 
 and private Environment =
     | Environment of Map<identifier, DVal>
@@ -115,24 +120,24 @@ let rec private reduceProgramRec<'a> (env: Environment, tasks, goals) (Program p
     | [] -> cont (tasks, goals)
     | command :: commands ->
         reduceCommand (env, tasks, goals) command
-        <| fun (env', tasks', goals') -> reduceProgramRec (env', tasks', goals') (Program commands) cont
+        <| fun (env', goals') -> reduceProgramRec (env', tasks, goals') (Program commands) cont
 
-and private reduceCommand (env, tasks, goals) command cont =
+and private reduceCommand (env, tasks, goals) command (cont : Environment * Set<Goal> -> 'a) =
     match command with
     | Save (pos, filename, expr) -> // TODO: use pos
         reduceExpr [ ($"save {filename}", pos) ] (env, tasks) expr
-        <| fun (taskId, tasks') -> cont (env, tasks', Set.add (GoalSave(filename, taskId)) goals)
-    | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), tasks, goals)
+        <| fun taskId -> cont (env, Set.add (GoalSave(filename, taskId)) goals)
+    | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), goals)
     | Print (pos, str, expr) -> // TODO: use pos
         reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr
-        <| fun (taskId, tasks') -> cont (env, tasks', Set.add (GoalPrint(str, taskId)) goals)
+        <| fun taskId -> cont (env, Set.add (GoalPrint(str, taskId)) goals)
     | _ -> failwith "stub"
 
 and private reduceExpr
     (stack: ErrorMsg.Stack)
     (env: Environment, tasks: Tasks)
     (expr: Expression)
-    (cont: Taskid * Tasks -> 'a)
+    (cont: Taskid -> 'a)
     =
     match expr with
     | ENumber f -> cont <| tasks.FindOrCreate (Number f) []
@@ -141,19 +146,19 @@ and private reduceExpr
     | ECall (pos, ide, args) -> // TODO: use pos
         let stack' = (ide, pos) :: stack
 
-        let rec reduceArgs args tasks' accum cont =
+        let rec reduceArgs args accum cont =
             match args with
-            | [] -> cont (List.rev accum, tasks')
+            | [] -> cont (List.rev accum)
             | arg :: args' ->
-                reduceExpr stack' (env, tasks') arg
-                <| fun (taskId, tasks'') -> reduceArgs args' tasks'' (taskId :: accum) cont
+                reduceExpr stack' (env, tasks) arg
+                <| fun taskId -> reduceArgs args' (taskId :: accum) cont
 
-        reduceArgs args tasks []
-        <| fun (actualArgs, tasks') ->
+        reduceArgs args []
+        <| fun actualArgs ->
 
-            match tasks'.TryFind (Identifier ide) actualArgs with
+            match tasks.TryFind (Identifier ide) actualArgs with
             | Some task'' -> 
-                if memoize then cont (task'', tasks')
+                if memoize then cont task''
                 else fail "Found task in cache without memoization, which is impossible. Please report."
             | None ->
                 match env.TryFind ide with
@@ -166,12 +171,12 @@ and private reduceExpr
                                 (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)
                                 stack'
 
-                    reduceExpr stack' (callEnv, tasks') body
-                    <| fun (task'', tasks'') ->
-                        let tasks''' = tasks''.Alias (Identifier ide) actualArgs task''
-                        cont (task'', tasks''')
-                | Some (Task t) -> cont (t, tasks)
-                | None -> cont <| tasks'.Create (Identifier ide) actualArgs
+                    reduceExpr stack' (callEnv, tasks) body
+                    <| fun task'' ->
+                        tasks.Alias (Identifier ide) actualArgs task''
+                        cont task''
+                | Some (Task t) -> cont t
+                | None -> cont <| tasks.Create (Identifier ide) actualArgs
 // with
 // | :? System.Collections.Generic.KeyNotFoundException ->
 //
@@ -202,7 +207,7 @@ type WorkPlan =
         str + "\n}"
 
 let reduceProgram prog cont =
-    reduceProgramRec (emptyEnvironment, emptyTasks, Set.empty) prog
+    reduceProgramRec (emptyEnvironment, emptyTasks(), Set.empty) prog
     <| fun (tasks, goals) ->
         cont
             { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
