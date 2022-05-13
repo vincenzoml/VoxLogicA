@@ -115,22 +115,26 @@ and private Environment =
 
 let private emptyEnvironment = Environment Map.empty
 
-let rec private reduceProgramRec<'a> (env: Environment, tasks, goals) (Program p) (cont: Tasks * Set<Goal> -> 'a) =
+let rec private reduceProgramRec<'a> (env: Environment, tasks, (goals : HashSet<Goal>)) (Program p) (cont: Tasks -> 'a) =
     match p with
-    | [] -> cont (tasks, goals)
+    | [] -> cont tasks
     | command :: commands ->
         reduceCommand (env, tasks, goals) command
-        <| fun (env', goals') -> reduceProgramRec (env', tasks, goals') (Program commands) cont
+        <| fun env' -> reduceProgramRec (env', tasks, goals) (Program commands) cont
 
-and private reduceCommand (env, tasks, goals) command (cont : Environment * Set<Goal> -> 'a) =
+and private reduceCommand (env, tasks, (goals : HashSet<Goal>)) command (cont : Environment -> 'a) =
     match command with
     | Save (pos, filename, expr) -> // TODO: use pos
         reduceExpr [ ($"save {filename}", pos) ] (env, tasks) expr
-        <| fun taskId -> cont (env, Set.add (GoalSave(filename, taskId)) goals)
-    | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), goals)
+        <| fun taskId -> 
+            ignore <| goals.Add (GoalSave (filename,taskId))
+            cont env        
+    | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)))
     | Print (pos, str, expr) -> // TODO: use pos
         reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr
-        <| fun taskId -> cont (env, Set.add (GoalPrint(str, taskId)) goals)
+        <| fun taskId -> 
+            ignore <| goals.Add (GoalPrint (str,taskId))
+            cont env
     | _ -> failwith "stub"
 
 and private reduceExpr
@@ -207,13 +211,12 @@ type WorkPlan =
         str + "\n}"
 
 let reduceProgram prog cont =
-    reduceProgramRec (emptyEnvironment, emptyTasks(), Set.empty) prog
-    <| fun (tasks, goals) ->
+    let goals = new HashSet<_>()
+    reduceProgramRec (emptyEnvironment, emptyTasks(), new HashSet<_>()) prog
+    <| fun tasks ->
         cont
             { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
-              goals = Set.toArray goals }
-
-
+              goals = Array.ofSeq goals }
 
 (* get enumerator of anything
 let inline private getEnumeratorFromArrayLike x =
