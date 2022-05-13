@@ -121,27 +121,62 @@ and private Environment =
 
 let private emptyEnvironment = Environment Map.empty
 
-let rec private reduceProgramRec<'a> (env: Environment, tasks, (goals: HashSet<Goal>)) (Program p) (cont: Tasks -> 'a) =
+let rec private reduceProgramRec<'a> (env: Environment, tasks, (goals: HashSet<Goal>),parsedImports : HashSet<string>) (Program p) (cont: Tasks -> 'a) =
     match p with
     | [] -> cont tasks
     | command :: commands ->
-        reduceCommand (env, tasks, goals) command
-        <| fun env' -> reduceProgramRec (env', tasks, goals) (Program commands) cont
+        reduceCommand (env, tasks, goals, parsedImports) command
+        <| fun (env',imports) -> 
+            let newProgram = (Program (List.concat [imports;commands]))
+            reduceProgramRec (env', tasks, goals,parsedImports) newProgram cont
 
-and private reduceCommand (env, tasks, (goals: HashSet<Goal>)) command (cont: Environment -> 'a) =
+and private reduceCommand (env, tasks, (goals: HashSet<Goal>), parsedImports) command (cont: Environment * list<Command> -> 'a) =
     match command with
     | Save (pos, filename, expr) -> // TODO: use pos
         reduceExpr [ ($"save {filename}", pos) ] (env, tasks) expr
         <| fun taskId ->
             ignore <| goals.Add(GoalSave(filename, taskId))
-            cont env
-    | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)))
+            cont (env,[])
+    | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)),[])
     | Print (pos, str, expr) -> // TODO: use pos
         reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr
         <| fun taskId ->
             ignore <| goals.Add(GoalPrint(str, taskId))
-            cont env
-    | _ -> failwith "stub"
+            cont (env,[])
+    | Import filename ->
+        let libdir = $"{System.IO.Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName)}/imgql"
+
+        let find filename =
+            if System.IO.File.Exists filename then
+                Some filename
+            else
+                let nfilename = filename + ".imgql"
+                if System.IO.File.Exists nfilename 
+                then Some nfilename 
+                else None
+
+        let path =
+            let try1 = System.IO.Path.GetFullPath filename 
+            match find try1 with
+            | Some try1 -> try1
+            | None ->
+                if not (filename.StartsWith "/") then
+                    let try2 =
+                        System.IO.Path.GetFullPath(System.IO.Path.Combine(libdir, filename))
+
+                    match find try2 with
+                    | Some try2 -> try2
+                    | None -> fail $"Import '{filename}' not found in current dir or {libdir}"
+                else
+                    raise <| fail $"Import '{filename}' not found"
+        
+        if not (parsedImports.Contains(path)) then
+            ErrorMsg.Logger.Debug
+            <| sprintf "Importing file \"%s\"" path
+            let parsed = parseImport path
+            cont (env,parsed)            
+        else 
+            cont (env,[])
 
 and private reduceExpr
     (stack: ErrorMsg.Stack)
@@ -222,7 +257,7 @@ let reduceProgram prog =
     let goals = new HashSet<_>()
 
     let tasks =
-        reduceProgramRec (emptyEnvironment, emptyTasks (), new HashSet<_>()) prog id
+        reduceProgramRec (emptyEnvironment, emptyTasks (), new HashSet<_>(), new HashSet<_>()) prog id
 
     { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
       goals = Array.ofSeq goals }
