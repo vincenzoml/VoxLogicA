@@ -1,7 +1,13 @@
 #!/usr/bin/python3
 #%%
 
+import sys
+
+
 m = 5000
+
+if len(sys.argv) > 1:
+    m = int(sys.argv[1])
 
 doc = f'''
 let f(x,y) = x .*. y

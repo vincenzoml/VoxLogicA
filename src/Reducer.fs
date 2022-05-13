@@ -41,6 +41,7 @@ type Taskid = int
 type private TaskInt = { id: Taskid; task: Task }
 
 let memoize = true
+
 type private Tasks =
     { byTerm: Dictionary<(Operator * Arguments), TaskInt>
       byId: Dictionary<Taskid, TaskInt> }
@@ -50,15 +51,17 @@ type private Tasks =
             match this.TryFind operator arguments with
             | Some taskId -> taskId
             | None -> this.Create operator arguments
-        else this.Create operator arguments
+        else
+            this.Create operator arguments
 
     member this.TryFind operator arguments =
-        if memoize
-        then 
-            if this.byTerm.ContainsKey (operator,arguments)
-            then Some this.byTerm[operator,arguments].id
-            else None        
-        else None
+        if memoize then
+            if this.byTerm.ContainsKey(operator, arguments) then
+                Some this.byTerm[operator, arguments].id
+            else
+                None
+        else
+            None
 
     member this.Create operator arguments =
         let newId = this.byId.Count
@@ -69,18 +72,21 @@ type private Tasks =
                 { operator = operator
                   arguments = arguments } }
 
-        if memoize then this.byTerm[(operator, arguments)] <- newTask            
+        if memoize then
+            this.byTerm[ (operator, arguments) ] <- newTask
 
-        this.byId[newId] <- newTask
+        this.byId[ newId ] <- newTask
         newId
-       
+
 
     member this.Alias operator arguments (taskid: Taskid) =
         let task = this.byId[taskid]
-        this.byTerm[(operator, arguments)] <- task
+        this.byTerm[ (operator, arguments) ] <- task
 
 
-let private emptyTasks () = { byTerm = new Dictionary<_,_>(10000); byId = new Dictionary<_,_>(10000) }
+let private emptyTasks () =
+    { byTerm = new Dictionary<_, _>(10000)
+      byId = new Dictionary<_, _>(10000) }
 
 type Goal =
     | GoalSave of string * Taskid
@@ -115,25 +121,25 @@ and private Environment =
 
 let private emptyEnvironment = Environment Map.empty
 
-let rec private reduceProgramRec<'a> (env: Environment, tasks, (goals : HashSet<Goal>)) (Program p) (cont: Tasks -> 'a) =
+let rec private reduceProgramRec<'a> (env: Environment, tasks, (goals: HashSet<Goal>)) (Program p) (cont: Tasks -> 'a) =
     match p with
     | [] -> cont tasks
     | command :: commands ->
         reduceCommand (env, tasks, goals) command
         <| fun env' -> reduceProgramRec (env', tasks, goals) (Program commands) cont
 
-and private reduceCommand (env, tasks, (goals : HashSet<Goal>)) command (cont : Environment -> 'a) =
+and private reduceCommand (env, tasks, (goals: HashSet<Goal>)) command (cont: Environment -> 'a) =
     match command with
     | Save (pos, filename, expr) -> // TODO: use pos
         reduceExpr [ ($"save {filename}", pos) ] (env, tasks) expr
-        <| fun taskId -> 
-            ignore <| goals.Add (GoalSave (filename,taskId))
-            cont env        
+        <| fun taskId ->
+            ignore <| goals.Add(GoalSave(filename, taskId))
+            cont env
     | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)))
     | Print (pos, str, expr) -> // TODO: use pos
         reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr
-        <| fun taskId -> 
-            ignore <| goals.Add (GoalPrint (str,taskId))
+        <| fun taskId ->
+            ignore <| goals.Add(GoalPrint(str, taskId))
             cont env
     | _ -> failwith "stub"
 
@@ -161,9 +167,11 @@ and private reduceExpr
         <| fun actualArgs ->
 
             match tasks.TryFind (Identifier ide) actualArgs with
-            | Some task'' -> 
-                if memoize then cont task''
-                else fail "Found task in cache without memoization, which is impossible. Please report."
+            | Some task'' ->
+                if memoize then
+                    cont task''
+                else
+                    fail "Found task in cache without memoization, which is impossible. Please report."
             | None ->
                 match env.TryFind ide with
                 | Some (Fun (denv, formalArgs, body)) ->
@@ -195,7 +203,7 @@ type WorkPlan =
 
         $"goals: STUB\ntasks:\n{t}"
 
-    member this.ToDot () =
+    member this.ToDot() =
         let mutable str = "digraph {"
 
         for i = 0 to this.tasks.Length - 1 do
@@ -210,13 +218,14 @@ type WorkPlan =
 
         str + "\n}"
 
-let reduceProgram prog cont =
+let reduceProgram prog =
     let goals = new HashSet<_>()
-    reduceProgramRec (emptyEnvironment, emptyTasks(), new HashSet<_>()) prog
-    <| fun tasks ->
-        cont
-            { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
-              goals = Array.ofSeq goals }
+
+    let tasks =
+        reduceProgramRec (emptyEnvironment, emptyTasks (), new HashSet<_>()) prog id
+
+    { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
+      goals = Array.ofSeq goals }
 
 (* get enumerator of anything
 let inline private getEnumeratorFromArrayLike x =

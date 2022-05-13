@@ -123,20 +123,19 @@ let main (argv: string array) =
 
 
         let syntax = Parser.parseProgram filename
+
         if parsed.Contains SaveSyntax then
             System.IO.File.WriteAllText(parsed.GetResult SaveSyntax,$"{syntax}")
 
         ErrorMsg.Logger.Debug "Program parsed"
 
-        let x = Reducer.reduceProgram syntax <|
-                    fun x ->
-                        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
-                        
-                        if parsed.Contains SaveTaskGraph then
-                            System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.ToDot())    
-                                    
-                        printfn "ALL DONE"     
-
+        let x = Reducer.reduceProgram syntax
+        
+        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
+        
+        if parsed.Contains SaveTaskGraph then
+            System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.ToDot())    
+                    
         // ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
 
         //ErrorMsg.Logger.Debug $"{x}"
