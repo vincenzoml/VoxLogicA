@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #%%
 
-m = 5
+m = 5000
 
 doc = f'''
 let f(x,y) = x .*. y

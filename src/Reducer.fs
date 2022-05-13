@@ -40,7 +40,6 @@ type Taskid = int
 // "Internal" representation of tasks; differs from the "external" because Taskid is not needed after reduction
 type private TaskInt = { id: Taskid; task: Task }
 
-
 let memoize = true
 type private Tasks =
     { byTerm: Map<(Operator * Arguments), TaskInt>
@@ -177,9 +176,11 @@ and private reduceExpr
 // with
 // | :? System.Collections.Generic.KeyNotFoundException ->
 //
+
+type JsonWorkPlan = FSharp.Data.JsonProvider<"WorkPlan.json">
 type WorkPlan =
     { tasks: array<Task>
-      goals: Set<Goal> }
+      goals: array<Goal> }
 
     override this.ToString() =
         let t =
@@ -188,7 +189,7 @@ type WorkPlan =
 
         $"goals: STUB\ntasks:\n{t}"
 
-    member this.AsDot =
+    member this.ToDot () =
         let mutable str = "digraph {"
 
         for i = 0 to this.tasks.Length - 1 do
@@ -208,7 +209,7 @@ let reduceProgram prog cont =
     <| fun (tasks, goals) ->
         cont
             { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
-              goals = goals }
+              goals = Set.toArray goals }
 
 
 
