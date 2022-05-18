@@ -41,12 +41,13 @@
     <Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(PublishDir)" />
   </Target>
   <ItemGroup>
+    <Compile Include="Operator.fs" />
     <!--Compile Include="Util.fs"/-->
     <Compile Include="ErrorMsg.fs" />
     <!--Compile Include="Types.fs"/>
-		<Compile Include="UniqueFactory.fs"/>
-		<Compile Include="Operator.fs"/>
-		<Compile Include="Formula.fs"/>
+		<Compile Include="UniqueFactory.fs"/-->
+		<!--Compile Include="Operator.fs"/-->
+		<!--Compile Include="Formula.fs"/>
 		<Compile Include="Coreops.fs"/>
 		<Compile Include="Model.fs"/>
 		<Compile Include="ModelChecker.fs"/>

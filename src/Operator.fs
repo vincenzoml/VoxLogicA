@@ -1,16 +1,11 @@
 namespace VoxLogicA
 
 open System.Collections.Generic
-open Hopac
-
-exception OperatorException of s : string
-    with override this.Message = sprintf "Error in operator definition: %s" this.s        
 type OperatorAttribute (name : string, argtype : string array, rettype : string, commutative : bool, docstring : string) =
     inherit System.Attribute()
     let at = Array.map Type.Parse argtype
     let rt = Type.Parse rettype
     member __.Name = name
-    member __.Commutative = commutative
     member __.Argtype = at
     member __.Rettype = rt
     member __.Docstring = docstring
