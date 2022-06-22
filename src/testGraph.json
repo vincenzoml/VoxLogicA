@@ -1,37 +1,25 @@
 {
     "nodes": [  
         {
-            "id": "0",
-            "atoms": ["white"]            
-        },
-        {
-            "id": "1",
-            "atoms": ["white"]            
-        },
-        {
-            "id": "2",
+            "id": "A",
             "atoms": ["red"]            
         },
         {
-            "id": "3",
-            "atoms": ["red"]     
+            "id": "A1",
+            "atoms": ["red"]            
         },
         {
-            "id": "4",
-            "atoms": ["blue"]     
+            "id": "B",
+            "atoms": ["green"]            
         },
         {
-            "id": "5",
-            "atoms": ["green"]     
+            "id": "C",
+            "atoms": ["blue"]            
         }      
     ],
     "arcs": [
-        { "source": "0", "target" : "1" },
-        { "source": "1", "target" : "2" },
-        { "source": "2", "target" : "3" },
-        { "source": "3", "target" : "4" },
-        { "source": "0", "target" : "5" },
-        { "source": "5", "target" : "2" },
-        { "source": "5", "target" : "4" }
+        { "source": "A1", "target" : "A" },
+        { "source": "A", "target" : "B" },
+        { "source": "C", "target" : "B" }        
     ]
 }

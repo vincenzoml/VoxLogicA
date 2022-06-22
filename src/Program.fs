@@ -14,6 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ltsinfo
+// ltsgraph
+
 module VoxLogicA.Main
 open System.Reflection
 open Argu
@@ -156,15 +159,26 @@ let main (argv : string array) =
                 let j = Graph.loadFileGraph(s1)
                 let nodeOfId = new System.Collections.Generic.Dictionary<_,_>()
                 List.iteri (fun i (v : Graph.IntNode) -> nodeOfId[v.id] <- {| index = i; node = v|}) j.nodes
-                let transitions = new System.Collections.Generic.HashSet<_>()                                
+                let n = j.nodes.Length
+                let transitions = new System.Collections.Generic.HashSet<_>() 
+                let addTransition t = ignore <| transitions.Add t
                 for a in j.arcs do
-                    ignore <| transitions.Add (nodeOfId[a.source].index,"tau",nodeOfId[a.target].index)
+                    let src = nodeOfId[a.source]
+                    let tgt = nodeOfId[a.target]
+                    let condition = (List.sort (src.node.atoms)) = (List.sort (tgt.node.atoms))
+                    addTransition (src.index,(if condition then "tau" else "change"),tgt.index)
+                    addTransition (tgt.index+n,(if condition then "tau" else "change"),src.index+n)
                 for kv in nodeOfId do
+                    let idx = kv.Value.index
                     for atom in kv.Value.node.atoms do
-                        ignore <| transitions.Add (kv.Value.index,atom,kv.Value.index)
-                printfn "des (0,%A,%A)" transitions.Count j.nodes.Length
+                        addTransition (idx,atom,idx)
+                    addTransition (idx,"l1",idx+n)
+                    addTransition (idx+n,"l2",idx)                    
+                let sw = new System.IO.StreamWriter(s2)
+                fprintfn sw "des (0,%A,%A)" transitions.Count (2*n)
                 for t in transitions do                    
-                    printfn "%A" t                                        
+                    fprintfn sw "%A" t
+                sw.Close()                                 
                 exit 0
 
 
