@@ -180,9 +180,6 @@ let main (argv : string array) =
                     fprintfn sw "%A" t
                 sw.Close()                                 
                 exit 0
-
-
-
                 
             | _,_ ->
                     failwith "wrong file exensions for conversion"
