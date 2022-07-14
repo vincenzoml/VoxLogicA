@@ -126,9 +126,11 @@ let main (argv : string array) =
                     let maxdim i = 
                         let fn (x : array<int> * array<int>) =                             
                             let coords = fst x
-                            coords[i]
+                            coords[i]+1
                         (Seq.max (Seq.map fn nodes))                        
-                    let imgDim = [|maxdim 0;maxdim 1;maxdim 2|]
+                    let md = [| for i in 0..2 do maxdim i |]   
+                    let sz = if md[2] <= 1 then 1 else 2
+                    let imgDim = [| for i in 0..sz do md[i] |]                  
                     let img = new SITKUtil.VoxImage(new itk.simple.Image(new itk.simple.VectorUInt32(Array.map uint32 imgDim),itk.simple.PixelIDValueEnum.sitkVectorUInt8,uint32 4))
                     img.GetBufferAsUInt8 (fun buf ->
                         for (coords,colour) in nodes do
@@ -157,7 +159,7 @@ let main (argv : string array) =
                 printfn "%s\n" (cmdLineParser.PrintUsage ())
                 0
             | Some filename,_ -> 
-                run filename        
+                run filename
                 0
             | None,true ->
                 run "test.imgql"
