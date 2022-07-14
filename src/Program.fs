@@ -150,7 +150,7 @@ let main (argv : string array) =
                 let img = new SITKUtil.VoxImage(new itk.simple.Image(new itk.simple.VectorUInt32(Array.map uint32 md),itk.simple.PixelIDValueEnum.sitkVectorUInt8,uint32 4))
                 img.GetBufferAsUInt8 (fun buf ->
                     for (coords,colour) in nodes do
-                        let linearCoord = coords[0] + (coords[1] * md[0]) + (coords[2] * md[1] * md[0])
+                        let linearCoord = coords[0] + (coords[1] * md[0]) + (if sz <= 1 then 0 else (coords[2] * md[1] * md[0]))
                         for colourId in [0..2] do
                             buf.Set (linearCoord + colourId) (uint8 colour[colourId])
                         buf.Set (linearCoord + 3) 255uy
