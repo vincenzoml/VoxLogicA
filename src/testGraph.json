@@ -1,0 +1,25 @@
+{
+    "nodes": [  
+        {
+            "id": "A",
+            "atoms": ["red"]            
+        },
+        {
+            "id": "A1",
+            "atoms": ["red"]            
+        },
+        {
+            "id": "B",
+            "atoms": ["green"]            
+        },
+        {
+            "id": "C",
+            "atoms": ["blue"]            
+        }      
+    ],
+    "arcs": [
+        { "source": "A1", "target" : "A" },
+        { "source": "A", "target" : "B" },
+        { "source": "C", "target" : "B" }        
+    ]
+}
