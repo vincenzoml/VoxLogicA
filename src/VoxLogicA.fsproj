@@ -55,7 +55,7 @@
     <Compile Include="Parser.fs" />
     <Compile Include="Reducer.fs" />
     <!--Compile Include="NativeArray.fs"/-->
-    <!--Compile Include="Interpreter.fs"/-->
+    <Compile Include="Interpreter.fs"/>
     <!--Compile Include="SITKUtil.fs"/>
 		<Compile Include="GPU.fs"/>
 		<Compile Include="GPUModel.fs"/-->

@@ -46,55 +46,55 @@ let main (argv: string array) =
     if Option.isSome (parsed.TryGetResult Version) then 
         printfn "%s" informationalVersion
         exit 0
-    let finish = 
-        if Option.isSome (parsed.TryGetResult JSon) then 
-            let readLog = ErrorMsg.Logger.LogToMemory()
-            fun oExn ->
-                let (print,save) = ErrorMsg.Report.Get()
-                let log = readLog()
-                let json =
-                    JSonOutput.Root(
-                        print =
-                            List.toArray (
-                                List.map
-                                    (fun (name, typ, res) -> JSonOutput.Print(name = name, vltype = typ, value = res))
-                                    print
-                            ),
-                        layers =
-                            List.toArray (
-                                List.map
-                                    (fun (name, vltype, min, max, path: string) ->
-                                        let mutable ext = System.IO.Path.GetExtension path
+    // let finish = 
+    //     if Option.isSome (parsed.TryGetResult JSon) then 
+    //         let readLog = ErrorMsg.Logger.LogToMemory()
+    //         fun oExn ->
+    //             let (print,save) = ErrorMsg.Report.Get()
+    //             let log = readLog()
+    //             let json =
+    //                 JSonOutput.Root(
+    //                     print =
+    //                         List.toArray (
+    //                             List.map
+    //                                 (fun (name, typ, res) -> JSonOutput.Print(name = name, vltype = typ, value = res))
+    //                                 print
+    //                         ),
+    //                     layers =
+    //                         List.toArray (
+    //                             List.map
+    //                                 (fun (name, vltype, min, max, path: string) ->
+    //                                     let mutable ext = System.IO.Path.GetExtension path
 
-                                        let mutable fname =
-                                            System.IO.Path.GetFileNameWithoutExtension path
+    //                                     let mutable fname =
+    //                                         System.IO.Path.GetFileNameWithoutExtension path
 
-                                        if ext = ".gz" then
-                                            let ext2 = System.IO.Path.GetExtension fname
-                                            ext <- ext2 + ext
-                                            fname <- System.IO.Path.GetFileNameWithoutExtension fname
+    //                                     if ext = ".gz" then
+    //                                         let ext2 = System.IO.Path.GetExtension fname
+    //                                         ext <- ext2 + ext
+    //                                         fname <- System.IO.Path.GetFileNameWithoutExtension fname
 
-                                        JSonOutput.Layer(
-                                            vltype = vltype,
-                                            min = min,
-                                            max = max,
-                                            name = fname,
-                                            extension = ext
-                                        ))
-                                    save
-                            ), //
-                        error =
-                            FSharp.Data.JsonValue.String(
-                                match oExn with
-                                | None -> ""
-                                | Some exn -> exn.ToString()
-                            ),
-                        log = FSharp.Data.JsonValue.String log
-                    )
-                printf "%s" <| json.ToString()                 
-        else 
-            ErrorMsg.Logger.LogToStdout ()
-            ignore    
+    //                                     JSonOutput.Layer(
+    //                                         vltype = vltype,
+    //                                         min = min,
+    //                                         max = max,
+    //                                         name = fname,
+    //                                         extension = ext
+    //                                     ))
+    //                                 save
+    //                         ), //
+    //                     error =
+    //                         FSharp.Data.JsonValue.String(
+    //                             match oExn with
+    //                             | None -> ""
+    //                             | Some exn -> exn.ToString()
+    //                         ),
+    //                     log = FSharp.Data.JsonValue.String log
+    //                 )
+    //             printf "%s" <| json.ToString()                 
+    //     else 
+    //         ErrorMsg.Logger.LogToStdout ()
+    //         ignore    
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning
             (sprintf
@@ -120,17 +120,25 @@ let main (argv: string array) =
         let syntax = Parser.parseProgram filename
 
         if parsed.Contains SaveSyntax then
-            System.IO.File.WriteAllText(parsed.GetResult SaveSyntax,$"{syntax}")
+            let filename = parsed.GetResult SaveSyntax
+            ErrorMsg.Logger.Debug $"Saving the abstract syntax to {filename}"
+            System.IO.File.WriteAllText(filename,$"{syntax}")
 
-        ErrorMsg.Logger.Debug "Program parsed"
+        ErrorMsg.Logger.Debug "Program parsed"        
 
-        let x = Reducer.reduceProgram syntax
-        
-        if parsed.Contains SaveTaskGraph then
-            System.IO.File.WriteAllText(parsed.GetResult SaveTaskGraph,x.ToDot())    
+        let program = Reducer.reduceProgram syntax
         
         ErrorMsg.Logger.Debug "Program reduced" 
-        ErrorMsg.Logger.Debug $"Number of tasks: {x.tasks.Length}"
+        ErrorMsg.Logger.Debug $"Number of tasks: {program.tasks.Length}"
+        
+        if parsed.Contains SaveTaskGraph then
+            let filename = parsed.GetResult SaveTaskGraph
+            ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
+            System.IO.File.WriteAllText(filename,program.ToDot())
+
+        let running = Interpreter.runReduced program
+
+        printfn "%A" running
 
         //ErrorMsg.Logger.Debug $"{x}"
         
@@ -156,5 +164,5 @@ let main (argv: string array) =
         0
     with e ->
         ErrorMsg.Logger.DebugExn e
-        finish (Some e)
+        // finish (Some e)
         1
