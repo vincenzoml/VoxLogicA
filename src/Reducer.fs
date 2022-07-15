@@ -42,7 +42,7 @@ module private Internals =
 
     open Parser
     open ErrorMsg
-    
+
 
     // "Internal" representation of tasks; differs from the "external" because Taskid is not needed after reduction
     type TaskInt = { id: Taskid; task: Task }
@@ -257,7 +257,10 @@ type WorkPlan =
             String.concat "\n"
             <| Array.mapi (fun i el -> $"{i} -> {el}") this.tasks
 
-        $"goals: STUB\ntasks:\n{t}"
+        let g =
+            String.concat "," <| Array.map (fun x -> x.ToString()) this.goals
+
+        $"goals: {g}\ntasks:\n{t}"
 
     member this.ToDot() =
         let mutable str = "digraph {"
@@ -278,7 +281,7 @@ let reduceProgram prog =
     let goals = new HashSet<_>()
 
     let tasks =
-        Internals.reduceProgramRec (Internals.emptyEnvironment, Internals.emptyTasks (), new HashSet<_>(), new HashSet<_>()) prog id
+        Internals.reduceProgramRec (Internals.emptyEnvironment, Internals.emptyTasks (), goals, new HashSet<_>()) prog id
 
     { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
       goals = Array.ofSeq goals }

@@ -7,7 +7,7 @@
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <PropertyGroup>
-    <SimpleITKVersionString>SimpleITK-2.2.0rc2.post81</SimpleITKVersionString>
+    <SimpleITKVersionString>SimpleITK-2.2.0rc3.post4</SimpleITKVersionString>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>
@@ -65,7 +65,7 @@
     <PackageReference Include="Silk.Net.OpenCL" Version="2.15.0" />
     <PackageReference Include="Argu" Version="6.1.1" />
     <PackageReference Include="FParsec" Version="1.1.1" />
-    <PackageReference Include="FSharp.Data" Version="4.2.8" />
+    <!--PackageReference Include="FSharp.Data" Version="4.2.8" /-->
     <PackageReference Include="hopac" Version="0.5.1" />
   </ItemGroup>
   <Target Name="SetVersion" BeforeTargets="BeforeBuild">

@@ -4,15 +4,16 @@ open System.Reflection
 open Argu
 
 type LoadFlags = { fname: string; numCores: int }
-type JSonOutput = FSharp.Data.JsonProvider<"example.json">
+// type JSonOutput = FSharp.Data.JsonProvider<"example.json">
 type CmdLine =
     | [<UniqueAttribute>] Ops
     | [<UniqueAttribute>] JSon
     | [<UniqueAttribute>] Version
     | [<UniqueAttribute>] Sequential
     | [<UniqueAttribute>] PerformanceTest
-    | [<UniqueAttribute>] SaveTaskGraph of string
-    | [<UniqueAttribute>] SaveSyntax of string
+    | [<UniqueAttribute>] SaveTaskGraphAsDot of string
+    | [<UniqueAttribute>] SaveTaskGraph of option<string>
+    | [<UniqueAttribute>] SaveSyntax of option<string>
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
@@ -22,13 +23,15 @@ type CmdLine =
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
             | Sequential ->
                 "wait for each thread to complete before starting a new one; useful for debugging"
-            | Version -> 
+            | Version ->
                 "print the voxlogica version and exit"
             | PerformanceTest _ ->
-                "do not load or save actual images; always use the given file instead; useful to measure raw speed" 
-            | SaveTaskGraph _ -> 
+                "do not load or save actual images; always use the given file instead; useful to measure raw speed"
+            | SaveTaskGraph _ ->
+                "save the task graph"
+            | SaveTaskGraphAsDot _ ->
                 "save the task graph in .dot format and exit"
-            | SaveSyntax _ -> 
+            | SaveSyntax _ ->
                 "save the AST in text format and exit"
             | Filename _ -> "VoxLogicA session file"
 
@@ -43,11 +46,11 @@ let main (argv: string array) =
         ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
 
     let parsed = cmdLineParser.Parse argv
-    if Option.isSome (parsed.TryGetResult Version) then 
+    if Option.isSome (parsed.TryGetResult Version) then
         printfn "%s" informationalVersion
         exit 0
-    // let finish = 
-    //     if Option.isSome (parsed.TryGetResult JSon) then 
+    // let finish =
+    //     if Option.isSome (parsed.TryGetResult JSon) then
     //         let readLog = ErrorMsg.Logger.LogToMemory()
     //         fun oExn ->
     //             let (print,save) = ErrorMsg.Report.Get()
@@ -91,10 +94,12 @@ let main (argv: string array) =
     //                         ),
     //                     log = FSharp.Data.JsonValue.String log
     //                 )
-    //             printf "%s" <| json.ToString()                 
-    //     else 
+    //             printf "%s" <| json.ToString()
+    //     else
     //         ErrorMsg.Logger.LogToStdout ()
-    //         ignore    
+    //         ignore
+
+    ErrorMsg.Logger.LogToStdout ()
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning
             (sprintf
@@ -106,45 +111,57 @@ let main (argv: string array) =
     try
 
         let filename =
-            try (parsed.GetResult Filename) 
-            with _ ->  
+            try (parsed.GetResult Filename)
+            with _ ->
                 printfn "%s version: %s" name.Name informationalVersion
                 printfn "%s\n" (cmdLineParser.PrintUsage())
                 exit 0
 
         ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
-                
-        // let performance = parsed.Contains PerformanceTest        
+
+        // let performance = parsed.Contains PerformanceTest
 
 
         let syntax = Parser.parseProgram filename
+        ErrorMsg.Logger.Debug "Program parsed"
 
         if parsed.Contains SaveSyntax then
-            let filename = parsed.GetResult SaveSyntax
-            ErrorMsg.Logger.Debug $"Saving the abstract syntax to {filename}"
-            System.IO.File.WriteAllText(filename,$"{syntax}")
-
-        ErrorMsg.Logger.Debug "Program parsed"        
+            let filenameOpt = parsed.GetResult SaveSyntax
+            match filenameOpt with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the abstract syntax to {filename}"
+                System.IO.File.WriteAllText(filename,$"{syntax}")
+            | None ->
+                ErrorMsg.Logger.Debug $"{syntax}"
 
         let program = Reducer.reduceProgram syntax
-        
-        ErrorMsg.Logger.Debug "Program reduced" 
+
+        ErrorMsg.Logger.Debug "Program reduced"
         ErrorMsg.Logger.Debug $"Number of tasks: {program.tasks.Length}"
-        
+
         if parsed.Contains SaveTaskGraph then
-            let filename = parsed.GetResult SaveTaskGraph
+            let filenameOpt = parsed.GetResult SaveTaskGraph
+            match filenameOpt with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
+                System.IO.File.WriteAllText(filename,$"{program}")
+            | None ->
+                ErrorMsg.Logger.Debug $"{program}"
+
+        if parsed.Contains SaveTaskGraphAsDot then
+            let filename = parsed.GetResult SaveTaskGraphAsDot
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
             System.IO.File.WriteAllText(filename,program.ToDot())
 
-        let running = Interpreter.runReduced program
+        let running = Interpreter.runTaskGraph program
 
         printfn "%A" running
 
         //ErrorMsg.Logger.Debug $"{x}"
-        
+
         // let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
         // let checker = ModelChecker model
-        
+
         // if parsed.Contains Ops then
         //     Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
         //     exit 0
@@ -154,13 +171,13 @@ let main (argv: string array) =
         //     interpreter.Batch interpreter.DefaultLibDir filename
 
         // match (parsed.TryGetResult Filename, Util.isDebug ()) with
-        // | Some filename, _ ->            
+        // | Some filename, _ ->
         //     run filename
         //     finish None
         //     0
         // | None, _ ->
         //     run "test.imgql"
-        
+
         0
     with e ->
         ErrorMsg.Logger.DebugExn e
