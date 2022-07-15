@@ -12,6 +12,7 @@ type CmdLine =
     | [<UniqueAttribute>] Sequential
     | [<UniqueAttribute>] PerformanceTest
     | [<UniqueAttribute>] SaveTaskGraph of string
+    | [<UniqueAttribute>] PrintTypes
     | [<UniqueAttribute>] SaveSyntax of string
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
@@ -28,11 +29,18 @@ type CmdLine =
                 "do not load or save actual images; always use the given file instead; useful to measure raw speed" 
             | SaveTaskGraph _ -> 
                 "save the task graph in .dot format and exit"
+            | PrintTypes ->
+                "print the inferred types"
             | SaveSyntax _ -> 
                 "save the AST in text format and exit"
             | Filename _ -> "VoxLogicA session file"
 
 [<EntryPoint>]
+// let mainTest _ =
+//     printfn $"{Arithmetics.F()}"
+//     0
+
+
 let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
     let version = name.Version
@@ -123,6 +131,10 @@ let main (argv: string array) =
             System.IO.File.WriteAllText(parsed.GetResult SaveSyntax,$"{syntax}")
 
         ErrorMsg.Logger.Debug "Program parsed"
+
+        failwith "INTERVENIRE QUI"
+
+        exit 0 // PER ROBERTO
 
         let x = Reducer.reduceProgram syntax
         
