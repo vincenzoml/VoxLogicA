@@ -41,7 +41,7 @@
     <Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(PublishDir)" />
   </Target>
   <ItemGroup>
-    <Compile Include="Operator.fs" />
+    <!--Compile Include="Operator.fs" /-->
     <!--Compile Include="Util.fs"/-->
     <Compile Include="ErrorMsg.fs" />
     <!--Compile Include="Types.fs"/>
