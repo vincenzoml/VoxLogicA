@@ -3,6 +3,7 @@ module VoxLogicA.Reducer
 open System.Collections.Generic
 
 type identifier = string
+type Taskid = int
 
 type Operator =
     | Identifier of identifier
@@ -16,7 +17,7 @@ type Operator =
         | Bool x -> x.ToString()
         | String x -> x.ToString()
 
-type Arguments = list<int>
+type Arguments = list<Taskid>
 
 type Task =
     {   operator: Operator
@@ -33,7 +34,6 @@ type Task =
 
         $"{this.operator}{args}"
 
-type Taskid = int
 type Goal =
     | GoalSave of string * Taskid
     | GoalPrint of string * Taskid

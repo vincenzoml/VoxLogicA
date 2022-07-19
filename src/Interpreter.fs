@@ -28,28 +28,37 @@ type Requirements(dict: Dictionary<ResourceType, Constraint>) =
     new(s: seq<ResourceType * Constraint>) =
         let dict = new Dictionary<_, _>()
 
-        do
-            for resourceType, a in s do
+        Seq.iter
+            (fun (resourceType, a) ->
                 dict[resourceType] <- if dict.ContainsKey resourceType then
                                           Constraint.combine dict[resourceType] a
                                       else
-                                          a
+                                          a)
+            s
 
         Requirements(dict)
+
+    member __.ResourceTypes = dict.Keys
+    member __.Item x = dict[x]
 
 
 type Resources(dict: Dictionary<ResourceType, Set<Resource>>) =
     new(s: seq<ResourceType * Set<Resource>>) =
         let dict = new Dictionary<_, _>()
 
-        do
-            for resourceType, a in s do
+
+        Seq.iter
+            (fun (resourceType, a) ->
                 dict[resourceType] <- if dict.ContainsKey resourceType then
                                           Set.union dict[resourceType] a
                                       else
-                                          a
+                                          a)
+            s
 
         Resources(dict)
+
+    member __.ResourceTypes = dict.Keys
+    member __.Item x = dict[x]
 
 [<AbstractClass>]
 type OperatorImplementation<'t>(requirements: Requirements) =
@@ -68,7 +77,10 @@ type ComputeUnit<'t>(executionEngine: ExecutionEngine<'t>, taskId, task) =
     member __.Task = task
 
     member val Requirements = operatorImplementation.Requires
-    member val Resources = Resources []
+
+// member val Resources = Resources []
+
+// member ... Run ...
 
 let mkComputeUnit id (task: Task) = failwith "stub"
 

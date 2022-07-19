@@ -4,13 +4,13 @@ open System.IO
 // TODO: convert into a new type called Logger
 
 exception private VLExn of msg: string * stackTrace: List<string * string>
-    with 
-        override this.Message = 
+    with
+        override this.Message =
             match this.stackTrace with
             | [] -> this.msg
             | _ -> this.msg + List.fold (fun str (id, pos) -> (sprintf "%s\n%s at %s" str id (pos.ToString()))) "" this.stackTrace
-        
-        override this.ToString() = 
+
+        override this.ToString() =
             this.Message
 
 type Stack = list<string * string>
@@ -18,7 +18,7 @@ type Stack = list<string * string>
 let fail msg = raise (VLExn (msg,[]))
 let failWithStacktrace msg (stackTrace : Stack) = raise (VLExn (msg,stackTrace))
 
-type Report private () = 
+type Report private () =
     static let mutable print = []
     static let mutable save = []
 
@@ -55,7 +55,7 @@ type Logger private () =
             let sw = new StreamWriter(str)
             let sr = new StreamReader(str)
             destinations <- sw :: destinations
-            fun () -> 
+            fun () ->
                 sw.Flush()
                 ignore <| str.Seek(0L,SeekOrigin.Begin)
                 sr.ReadToEnd())
