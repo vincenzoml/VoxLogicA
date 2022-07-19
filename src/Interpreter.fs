@@ -46,7 +46,6 @@ type Resources(dict: Dictionary<ResourceType, Set<Resource>>) =
     new(s: seq<ResourceType * Set<Resource>>) =
         let dict = new Dictionary<_, _>()
 
-
         Seq.iter
             (fun (resourceType, a) ->
                 dict[resourceType] <- if dict.ContainsKey resourceType then
