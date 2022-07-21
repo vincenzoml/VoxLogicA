@@ -111,11 +111,12 @@ let main (argv: string array) =
     try
 
         let filename =
-            try (parsed.GetResult Filename)
-            with _ ->
-                printfn "%s version: %s" name.Name informationalVersion
-                printfn "%s\n" (cmdLineParser.PrintUsage())
-                exit 0
+            if parsed.Contains Filename then parsed.GetResult Filename else "src/test.imgql"
+            // try (parsed.GetResult Filename)
+            // with _ ->                
+            //     printfn "%s version: %s" name.Name informationalVersion
+            //     printfn "%s\n" (cmdLineParser.PrintUsage())
+            //     exit 0
 
         ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
 
@@ -137,7 +138,7 @@ let main (argv: string array) =
         let program = Reducer.reduceProgram syntax
 
         ErrorMsg.Logger.Debug "Program reduced"
-        ErrorMsg.Logger.Debug $"Number of tasks: {program.tasks.Length}"
+        ErrorMsg.Logger.Debug $"Number of tasks: {program.workUnits.Length}"
 
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph
@@ -153,9 +154,26 @@ let main (argv: string array) =
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
             System.IO.File.WriteAllText(filename,program.ToDot())
 
-        let running = Interpreter.runTaskGraph program
+        let engine = Interpreter.Arithmetics()
 
-        printfn "%A" running
+        let interpreter = Interpreter.Interpreter(engine)
+
+        interpreter.Prepare(program)
+
+        let tasks =
+            Seq.map
+                (fun goal ->
+                    match goal with
+                    | (Reducer.GoalSave(label,id)|Reducer.GoalPrint(label,id)) ->
+                        task {
+                            let! result = interpreter.Query id
+                            ErrorMsg.Logger.Result label result
+                        } :> System.Threading.Tasks.Task)
+                program.goals |>
+            Seq.toArray
+
+        System.Threading.Tasks.Task.WaitAll tasks
+
 
         //ErrorMsg.Logger.Debug $"{x}"
 
@@ -181,5 +199,6 @@ let main (argv: string array) =
         0
     with e ->
         ErrorMsg.Logger.DebugExn e
+        raise e
         // finish (Some e)
         1

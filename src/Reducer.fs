@@ -1,9 +1,10 @@
 module VoxLogicA.Reducer
 
+
 open System.Collections.Generic
 
 type identifier = string
-type Taskid = int
+type WorkUnitid = int
 
 type Operator =
     | Identifier of identifier
@@ -17,9 +18,9 @@ type Operator =
         | Bool x -> x.ToString()
         | String x -> x.ToString()
 
-type Arguments = list<Taskid>
+type Arguments = seq<WorkUnitid>
 
-type Task =
+type WorkUnit =
     {   operator: Operator
         arguments: Arguments }
 
@@ -27,16 +28,16 @@ type Task =
         let sep = ","
 
         let args =
-            if this.arguments.Length > 0 then
-                $"({String.concat sep (List.map (fun x -> x.ToString()) this.arguments)})"
+            if Seq.length this.arguments > 0 then
+                $"({String.concat sep (Seq.map (fun x -> x.ToString()) this.arguments)})"
             else
                 ""
 
         $"{this.operator}{args}"
 
 type Goal =
-    | GoalSave of string * Taskid
-    | GoalPrint of string * Taskid
+    | GoalSave of string * WorkUnitid
+    | GoalPrint of string * WorkUnitid
 
 module private Internals =
 
@@ -44,19 +45,19 @@ module private Internals =
     open ErrorMsg
 
 
-    // "Internal" representation of tasks; differs from the "external" because Taskid is not needed after reduction
-    type TaskInt = { id: Taskid; task: Task }
+    // "Internal" representation of workUnits; differs from the "external" because WorkUnitid is not needed after reduction
+    type WorkUnitInt = { id: WorkUnitid; workUnit: WorkUnit }
 
     let memoize = true
 
-    type Tasks =
-        { byTerm: Dictionary<(Operator * Arguments), TaskInt>
-          byId: Dictionary<Taskid, TaskInt> }
+    type WorkUnits =
+        { byTerm: Dictionary<(Operator * Arguments), WorkUnitInt>
+          byId: Dictionary<WorkUnitid, WorkUnitInt> }
 
         member this.FindOrCreate operator arguments =
             if memoize then
                 match this.TryFind operator arguments with
-                | Some taskId -> taskId
+                | Some workUnitId -> workUnitId
                 | None -> this.Create operator arguments
             else
                 this.Create operator arguments
@@ -73,29 +74,29 @@ module private Internals =
         member this.Create operator arguments =
             let newId = this.byId.Count
 
-            let newTask =
+            let newWorkUnit =
                 { id = newId
-                  task =
+                  workUnit =
                     { operator = operator
                       arguments = arguments } }
 
             if memoize then
-                this.byTerm[ (operator, arguments) ] <- newTask
+                this.byTerm[ (operator, arguments) ] <- newWorkUnit
 
-            this.byId[ newId ] <- newTask
+            this.byId[ newId ] <- newWorkUnit
             newId
 
 
-        member this.Alias operator arguments (taskid: Taskid) =
-            let task = this.byId[taskid]
-            this.byTerm[ (operator, arguments) ] <- task
+        member this.Alias operator arguments (workUnitId: WorkUnitid) =
+            let workUnit = this.byId[workUnitId]
+            this.byTerm[ (operator, arguments) ] <- workUnit
 
 
-    let emptyTasks () =
+    let emptyWorkUnits () =
         { byTerm = new Dictionary<_, _>(10000)
           byId = new Dictionary<_, _>(10000) }
     type DVal =
-        | Task of Taskid
+        | WorkUnit of WorkUnitid
         | Fun of Environment * list<identifier> * Parser.Expression
 
     and Environment =
@@ -124,34 +125,34 @@ module private Internals =
     let emptyEnvironment = Environment Map.empty
 
     let rec reduceProgramRec<'a>
-        (env: Environment, tasks, (goals: HashSet<Goal>), parsedImports: HashSet<string>)
+        (env: Environment, workUnits, (goals: HashSet<Goal>), parsedImports: HashSet<string>)
         (Program p)
-        (cont: Tasks -> 'a)
+        (cont: WorkUnits -> 'a)
         =
         match p with
-        | [] -> cont tasks
+        | [] -> cont workUnits
         | command :: commands ->
-            reduceCommand (env, tasks, goals, parsedImports) command
+            reduceCommand (env, workUnits, goals, parsedImports) command
             <| fun (env', imports) ->
                 let newProgram = (Program(List.concat [ imports; commands ]))
-                reduceProgramRec (env', tasks, goals, parsedImports) newProgram cont
+                reduceProgramRec (env', workUnits, goals, parsedImports) newProgram cont
 
     and reduceCommand
-        (env, tasks, (goals: HashSet<Goal>), parsedImports)
+        (env, workUnits, (goals: HashSet<Goal>), parsedImports)
         command
         (cont: Environment * list<Command> -> 'a)
         =
         match command with
         | Save (pos, filename, expr) -> // TODO: use pos
-            reduceExpr [ ($"save {filename}", pos) ] (env, tasks) expr
-            <| fun taskId ->
-                ignore <| goals.Add(GoalSave(filename, taskId))
+            reduceExpr [ ($"save {filename}", pos) ] (env, workUnits) expr
+            <| fun workUnitId ->
+                ignore <| goals.Add(GoalSave(filename, workUnitId))
                 cont (env, [])
         | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), [])
         | Print (pos, str, expr) -> // TODO: use pos
-            reduceExpr [ ($"print {str}", pos) ] (env, tasks) expr
-            <| fun taskId ->
-                ignore <| goals.Add(GoalPrint(str, taskId))
+            reduceExpr [ ($"print {str}", pos) ] (env, workUnits) expr
+            <| fun workUnitId ->
+                ignore <| goals.Add(GoalPrint(str, workUnitId))
                 cont (env, [])
         | Import filename ->
             let libdir =
@@ -201,14 +202,14 @@ module private Internals =
 
     and reduceExpr
         (stack: ErrorMsg.Stack)
-        (env: Environment, tasks: Tasks)
+        (env: Environment, workUnits: WorkUnits)
         (expr: Expression)
-        (cont: Taskid -> 'a)
+        (cont: WorkUnitid -> 'a)
         =
         match expr with
-        | ENumber f -> cont <| tasks.FindOrCreate (Number f) []
-        | EBool b -> cont <| tasks.FindOrCreate (Bool b) []
-        | EString s -> cont <| tasks.FindOrCreate (String s) []
+        | ENumber f -> cont <| workUnits.FindOrCreate (Number f) []
+        | EBool b -> cont <| workUnits.FindOrCreate (Bool b) []
+        | EString s -> cont <| workUnits.FindOrCreate (String s) []
         | ECall (pos, ide, args) -> // TODO: use pos
             let stack' = (ide, pos) :: stack
 
@@ -216,63 +217,63 @@ module private Internals =
                 match args with
                 | [] -> cont (List.rev accum)
                 | arg :: args' ->
-                    reduceExpr stack' (env, tasks) arg
-                    <| fun taskId -> reduceArgs args' (taskId :: accum) cont
+                    reduceExpr stack' (env, workUnits) arg
+                    <| fun workUnitId -> reduceArgs args' (workUnitId :: accum) cont
 
             reduceArgs args []
             <| fun actualArgs ->
 
-                match tasks.TryFind (Identifier ide) actualArgs with
-                | Some task'' ->
+                match workUnits.TryFind (Identifier ide) actualArgs with
+                | Some workUnit'' ->
                     if memoize then
-                        cont task''
+                        cont workUnit''
                     else
-                        fail "Found task in cache without memoization, which is impossible. Please report."
+                        fail "Found workUnit in cache without memoization, which is impossible. Please report."
                 | None ->
                     match env.TryFind ide with
                     | Some (Fun (denv, formalArgs, body)) ->
                         let callEnv =
                             if formalArgs.Length = args.Length then
-                                denv.BindList formalArgs (List.map Task actualArgs)
+                                denv.BindList formalArgs (List.map WorkUnit actualArgs)
                             else
                                 failWithStacktrace
                                     (sprintf "%s requires %d arguments, got %d" ide formalArgs.Length args.Length)
                                     stack'
 
-                        reduceExpr stack' (callEnv, tasks) body
-                        <| fun task'' ->
-                            tasks.Alias (Identifier ide) actualArgs task''
-                            cont task''
-                    | Some (Task t) -> cont t
-                    | None -> cont <| tasks.Create (Identifier ide) actualArgs
+                        reduceExpr stack' (callEnv, workUnits) body
+                        <| fun workUnit'' ->
+                            workUnits.Alias (Identifier ide) actualArgs workUnit''
+                            cont workUnit''
+                    | Some (WorkUnit t) -> cont t
+                    | None -> cont <| workUnits.Create (Identifier ide) actualArgs
 // with
 // | :? System.Collections.Generic.KeyNotFoundException ->
 //
 type WorkPlan =
-    { tasks: array<Task>
+    { workUnits: array<WorkUnit>
       goals: array<Goal> }
 
     override this.ToString() =
         let t =
             String.concat "\n"
-            <| Array.mapi (fun i el -> $"{i} -> {el}") this.tasks
+            <| Array.mapi (fun i el -> $"{i} -> {el}") this.workUnits
 
         let g =
             String.concat "," <| Array.map (fun x -> x.ToString()) this.goals
 
-        $"goals: {g}\ntasks:\n{t}"
+        $"goals: {g}\nworkUnits:\n{t}"
 
     member this.ToDot() =
         let mutable str = "digraph {"
 
-        for i = 0 to this.tasks.Length - 1 do
-            let task = this.tasks[i]
+        for i = 0 to this.workUnits.Length - 1 do
+            let workUnit = this.workUnits[i]
 
             str <-
                 str
-                + $"{i} [label=\"[{i}] {task.ToString()}\"];\n"
+                + $"{i} [label=\"[{i}] {workUnit.ToString()}\"];\n"
 
-            for argument in task.arguments do
+            for argument in workUnit.arguments do
                 str <- str + $"{i} -> {argument};\n"
 
         str + "\n}"
@@ -280,10 +281,10 @@ type WorkPlan =
 let reduceProgram prog =
     let goals = new HashSet<_>()
 
-    let tasks =
-        Internals.reduceProgramRec (Internals.emptyEnvironment, Internals.emptyTasks (), goals, new HashSet<_>()) prog id
+    let workUnits =
+        Internals.reduceProgramRec (Internals.emptyEnvironment, Internals.emptyWorkUnits (), goals, new HashSet<_>()) prog id
 
-    { tasks = Array.init tasks.byId.Count (fun i -> tasks.byId[i].task)
+    { workUnits = Array.init workUnits.byId.Count (fun i -> workUnits.byId[i].workUnit)
       goals = Array.ofSeq goals }
 
 (* get enumerator of anything

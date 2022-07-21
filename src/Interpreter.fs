@@ -4,6 +4,8 @@ open VoxLogicA.Reducer
 
 open System.Collections.Generic
 
+open System.Threading.Tasks
+
 (*
 
 tasks always return a Handle<'t> not a 't
@@ -19,79 +21,136 @@ type ResourceType = Unit
 
 type ResourceKey = string
 
-type Requirements = IDictionary<ResourceKey,ResourceType>
+type Requirements(dict: IReadOnlyDictionary<ResourceKey, ResourceType>) =
+    member __.ByKey x = dict[x]
+    static member Null = Requirements(new Dictionary<_, _>())
 
-type Resource(resourceType) =
+and Resource(resourceType) =
     let mutable assignedTo = None
     member val ResourceType: ResourceType = resourceType
     member __.AssignedTo = assignedTo
+
     member __.AssignTo rs =
         assert assignedTo.IsNone
         assignedTo <- Some rs
+
     member __.Reclaim() =
         assert assignedTo.IsSome
         assignedTo <- None
-and Resources() =
-    let byId = new Dictionary<ResourceKey,Resource>()
-    let byType = new Dictionary<ResourceType,list<Resource>>()
 
-    member __.ById id = byId[id]
+and Resources() =
+    let byKey = new Dictionary<ResourceKey, Resource>()
+    let byType = new Dictionary<ResourceType, list<Resource>>()
+
+    member __.ComplyWith(requirements: Requirements) =
+        Seq.forall
+            id
+            (seq {
+                for kv in byKey do
+                    yield requirements.ByKey kv.Key = kv.Value.ResourceType
+            })
+
+    member __.ByKey k = byKey[k]
     member __.ByType t = byType[t] :> seq<Resource>
 
-    member this.Assign(id,resource : Resource) =
-        assert not (byId.ContainsKey id)
-        byId[id] <- resource
+    member this.Assign(k, resource: Resource) =
+        assert not (byKey.ContainsKey k)
+        byKey[k] <- resource
         let t = resource.ResourceType
-        byType[t] <- resource::byType[t]
+        byType[t] <- resource :: byType[t]
         resource.AssignTo this
 
     member __.Reclaim() = // deliberately not fine-grained
-        let v = byId.Values
+        let v = byKey.Values
+
         for res in v do
             res.Reclaim()
-        byId.Clear()
+
+        byKey.Clear()
         byType.Clear()
         v
 
-
-
-
-
-    // new(s: seq<ResourceType * Set<Resource>>) =
-    //     new ResourceData(s,Set.union)
-    // //     let dict = new Dictionary<_, _>()
-
-    //     Seq.iter
-    //         (fun (resourceType, a) ->
-    //             dict[resourceType] <- if dict.ContainsKey resourceType then
-    //                                       Set.union dict[resourceType] a
-    //                                   else
-    //                                       a)
-    //         s
-
-    //     Resources(dict)
-
-
-[<AbstractClass>]
-type OperatorImplementation<'t>(requirements: Requirements) =
+type OperatorImplementation<'t>(requirements, arity, run) =
     member __.Requires = requirements
-    abstract member Run: seq<'t> -> 't
+    member __.Arity = arity
 
-[<AbstractClass>]
-type ExecutionEngine<'t>() =
+    member __.Run: Resources -> array<'t> -> Task<'t> =
+        fun resources args ->
+            assert resources.ComplyWith requirements
+            assert (args.Length = arity)
+            run resources args
+
+    new(t) = OperatorImplementation(Requirements.Null, 0, (fun _ _ -> t))
+    new(arity, run) = OperatorImplementation(Requirements.Null, arity, run)
+
+type ExecutionEngine<'t> =
     abstract member ImplementationOf: Operator -> OperatorImplementation<'t>
 
-
-[<AbstractClass>]
-type ComputeUnit<'t>(executionEngine: ExecutionEngine<'t>, operator, arguments) =
-    let operatorImplementation = executionEngine.ImplementationOf operator
+type ComputeUnit<'t>
+    (
+        executionEngine: ExecutionEngine<'t>,
+        operatorImplementation: OperatorImplementation<'t>,
+        arguments: array<ComputeUnit<'t>>
+    ) =
+    let result = TaskCompletionSource<'t>() // But see also the new Channel type in dotnet as an alternative.
 
     member val Requirements = operatorImplementation.Requires
 
     member val Resources = Resources()
 
-    member __.Run()
+    member this.Run(resources: Resources) =
+        assert resources.ComplyWith this.Requirements
 
-// let mkComputeUnit id (task: Task) = failwith "stub"
+        if not result.Task.IsCompleted then
+            ignore
+            <| task {
+                let inputs =
+                    Array.map (fun (x: ComputeUnit<'t>) -> (x.Task: Task<'t>).Result) arguments
+
+                try
+                    let! r = operatorImplementation.Run resources inputs
+                    result.SetResult r
+                with
+                | e -> result.SetException e
+            }
+
+    member __.Task = result.Task
 
 // let runTaskGraph (program: WorkPlan) = Array.mapi mkComputeUnit program.tasks
+
+// TEST
+
+type Arithmetics() =
+    interface ExecutionEngine<int> with
+        member __.ImplementationOf s =
+            match s with
+            | Number n -> OperatorImplementation(task { return (int n) })
+            | Identifier "+" -> OperatorImplementation(2, (fun _ args -> task { return args[0] + args[1] }))
+            | _ -> ErrorMsg.fail "Unknown operator: %A" s
+
+type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
+    let computeUnits = new Dictionary<int, ComputeUnit<'t>>()
+
+    member __.Prepare(program: WorkPlan) =
+        Array.iteri
+            (fun id workUnit ->
+                let arguments =
+                    Seq.toArray
+                    <| Seq.map (fun i -> computeUnits[i]) workUnit.arguments
+
+                computeUnits[id] <- ComputeUnit(
+                    executionEngine,
+                    executionEngine.ImplementationOf workUnit.operator,
+                    arguments
+                ))
+            program.workUnits
+
+    member __.Query(id: WorkUnitid) =
+        assert computeUnits.ContainsKey id
+
+        for cu in computeUnits.Values do // TODO: allocate resources
+            cu.Run(Resources())
+
+        computeUnits[id].Task
+
+    member __.A = ()
