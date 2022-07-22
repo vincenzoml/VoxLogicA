@@ -113,7 +113,7 @@ let main (argv: string array) =
         let filename =
             if parsed.Contains Filename then parsed.GetResult Filename else "src/test.imgql"
             // try (parsed.GetResult Filename)
-            // with _ ->                
+            // with _ ->
             //     printfn "%s version: %s" name.Name informationalVersion
             //     printfn "%s\n" (cmdLineParser.PrintUsage())
             //     exit 0
@@ -137,7 +137,7 @@ let main (argv: string array) =
         let program = Reducer.reduceProgram syntax
 
         ErrorMsg.Logger.Debug "Program reduced"
-        ErrorMsg.Logger.Debug $"Number of tasks: {program.workUnits.Length}"
+        ErrorMsg.Logger.Debug $"Number of tasks: {program.operations.Length}"
 
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph

@@ -97,8 +97,8 @@ type ComputeUnit<'t>
 
     member val Resources = Resources()
 
-    member this.Run(resources: Resources) =
-        assert resources.ComplyWith this.Requirements
+    member this.Run() =
+        assert this.Resources.ComplyWith this.Requirements
 
         if not running then
             running <- true
@@ -108,7 +108,7 @@ type ComputeUnit<'t>
                     Array.map (fun (x: ComputeUnit<'t>) -> (x.Task: Task<'t>).Result) arguments
 
                 try
-                    let! r = operatorImplementation.Run resources inputs
+                    let! r = operatorImplementation.Run this.Resources inputs
                     result.SetResult r
                 with
                 | e -> result.SetException e
@@ -133,7 +133,10 @@ let opFib = OperatorImplementation (fun _ args ->
                         new Task<_>(
                             (fun () ->
                                 ErrorMsg.Logger.Debug $"running fib({args[0]},{args[1]})"
-                                fib args[0]) (*, TaskCreationOptions.LongRunning *)
+                                let r = fib args[0]
+                                ErrorMsg.Logger.Debug $"finished fib({args[0]},{args[1]})"
+                                r),
+                            TaskCreationOptions.PreferFairness
                         )
 
                     task.Start()
@@ -152,23 +155,22 @@ type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
-            (fun id workUnit ->
+            (fun id operation ->
                 let arguments =
                     Seq.toArray
-                    <| Seq.map (fun i -> computeUnits[i]) workUnit.arguments
+                    <| Seq.map (fun i -> computeUnits[i]) operation.arguments
 
                 computeUnits[id] <- ComputeUnit(
                     executionEngine,
-                    executionEngine.ImplementationOf workUnit.operator,
+                    executionEngine.ImplementationOf operation.operator,
                     arguments
                 ))
-            program.workUnits
+            program.operations
 
-    member __.Query(id: WorkUnitid) =
+    member __.Query(id: OperationId) =
         assert computeUnits.ContainsKey id
-
         for cu in computeUnits.Values do // TODO: allocate resources
-            cu.Run(Resources())
+            cu.Run()
 
         computeUnits[id].Task
 
