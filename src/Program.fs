@@ -122,7 +122,6 @@ let main (argv: string array) =
 
         // let performance = parsed.Contains PerformanceTest
 
-
         let syntax = Parser.parseProgram filename
         ErrorMsg.Logger.Debug "Program parsed"
 
@@ -158,8 +157,10 @@ let main (argv: string array) =
 
         let interpreter = Interpreter.Interpreter(engine)
 
+        ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)
 
+        ErrorMsg.Logger.Debug "Running interpreter"
         let tasks =
             Seq.map
                 (fun goal ->
@@ -173,7 +174,7 @@ let main (argv: string array) =
             Seq.toArray
 
         System.Threading.Tasks.Task.WaitAll tasks
-
+        ErrorMsg.Logger.Debug "All done."
 
         //ErrorMsg.Logger.Debug $"{x}"
 

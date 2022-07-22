@@ -70,18 +70,16 @@ and Resources() =
         byType.Clear()
         v
 
-type OperatorImplementation<'t>(requirements, arity, run) =
+type OperatorImplementation<'t>(requirements, run) =
     member __.Requires = requirements
-    member __.Arity = arity
 
     member __.Run: Resources -> array<'t> -> Task<'t> =
         fun resources args ->
             assert resources.ComplyWith requirements
-            assert (args.Length = arity)
             run resources args
 
-    new(t) = OperatorImplementation(Requirements.Null, 0, (fun _ _ -> t))
-    new(arity, run) = OperatorImplementation(Requirements.Null, arity, run)
+    new(t) = OperatorImplementation(Requirements.Null, (fun _ _ -> t))
+    new(run) = OperatorImplementation(Requirements.Null, run)
 
 type ExecutionEngine<'t> =
     abstract member ImplementationOf: Operator -> OperatorImplementation<'t>
@@ -93,6 +91,7 @@ type ComputeUnit<'t>
         arguments: array<ComputeUnit<'t>>
     ) =
     let result = TaskCompletionSource<'t>() // But see also the new Channel type in dotnet as an alternative.
+    let mutable running = false
 
     member val Requirements = operatorImplementation.Requires
 
@@ -101,7 +100,8 @@ type ComputeUnit<'t>
     member this.Run(resources: Resources) =
         assert resources.ComplyWith this.Requirements
 
-        if not result.Task.IsCompleted then
+        if not running then
+            running <- true
             ignore
             <| task {
                 let inputs =
@@ -120,13 +120,32 @@ type ComputeUnit<'t>
 
 // TEST
 
+let rec fib x =
+    if x < 2 then
+        1
+    else
+        fib (x - 1) + fib (x - 2)
+
+let opFib = OperatorImplementation (fun _ args ->
+
+                    let task =
+
+                        new Task<_>(
+                            (fun () ->
+                                ErrorMsg.Logger.Debug $"running fib({args[0]},{args[1]})"
+                                fib args[0]) (*, TaskCreationOptions.LongRunning *)
+                        )
+
+                    task.Start()
+                    task)
 type Arithmetics() =
+
     interface ExecutionEngine<int> with
         member __.ImplementationOf s =
             match s with
             | Number n -> OperatorImplementation(task { return (int n) })
-            | Identifier "+" -> OperatorImplementation(2, (fun _ args -> task { return args[0] + args[1] }))
-            | _ -> ErrorMsg.fail "Unknown operator: %A" s
+            | (Identifier "fib"| Identifier "+") -> opFib
+            | _ -> ErrorMsg.fail $"Unknown operator: {s}"
 
 type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
     let computeUnits = new Dictionary<int, ComputeUnit<'t>>()
