@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
@@ -7,76 +6,48 @@
     <DebugType>embedded</DebugType>
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
-
   <PropertyGroup>
     <SimpleITKVersionString>SimpleITK-2.2.0rc3.post26</SimpleITKVersionString>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>
-
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macosx-10.9-anycpu</SimpleITKArchString>
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'win-x64'">win64-x64</SimpleITKArchString>
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'linux-x64'">linux</SimpleITKArchString>
-  
     <SimpleITKFullName>$(SimpleITKVersionString)-CSharp-$(SimpleITKArchString)</SimpleITKFullName>
-
     <SimpleITKManaged>lib/$(SimpleITKFullName)/SimpleITKCSharpManaged.dll</SimpleITKManaged>
-
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'osx-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'win-x64'">lib/$(SimpleITKFullName)/SimpleITKCSharpNative.dll</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.so</SimpleITKNative>
-
     <DownloadPath>https://github.com/SimpleITK/SimpleITK/releases/download/latest/$(SimpleITKFullName).zip</DownloadPath>
     <ZipName>lib/$(SimpleITKFullName).zip</ZipName>
   </PropertyGroup>
-
-
-
   <ItemGroup>
     <Reference Include="SimpleITKCSharpManaged">
       <HintPath>$(SimpleITKManaged)</HintPath>
     </Reference>
   </ItemGroup>
-
-  <Target Name="DownloadContentFiles" BeforeTargets="UnzipLibs" Condition="!Exists($(ZipName))">    
+  <Target Name="DownloadContentFiles" BeforeTargets="UnzipLibs" Condition="!Exists($(ZipName))">
     <Message Importance="high" Text="Downloading file $(DownloadPath) to ./lib" />
     <DownloadFile SourceUrl="$(DownloadPath)" DestinationFolder="./lib" />
   </Target>
-
   <Target Name="UnzipLibs" BeforeTargets="BeforeBuild">
     <Unzip SourceFiles="$(ZipName)" DestinationFolder="lib" />
   </Target>
-
   <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
     <Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(OutDir)" />
-    <Message Importance="High" Text="Copy $(SimpleITKNative) to $(OutDir)"/>
+    <Message Importance="High" Text="Copy $(SimpleITKNative) to $(OutDir)" />
   </Target>
-
   <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
     <Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(PublishDir)" />
   </Target>
   <ItemGroup>
-    <!--Compile Include="Operator.fs" /-->
-    <!--Compile Include="Util.fs"/-->
     <Compile Include="ErrorMsg.fs" />
-    <!--Compile Include="Types.fs"/>
-		<Compile Include="UniqueFactory.fs"/-->
-		<!--Compile Include="Operator.fs"/-->
-		<!--Compile Include="Formula.fs"/>
-		<Compile Include="Coreops.fs"/>
-		<Compile Include="Model.fs"/>
-		<Compile Include="ModelChecker.fs"/>
-		<Compile Include="LogicFragments.fs"/-->
     <Compile Include="Parser.fs" />
     <Compile Include="Reducer.fs" />
-    <!--Compile Include="NativeArray.fs"/-->
     <Compile Include="Interpreter.fs" />
-    <!--Compile Include="SITKUtil.fs"/>
-		<Compile Include="GPU.fs"/>
-		<Compile Include="GPUModel.fs"/-->
     <Compile Include="Program.fs" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Silk.Net.OpenCL" Version="2.15.0" />
     <PackageReference Include="Argu" Version="6.1.1" />

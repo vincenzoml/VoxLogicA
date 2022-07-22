@@ -159,7 +159,6 @@ let main (argv: string array) =
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)
-
         ErrorMsg.Logger.Debug "Running interpreter"
         let tasks =
             Seq.map

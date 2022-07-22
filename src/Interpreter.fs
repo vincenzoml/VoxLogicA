@@ -104,9 +104,9 @@ type ComputeUnit<'t>
             running <- true
             ignore
             <| task {
-                let inputs =
-                    Array.map (fun (x: ComputeUnit<'t>) -> (x.Task: Task<'t>).Result) arguments
-
+                let inputThreads =
+                    Array.map (fun (x: ComputeUnit<'t>) -> (x.Task: Task<'t>)) arguments
+                let! inputs = Task.WhenAll inputThreads
                 try
                     let! r = operatorImplementation.Run this.Resources inputs
                     result.SetResult r
@@ -126,7 +126,8 @@ let rec fib x =
     else
         fib (x - 1) + fib (x - 2)
 
-let opFib = OperatorImplementation (fun _ args ->
+type Arithmetics() =
+    let opFib = OperatorImplementation (fun _ args ->
 
                     let task =
 
@@ -141,7 +142,6 @@ let opFib = OperatorImplementation (fun _ args ->
 
                     task.Start()
                     task)
-type Arithmetics() =
 
     interface ExecutionEngine<int> with
         member __.ImplementationOf s =
@@ -169,6 +169,8 @@ type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
 
     member __.Query(id: OperationId) =
         assert computeUnits.ContainsKey id
+        System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
+
         for cu in computeUnits.Values do // TODO: allocate resources
             cu.Run()
 
