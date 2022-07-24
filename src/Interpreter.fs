@@ -65,6 +65,7 @@ and Resources<'t>() =
 
     member __.ByKey k = byKey[k]
     member __.ByType t = byType[t] :> seq<Resource<'t>>
+    member __.Item k = byKey[k]
 
     member this.Assign(k, resource: Resource<'t>) =
         assert not (byKey.ContainsKey k)
@@ -138,44 +139,61 @@ let rec fib x =
         fib (x - 1) + fib (x - 2)
 
 type A =
-    abstract member M : unit
+    abstract member M: unit
 
-type ArithmeticsResourceType = 
+type ArithmeticsResourceType =
     | ResInt
-    interface ResourceType with
+    interface ResourceType
 
-type ArithmeticsResource() = 
+type ArithmeticsResource() =
     static let mutable id = 0
+
     do
         ErrorMsg.Logger.Debug $"Resource #{id} created"
-        id <- id+1
+        id <- id + 1
 
-    member val Contents : int = 0 with get,set
+    member val Contents: int = 0 with get, set
+
+    override __.ToString() = $"Resource #{id}"
 
 
 type Arithmetics() =
-    let opFib = OperatorImplementation(Requirements([("internal",ResInt)]),fun _ _ -> failwith "stub")
+    let opFib =
+        OperatorImplementation(
+            Requirements([ ("internal", ResInt :> ResourceType) ]),
+            (fun resources args ->
 
-    //  (fun res args ->
+                let task =
 
-    //     let task =
+                    new Task<_>(
+                        (fun () ->
+                            ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${resources}"
+                            let inp = (args[0].Value: ArithmeticsResource)
+                            let resource = resources.ByKey "internal" // Same key as in the requirements
+                            let result = fib inp.Contents // Could use resource if needed
+                            resource.Value.Contents <- result
+                            ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${resources}"
+                            resource), // NOTE: can return the same resource; if the result must be a different resource it must be added to the requirements with a specific key
+                        TaskCreationOptions.PreferFairness
+                    )
 
-    //         new Task<_>(
-    //             (fun () ->
-    //                 ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${res}"
-    //                 let r = fib args[0]
-    //                 ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${res}"
-    //                 r),
-    //             TaskCreationOptions.PreferFairness
-    //         )
+                task.Start()
+                task)
+        )
 
-    //     task.Start()
-    //     task)
-
-    interface ExecutionEngine<int> with
+    interface ExecutionEngine<ArithmeticsResource> with
         member __.ImplementationOf s =
             match s with
-            | Number n -> OperatorImplementation(task { return (int n) })
+            | Number n ->
+                OperatorImplementation(
+                    Requirements([ ("result", ResInt :> ResourceType) ]),
+                    (fun resources _ ->
+                        task {
+                            let resource = resources["result"]
+                            resource.Value.Contents <- int n
+                            return resource
+                        })
+                )
             | (Identifier "fib"
             | Identifier "+") -> opFib
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"
