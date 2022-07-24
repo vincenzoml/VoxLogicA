@@ -19,19 +19,19 @@ http://moiraesoftware.github.io/blog/2012/01/22/FSharp-Dataflow-agents-I/
 
 type ResourceKey = string
 
-type Requirements<'ResourceType>(dict: IReadOnlyDictionary<ResourceKey, 'ResourceType>) =
+type Requirements<'ResourceType when 'ResourceType: equality>(dict: IReadOnlyDictionary<ResourceKey, 'ResourceType>) =
     member __.ByKey x = dict[x]
 
     static member Null = Requirements(new Dictionary<_, _>())
 
-    // new(reqs: seq<ResourceKey * 'ResourceType>) =
-    //     assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
-    //     let dict = new Dictionary<_, _>()
+    new(reqs: seq<ResourceKey * 'ResourceType>) =
+        assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
+        let dict = new Dictionary<_, _>()
 
-    //     for (resourceKey, resourceType) in reqs do
-    //         dict[resourceKey] <- resourceType
+        for (resourceKey, resourceType) in reqs do
+            dict[resourceKey] <- resourceType
 
-    //     Requirements(dict)
+        Requirements(dict)
 
 and Resource<'t, 'ResourceType>(value: 't, resourceType) =
     let mutable assignedTo = new HashSet<_>() // TODO: do this in debug; for release, use just a reference count.
@@ -80,18 +80,20 @@ and Resources<'t, 'ResourceType when 'ResourceType: equality>() =
         byType.Clear()
         v
 
-type OperatorImplementation<'t, 'ResourceType when 'ResourceType: equality>(requirements : 'ResourceType, run) =
+
+type OperatorImplementation<'t, 'ResourceType when 'ResourceType: equality>
+    (
+        requirements: Requirements<'ResourceType>,
+        run: Resources<'t, 'ResourceType> -> array<Resource<'t, 'ResourceType>> -> Task<Resource<'t, 'ResourceType>>
+    ) =
     member __.Requires = requirements
 
-    // member __.Run: Resources<'t, 'ResourceType>
-    //     -> array<Resource<'t, 'ResourceType>>
-    //     -> Task<Resource<'t, 'ResourceType>> =
-    //     fun resources args ->
-    //         assert resources.ComplyWith requirements
-    //         run resources args
+    member __.Run (resources: Resources<'t, 'ResourceType>) (args : array<Resource<'t,'ResourceType>>) =
+        assert resources.ComplyWith requirements
+        run resources args
 
-    // new(t) = OperatorImplementation(Requirements.Null, (fun _ _ -> t))
-    new(run) = OperatorImplementation(Requirements.Null : Requirements<'ResourceType>, run)
+// new(t) = OperatorImplementation(Requirements<'ResourceType>.Null, failwith "stub" (fun _ _ -> t))
+// new(run) = OperatorImplementation(Requirements<_>.Null, run)
 
 type ExecutionEngine<'t, 'ResourceType when 'ResourceType: equality> =
     abstract member ImplementationOf: Operator -> OperatorImplementation<'t, 'ResourceType>
@@ -135,15 +137,12 @@ type ComputeUnit<'t, 'ResourceType when 'ResourceType: equality>
 // let runTaskGraph (program: WorkPlan) = Array.mapi mkComputeUnit program.tasks
 
 // TEST
-
-
 let rec fib x =
     if x < 2 then
         1
     else
         fib (x - 1) + fib (x - 2)
 
-type ArithmeticsResourceType = ResInt
 
 type ArithmeticsResource() =
     static let mutable id = 0
@@ -154,64 +153,73 @@ type ArithmeticsResource() =
 
     member val Contents: int = 0 with get, set
 
+type ArithmeticsResourceType = ResInt
 
 type Arithmetics() =
     let opFib =
-        let reqs: seq<ResourceKey * ArithmeticsResourceType> = [ ("internal", ResInt) ]
+        let reqs = [ ("internal", ResInt) ]
         let run _ _ = failwith "stub"
-        let d = new Dictionary<ResourceKey,ArithmeticsResourceType>() 
-        d.Add("internal",ResInt)
-        let d' = d :> IReadOnlyDictionary<_,_>
-        OperatorImplementation(Requirements d',run)
+        let d = new Dictionary<ResourceKey, ArithmeticsResourceType>()
+        d.Add("internal", ResInt)
+        OperatorImplementation(Requirements d, run)
 
     //  (fun res args ->
 
     //     let task =
 
     //         new Task<_>(
-    //             (fun () ->
-    //                 ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${res}"
-    //                 let r = fib args[0]
-    //                 ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${res}"
-    //                 r),
-    //             TaskCreationOptions.PreferFairness
-    //         )
+//             (fun () ->
+//                 ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${res}"
+//                 let r = fib args[0]
+//                 ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${res}"
+//                 r),
+//             TaskCreationOptions.PreferFairness
+//         )
 
     //     task.Start()
-    //     task)
+//     task)
 
-    interface ExecutionEngine<int,ArithmeticsResourceType> with
+    interface ExecutionEngine<ArithmeticsResource, ArithmeticsResourceType> with
         member __.ImplementationOf s =
             match s with
-            //| Number n -> OperatorImplementation(task { return (int n) })
-            | Identifier "fib"
-            | Identifier "+" -> opFib
+            | Number n ->
+                OperatorImplementation(
+                    Requirements<ArithmeticsResourceType>.Null,
+                    fun _ args ->
+                        task {
+                            let a = args[0]
+                            a.Contents <- n
+                            return a
+                        }
+                )
+            //         | Identifier "fib"
+//         | Identifier "+" -> opFib
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"
 
-type Interpreter<'t,'ResourceType when 'ResourceType : equality>(executionEngine: ExecutionEngine<'t,'ResourceType>) =
-    let computeUnits = new Dictionary<int, ComputeUnit<'t,'ResourceType>>()
+// type Interpreter<'t, 'ResourceType when 'ResourceType: equality>(executionEngine: ExecutionEngine<'t, 'ResourceType>) =
+//     let computeUnits = new Dictionary<int, ComputeUnit<'t, 'ResourceType>>()
 
-    member __.Prepare(program: WorkPlan) =
-        Array.iteri
-            (fun id operation ->
-                let arguments =
-                    Seq.toArray
-                    <| Seq.map (fun i -> computeUnits[i]) operation.arguments
+//     member __.Prepare(program: WorkPlan) =
+//         Array.iteri
+//             (fun id operation ->
+//                 let arguments =
+//                     Seq.toArray
+//                     <| Seq.map (fun i -> computeUnits[i]) operation.arguments
 
-                computeUnits[id] <- ComputeUnit(
-                    executionEngine,
-                    executionEngine.ImplementationOf operation.operator,
-                    arguments
-                ))
-            program.operations
+//                 computeUnits[id] <- ComputeUnit(
+//                     executionEngine,
+//                     executionEngine.ImplementationOf operation.operator,
+//                     arguments
+//                 ))
+//             program.operations
 
-    member __.Query(id: OperationId) =
-        assert computeUnits.ContainsKey id
-        System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
+//     member __.Query(id: OperationId) =
+//         assert computeUnits.ContainsKey id
+//         System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
 
-        for cu in computeUnits.Values do // TODO: allocate resources
-            cu.Run()
+//         for cu in computeUnits.Values do // TODO: allocate resources
+//             cu.Run()
 
-        computeUnits[id].Task
+//         computeUnits[id].Task
 
-    member __.A = ()
+//     member __.A = ()
