@@ -17,30 +17,25 @@ SEE https://docs.microsoft.com/en-us/archive/msdn-magazine/2019/october/csharp-a
 http://moiraesoftware.github.io/blog/2012/01/22/FSharp-Dataflow-agents-I/
 *)
 
-type ResourceType =
-    interface
-    end
-
-
 type ResourceKey = string
 
-type Requirements(dict: IReadOnlyDictionary<ResourceKey, ResourceType>) =
+type Requirements<'ResourceType>(dict: IReadOnlyDictionary<ResourceKey, 'ResourceType>) =
     member __.ByKey x = dict[x]
 
     static member Null = Requirements(new Dictionary<_, _>())
 
-    new(reqs: seq<ResourceKey * ResourceType>) =
-        assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
-        let dict = new Dictionary<_, _>()
+    // new(reqs: seq<ResourceKey * 'ResourceType>) =
+    //     assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
+    //     let dict = new Dictionary<_, _>()
 
-        for (resourceKey, resourceType) in reqs do
-            dict[resourceKey] <- resourceType
+    //     for (resourceKey, resourceType) in reqs do
+    //         dict[resourceKey] <- resourceType
 
-        Requirements(dict)
+    //     Requirements(dict)
 
-and Resource<'t>(value: 't, resourceType) =
+and Resource<'t, 'ResourceType>(value: 't, resourceType) =
     let mutable assignedTo = new HashSet<_>() // TODO: do this in debug; for release, use just a reference count.
-    member val ResourceType: ResourceType = resourceType
+    member val ResourceType: 'ResourceType = resourceType
     member __.AssignedTo = assignedTo
 
     member __.AssignTo resources = assignedTo.Add resources
@@ -51,11 +46,11 @@ and Resource<'t>(value: 't, resourceType) =
 
     member __.Value = value
 
-and Resources<'t>() =
-    let byKey = new Dictionary<ResourceKey, Resource<'t>>()
-    let byType = new Dictionary<ResourceType, list<Resource<'t>>>()
+and Resources<'t, 'ResourceType when 'ResourceType: equality>() =
+    let byKey = new Dictionary<ResourceKey, Resource<'t, 'ResourceType>>()
+    let byType = new Dictionary<'ResourceType, list<Resource<'t, 'ResourceType>>>()
 
-    member __.ComplyWith(requirements: Requirements) =
+    member __.ComplyWith(requirements: Requirements<'ResourceType>) =
         Seq.forall
             id
             (seq {
@@ -64,9 +59,11 @@ and Resources<'t>() =
             })
 
     member __.ByKey k = byKey[k]
-    member __.ByType t = byType[t] :> seq<Resource<'t>>
 
-    member this.Assign(k, resource: Resource<'t>) =
+    member __.ByType t =
+        byType[t] :> seq<Resource<'t, 'ResourceType>>
+
+    member this.Assign(k, resource: Resource<'t, 'ResourceType>) =
         assert not (byKey.ContainsKey k)
         byKey[k] <- resource
         let t = resource.ResourceType
@@ -83,22 +80,28 @@ and Resources<'t>() =
         byType.Clear()
         v
 
-type OperatorImplementation<'t>(requirements, run) =
+type OperatorImplementation<'t, 'ResourceType when 'ResourceType: equality>(requirements : 'ResourceType, run) =
     member __.Requires = requirements
 
-    member __.Run: Resources<'t> -> array<Resource<'t>> -> Task<Resource<'t>> =
-        fun resources args ->
-            assert resources.ComplyWith requirements
-            run resources args
+    // member __.Run: Resources<'t, 'ResourceType>
+    //     -> array<Resource<'t, 'ResourceType>>
+    //     -> Task<Resource<'t, 'ResourceType>> =
+    //     fun resources args ->
+    //         assert resources.ComplyWith requirements
+    //         run resources args
 
-    new(t) = OperatorImplementation(Requirements.Null, (fun _ _ -> t))
-    new(run) = OperatorImplementation(Requirements.Null, run)
+    // new(t) = OperatorImplementation(Requirements.Null, (fun _ _ -> t))
+    new(run) = OperatorImplementation(Requirements.Null : Requirements<'ResourceType>, run)
 
-type ExecutionEngine<'t> =
-    abstract member ImplementationOf: Operator -> OperatorImplementation<'t>
+type ExecutionEngine<'t, 'ResourceType when 'ResourceType: equality> =
+    abstract member ImplementationOf: Operator -> OperatorImplementation<'t, 'ResourceType>
 
-type ComputeUnit<'t>(operatorImplementation: OperatorImplementation<'t>, arguments: array<ComputeUnit<'t>>) =
-    let result = TaskCompletionSource<Resource<'t>>() // But see also the new Channel type in dotnet as an alternative.
+type ComputeUnit<'t, 'ResourceType when 'ResourceType: equality>
+    (
+        operatorImplementation: OperatorImplementation<'t, 'ResourceType>,
+        arguments: array<ComputeUnit<'t, 'ResourceType>>
+    ) =
+    let result = TaskCompletionSource<Resource<'t, 'ResourceType>>() // But see also the new Channel type in dotnet as an alternative.
     let mutable running = false
 
     member val Requirements = operatorImplementation.Requires
@@ -114,7 +117,9 @@ type ComputeUnit<'t>(operatorImplementation: OperatorImplementation<'t>, argumen
             ignore
             <| task {
                 let inputThreads =
-                    Array.map (fun (x: ComputeUnit<'t>) -> (x.Task: Task<Resource<'t>>)) arguments
+                    Array.map
+                        (fun (x: ComputeUnit<'t, 'ResourceType>) -> (x.Task: Task<Resource<'t, 'ResourceType>>))
+                        arguments
 
                 let! inputs = Task.WhenAll inputThreads
 
@@ -131,30 +136,33 @@ type ComputeUnit<'t>(operatorImplementation: OperatorImplementation<'t>, argumen
 
 // TEST
 
+
 let rec fib x =
     if x < 2 then
         1
     else
         fib (x - 1) + fib (x - 2)
 
-type A =
-    abstract member M : unit
+type ArithmeticsResourceType = ResInt
 
-type ArithmeticsResourceType = 
-    | ResInt
-    interface ResourceType with
-
-type ArithmeticsResource() = 
+type ArithmeticsResource() =
     static let mutable id = 0
+
     do
         ErrorMsg.Logger.Debug $"Resource #{id} created"
-        id <- id+1
+        id <- id + 1
 
-    member val Contents : int = 0 with get,set
+    member val Contents: int = 0 with get, set
 
 
 type Arithmetics() =
-    let opFib = OperatorImplementation(Requirements([("internal",ResInt)]),fun _ _ -> failwith "stub")
+    let opFib =
+        let reqs: seq<ResourceKey * ArithmeticsResourceType> = [ ("internal", ResInt) ]
+        let run _ _ = failwith "stub"
+        let d = new Dictionary<ResourceKey,ArithmeticsResourceType>() 
+        d.Add("internal",ResInt)
+        let d' = d :> IReadOnlyDictionary<_,_>
+        OperatorImplementation(Requirements d',run)
 
     //  (fun res args ->
 
@@ -172,16 +180,16 @@ type Arithmetics() =
     //     task.Start()
     //     task)
 
-    interface ExecutionEngine<int> with
+    interface ExecutionEngine<int,ArithmeticsResourceType> with
         member __.ImplementationOf s =
             match s with
-            | Number n -> OperatorImplementation(task { return (int n) })
-            | (Identifier "fib"
-            | Identifier "+") -> opFib
+            //| Number n -> OperatorImplementation(task { return (int n) })
+            | Identifier "fib"
+            | Identifier "+" -> opFib
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"
 
-type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
-    let computeUnits = new Dictionary<int, ComputeUnit<'t>>()
+type Interpreter<'t,'ResourceType when 'ResourceType : equality>(executionEngine: ExecutionEngine<'t,'ResourceType>) =
+    let computeUnits = new Dictionary<int, ComputeUnit<'t,'ResourceType>>()
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
