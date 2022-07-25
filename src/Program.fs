@@ -43,9 +43,7 @@ let rec fib x =
     else
         fib (x - 1) + fib (x - 2)
 
-type ArithmeticsResourceType = IntCell
-type ArithmeticsResource() =
-
+type IntCell() =
     static let mutable id = 0
 
     do
@@ -58,25 +56,27 @@ type ArithmeticsResource() =
 
 type ArithmeticsResourceManager() =
 
-    interface Resources.IResourceManager<ArithmeticsResource,ArithmeticsResourceType> with
-        member __.Allocator(requirements) = 
-            let result = Resources()
-            for key in requirements.Keys do
-                result[key] <- ArithmeticsResource()
-            
-            failwith ""
+    interface Resources.IResourceManager<IntCell, unit> with
+        member __.Allocator(requirements) =
+            task {
+                let result = Resources()
 
+                for key in requirements.Keys do
+                    result[key] <- Resource(IntCell(), ())
+
+                return result
+            }
 
 type Arithmetics() =
-    let opFib =
+    let opFib = 
         OperatorImplementation(
-            Requirements([ ("internalAndResult", IntCell) ]),
+            Requirements([ ("internalAndResult", ()) ]),
             (fun resources args ->
                 let task =
                     new Task<_>(
                         (fun () ->
                             ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${resources}"
-                            let inp = (args[0].Value: ArithmeticsResource)
+                            let inp = (args[0].Value: IntCell)
                             let resource = resources.ByKey "internalAndResult" // Same key as in the requirements
                             let result = fib inp.Contents // Could use resource if needed
                             resource.Value.Contents <- result
@@ -89,12 +89,12 @@ type Arithmetics() =
                 task)
         )
 
-    interface ExecutionEngine<ArithmeticsResource, ArithmeticsResourceType> with
+    interface ExecutionEngine<IntCell, unit> with
         member __.ImplementationOf s =
             match s with
             | Number n ->
-                OperatorImplementation(
-                    Requirements([ ("result", IntCell) ]),
+                OperatorImplementation<IntCell,unit>(
+                    Requirements([ ("result", ()) ]),
                     (fun resources _ ->
                         task {
                             let resource = resources["result"]
@@ -240,7 +240,7 @@ let main (argv: string array) =
 
         let engine = Arithmetics()
 
-        let interpreter = Interpreter(engine,failwith "stub")
+        let interpreter = Interpreter(engine, failwith "stub")
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)
