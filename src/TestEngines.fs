@@ -44,13 +44,14 @@ type Arithmetics() =
                 let task =
                     new Task<_>(
                         (fun () ->
-                            let tid = (args[1] : Resource<ArithmeticsResource,ArithmeticsResourceKind>).Value.Contents
-                            ErrorMsg.Logger.Debug $"[{tid}]: running fib({args}) on resources {resources}"
+                            let id = (args[1] : Resource<ArithmeticsResource,ArithmeticsResourceKind>).Value.Contents
+                            let argsStr = String.concat ", " (Seq.map string args)
+                            ErrorMsg.Logger.Debug $"[{id}]: running fib({argsStr}) on resources {resources}"
                             let inp = (args[0].Value: ArithmeticsResource)
                             let resource = resources.ByKey "internalAndResult" // Same key as in the requirements
                             let result = fib inp.Contents // Could use resource if needed
                             resource.Value.Contents <- result
-                            ErrorMsg.Logger.Debug $"[{tid}]: finished fib({args[0]}) on resources {resources}"
+                            ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"
                             resource), // NOTE: can return the same resource; if the result must be a different resource it must be added to the requirements with a specific key
                         TaskCreationOptions.PreferFairness
                     )
