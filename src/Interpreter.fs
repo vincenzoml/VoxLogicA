@@ -36,9 +36,7 @@ type ComputeUnit<'t,'kind when 'kind : equality>(operatorImplementation: Operato
 
     member val Requirements = operatorImplementation.Requires
 
-    member val Resources = Resources()
-
-    member this.Run() =
+    member __.Run(resources) =
         // assert this.Resources.ComplyWith this.Requirements
 
         if not running then
@@ -52,7 +50,7 @@ type ComputeUnit<'t,'kind when 'kind : equality>(operatorImplementation: Operato
                 let! inputs = Task.WhenAll inputThreads
 
                 try
-                    let! r = operatorImplementation.Run this.Resources inputs
+                    let! r = operatorImplementation.Run resources inputs
                     result.SetResult r
                 with
                 | e -> result.SetException e
@@ -63,7 +61,7 @@ type ComputeUnit<'t,'kind when 'kind : equality>(operatorImplementation: Operato
 // let runTaskGraph (program: WorkPlan) = Array.mapi mkComputeUnit program.tasks
 
 
-type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngine<'t,'kind>) =
+type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngine<'t,'kind>,resourceManager: IResourceManager<'t,'kind>) =
     let computeUnits = new Dictionary<int, ComputeUnit<'t,'kind>>()
 
     member __.Prepare(program: WorkPlan) =
@@ -81,9 +79,12 @@ type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngin
 
     member __.Query(id: OperationId) =
         assert computeUnits.ContainsKey id
-        System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
+        task {
+            System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
 
-        for cu in computeUnits.Values do // TODO: allocate resources
-            cu.Run()
+            for cu in computeUnits.Values do
+                let! resources = resourceManager.Allocator(cu.Requirements)
+                cu.Run(resources)
 
-        computeUnits[id].Task
+            return! computeUnits[id].Task
+        }

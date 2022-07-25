@@ -30,8 +30,12 @@ type CmdLine =
             | SaveSyntax _ -> "save the AST in text format and exit"
             | Filename _ -> "VoxLogicA session file"
 
-
 // TEST
+
+open VoxLogicA.Interpreter
+open VoxLogicA.Resources
+open System.Threading.Tasks
+open VoxLogicA.Reducer
 
 let rec fib x =
     if x < 2 then
@@ -39,7 +43,9 @@ let rec fib x =
     else
         fib (x - 1) + fib (x - 2)
 
+type ArithmeticsResourceType = IntCell
 type ArithmeticsResource() =
+
     static let mutable id = 0
 
     do
@@ -50,26 +56,28 @@ type ArithmeticsResource() =
 
     override __.ToString() = $"Resource #{id}"
 
-// TEST
+type ArithmeticsResourceManager() =
 
-open VoxLogicA.Interpreter
-open VoxLogicA.Resources
-open System.Threading.Tasks
-open VoxLogicA.Reducer
+    interface Resources.IResourceManager<ArithmeticsResource,ArithmeticsResourceType> with
+        member __.Allocator(requirements) = 
+            let result = Resources()
+            for key in requirements.Keys do
+                result[key] <- ArithmeticsResource()
+            
+            failwith ""
 
-type ArithmeticsResourceType = IntCell
 
 type Arithmetics() =
     let opFib =
         OperatorImplementation(
-            Requirements([ ("internal", IntCell) ]),
+            Requirements([ ("internalAndResult", IntCell) ]),
             (fun resources args ->
                 let task =
                     new Task<_>(
                         (fun () ->
                             ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${resources}"
                             let inp = (args[0].Value: ArithmeticsResource)
-                            let resource = resources.ByKey "internal" // Same key as in the requirements
+                            let resource = resources.ByKey "internalAndResult" // Same key as in the requirements
                             let result = fib inp.Contents // Could use resource if needed
                             resource.Value.Contents <- result
                             ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${resources}"
@@ -232,7 +240,7 @@ let main (argv: string array) =
 
         let engine = Arithmetics()
 
-        let interpreter = Interpreter.Interpreter(engine)
+        let interpreter = Interpreter(engine,failwith "stub")
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)

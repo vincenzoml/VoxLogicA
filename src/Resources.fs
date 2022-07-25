@@ -5,6 +5,8 @@ open System.Collections.Generic
 type ResourceKey = string
 
 type Requirements<'kind>(dict: IReadOnlyDictionary<ResourceKey, 'kind>) =
+    inherit Dictionary<ResourceKey,'kind>(dict)
+
     member __.ByKey x = dict[x]
 
     new(reqs: seq<ResourceKey * 'kind>) =
@@ -40,9 +42,14 @@ and Resources<'t,'kind when 'kind : equality>() =
                     yield requirements.ByKey kv.Key = kv.Value.ResourceType
             })
 
-    member __.ByKey k = byKey[k]
+    member __.ByKey k =
+        try
+            byKey[k]
+        with :? KeyNotFoundException ->
+            ErrorMsg.fail $"Resource not available: {k}"
+
     member __.ByType t = byType[t] :> seq<Resource<'t,'kind>>
-    member __.Item k = byKey[k]
+    member __.Item = __.ByKey
 
     member this.Assign(k, resource: Resource<'t,'kind>) =
         assert not (byKey.ContainsKey k)
@@ -62,5 +69,6 @@ and Resources<'t,'kind when 'kind : equality>() =
         v
 
 open System.Threading.Tasks
-type ResourceManager<'t,'kind when 'kind : equality> =
-    abstract member Allocator : 'kind -> Task<'t>
+
+type IResourceManager<'t,'kind when 'kind : equality> =
+    abstract member Allocator : Requirements<'kind> -> Task<Resources<'t,'kind>>
