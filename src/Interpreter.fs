@@ -38,8 +38,8 @@ type ComputeUnit<'t,'kind when 'kind : equality>(operatorImplementation: Operato
 
     member val Requirements = operatorImplementation.Requires
 
-    member this.Run(resources) =
-        // assert this.Resources.ComplyWith this.Requirements
+    member this.Run(resources : Resources<'t,'kind>) =
+        assert resources.ComplyWith this.Requirements
         assert not running
         running <- true
 
@@ -61,9 +61,12 @@ type ComputeUnit<'t,'kind when 'kind : equality>(operatorImplementation: Operato
 
 // let runTaskGraph (program: WorkPlan) = Array.mapi mkComputeUnit program.tasks
 
+type Scheduler<'t,'kind when 'kind : equality> =
+    member __.X = ""
 
-type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngine<'t,'kind>,resourceManager: IResourceManager<'t,'kind>) =
+type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngine<'t,'kind>,resourceManager: ResourceManager<'t,'kind>) =
     let computeUnits = new Dictionary<int, ComputeUnit<'t,'kind>>()
+    let ready = new Dictionary<_,_>(computeUnits)
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
@@ -78,15 +81,31 @@ type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngin
                 ))
             program.operations
 
-    member __.Query(id: OperationId) =
+    member __.QueryAsync(id: OperationId) =
         assert computeUnits.ContainsKey id
         task {
-            System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
+            let run id (resources : Resources<'t,'kind>) = task {
+                    let cu = ready[id]
+                    ignore <| ready.Remove id
+                    cu.Run resources
+                    let! _ = cu.Task
+                    resourceManager.Return resources
+            }
 
-            for cu in computeUnits.Values do
-                if not cu.Running then
-                    let! resources = resourceManager.Allocator(cu.Requirements)
-                    cu.Run(resources)
+            // System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
+            for cuId in Seq.filter ((<=) id) ready.Keys do
+                let cu = computeUnits[cuId]
 
-            return! computeUnits[id].Task
+                let resourcesOpt = resourceManager.Allocate(cu.Requirements)
+                match resourcesOpt with
+                    | Some resources ->
+                        do! run cuId resources
+                    | None ->
+                        let! resourcesOpt = resourceManager.Wait cu.Requirements
+                        match resourcesOpt with
+                        | None -> ErrorMsg.fail $"Not enough resources to satisfy requirement {cu.Requirements} for computeUnit #{id}"
+                        | Some resources ->
+                            do! run cuId resources
+
+            return computeUnits[id].Task
         }

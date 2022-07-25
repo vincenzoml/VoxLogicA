@@ -4,6 +4,7 @@ open VoxLogicA.Interpreter
 open VoxLogicA.Resources
 open System.Threading.Tasks
 open VoxLogicA.Reducer
+open System.Collections.Generic
 
 let rec fib x =
     if x < 2 then
@@ -11,30 +12,26 @@ let rec fib x =
     else
         fib (x - 1) + fib (x - 2)
 
-type FibResource() =
+
+type FibResourceKind = KIntCell
+type FibResource private () =
+    let max = 10
     static let mutable id = 0
     let myId = id
 
     do
-        ErrorMsg.Logger.Debug $"Resource #{id} created"
-        id <- id + 1
+        if id < max then
+            ErrorMsg.Logger.Debug $"Resource #{id} created"
+            id <- id + 1
+        else
+            failwith ""
+
+    static member NewResourceManager () = new Resources.ResourceManager<_,_>(fun _ -> Resources.Resource(FibResource(),KIntCell))
 
     member val Contents: int = 0 with get, set
 
     override this.ToString() = $"#{myId} = {this.Contents}"
 
-type FibResourceKind = KIntCell
-type FibResourceManager() =
-
-    interface Resources.IResourceManager<FibResource, FibResourceKind> with
-        member __.Allocator(requirements) =
-            task {
-                let result = Resources()
-
-                Seq.iter (fun key -> result.Assign key (Resource(FibResource(),requirements.AsDictionary[key]))) requirements.AsDictionary.Keys
-
-                return result
-            }
 
 type Fib() =
     let opFib =

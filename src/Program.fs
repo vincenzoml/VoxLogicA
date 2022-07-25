@@ -164,7 +164,7 @@ let main (argv: string array) =
             System.IO.File.WriteAllText(filename, program.ToDot())
 
         let engine = Fib()
-        let resourceManager = FibResourceManager()
+        let resourceManager = FibResource.NewResourceManager()
 
         let interpreter = Interpreter(engine, resourceManager)
 
@@ -179,7 +179,7 @@ let main (argv: string array) =
                     | (Reducer.GoalSave (label, id)
                     | Reducer.GoalPrint (label, id)) ->
                         task {
-                            let! result = interpreter.Query id
+                            let! result = interpreter.QueryAsync id
                             ErrorMsg.Logger.Result label result
                         }
                         :> System.Threading.Tasks.Task)
