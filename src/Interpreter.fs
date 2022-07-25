@@ -19,22 +19,19 @@ SEE https://docs.microsoft.com/en-us/archive/msdn-magazine/2019/october/csharp-a
 http://moiraesoftware.github.io/blog/2012/01/22/FSharp-Dataflow-agents-I/
 *)
 
-type OperatorImplementation<'t>(requirements, run) =
+type OperatorImplementation<'t,'kind when 'kind : equality>(requirements, run) =
     member __.Requires = requirements
 
-    member __.Run: Resources<'t> -> array<Resource<'t>> -> Task<Resource<'t>> =
+    member __.Run: Resources<'t,'kind> -> array<Resource<'t,'kind>> -> Task<Resource<'t,'kind>> =
         fun resources args ->
             assert resources.ComplyWith requirements
             run resources args
 
-    new(t) = OperatorImplementation(Requirements.Null, (fun _ _ -> t))
-    new(run) = OperatorImplementation(Requirements.Null, run)
+type ExecutionEngine<'t,'kind when 'kind : equality> =
+    abstract member ImplementationOf: Operator -> OperatorImplementation<'t,'kind>
 
-type ExecutionEngine<'t> =
-    abstract member ImplementationOf: Operator -> OperatorImplementation<'t>
-
-type ComputeUnit<'t>(operatorImplementation: OperatorImplementation<'t>, arguments: array<ComputeUnit<'t>>) =
-    let result = TaskCompletionSource<Resource<'t>>() // But see also the new Channel type in dotnet as an alternative.
+type ComputeUnit<'t,'kind when 'kind : equality>(operatorImplementation: OperatorImplementation<'t,'kind>, arguments: array<ComputeUnit<'t,'kind>>) =
+    let result = TaskCompletionSource<Resource<'t,'kind>>() // But see also the new Channel type in dotnet as an alternative.
     let mutable running = false
 
     member val Requirements = operatorImplementation.Requires
@@ -42,7 +39,7 @@ type ComputeUnit<'t>(operatorImplementation: OperatorImplementation<'t>, argumen
     member val Resources = Resources()
 
     member this.Run() =
-        assert this.Resources.ComplyWith this.Requirements
+        // assert this.Resources.ComplyWith this.Requirements
 
         if not running then
             running <- true
@@ -50,7 +47,7 @@ type ComputeUnit<'t>(operatorImplementation: OperatorImplementation<'t>, argumen
             ignore
             <| task {
                 let inputThreads =
-                    Array.map (fun (x: ComputeUnit<'t>) -> (x.Task: Task<Resource<'t>>)) arguments
+                    Array.map (fun (x: ComputeUnit<'t,'kind>) -> (x.Task: Task<Resource<'t,'kind>>)) arguments
 
                 let! inputs = Task.WhenAll inputThreads
 
@@ -65,76 +62,9 @@ type ComputeUnit<'t>(operatorImplementation: OperatorImplementation<'t>, argumen
 
 // let runTaskGraph (program: WorkPlan) = Array.mapi mkComputeUnit program.tasks
 
-// TEST
 
-let rec fib x =
-    if x < 2 then
-        1
-    else
-        fib (x - 1) + fib (x - 2)
-
-type A =
-    abstract member M: unit
-
-type ArithmeticsResourceType =
-    | ResInt
-    interface ResourceType
-
-type ArithmeticsResource() =
-    static let mutable id = 0
-
-    do
-        ErrorMsg.Logger.Debug $"Resource #{id} created"
-        id <- id + 1
-
-    member val Contents: int = 0 with get, set
-
-    override __.ToString() = $"Resource #{id}"
-
-
-type Arithmetics() =
-    let opFib =
-        OperatorImplementation(
-            Requirements([ ("internal", ResInt :> ResourceType) ]),
-            (fun resources args ->
-
-                let task =
-
-                    new Task<_>(
-                        (fun () ->
-                            ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${resources}"
-                            let inp = (args[0].Value: ArithmeticsResource)
-                            let resource = resources.ByKey "internal" // Same key as in the requirements
-                            let result = fib inp.Contents // Could use resource if needed
-                            resource.Value.Contents <- result
-                            ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${resources}"
-                            resource), // NOTE: can return the same resource; if the result must be a different resource it must be added to the requirements with a specific key
-                        TaskCreationOptions.PreferFairness
-                    )
-
-                task.Start()
-                task)
-        )
-
-    interface ExecutionEngine<ArithmeticsResource> with
-        member __.ImplementationOf s =
-            match s with
-            | Number n ->
-                OperatorImplementation(
-                    Requirements([ ("result", ResInt :> ResourceType) ]),
-                    (fun resources _ ->
-                        task {
-                            let resource = resources["result"]
-                            resource.Value.Contents <- int n
-                            return resource
-                        })
-                )
-            | (Identifier "fib"
-            | Identifier "+") -> opFib
-            | _ -> ErrorMsg.fail $"Unknown operator: {s}"
-
-type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
-    let computeUnits = new Dictionary<int, ComputeUnit<'t>>()
+type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngine<'t,'kind>) =
+    let computeUnits = new Dictionary<int, ComputeUnit<'t,'kind>>()
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
@@ -144,7 +74,6 @@ type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
                     <| Seq.map (fun i -> computeUnits[i]) operation.arguments
 
                 computeUnits[id] <- ComputeUnit(
-                    executionEngine,
                     executionEngine.ImplementationOf operation.operator,
                     arguments
                 ))
@@ -158,5 +87,3 @@ type Interpreter<'t>(executionEngine: ExecutionEngine<'t>) =
             cu.Run()
 
         computeUnits[id].Task
-
-    member __.A = ()

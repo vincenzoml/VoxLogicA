@@ -21,19 +21,84 @@ type CmdLine =
             | Ops -> "display a list of all the internal operators, with their types and a brief description"
             | JSon _ ->
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
-            | Sequential ->
-                "wait for each thread to complete before starting a new one; useful for debugging"
-            | Version ->
-                "print the voxlogica version and exit"
+            | Sequential -> "wait for each thread to complete before starting a new one; useful for debugging"
+            | Version -> "print the voxlogica version and exit"
             | PerformanceTest _ ->
                 "do not load or save actual images; always use the given file instead; useful to measure raw speed"
-            | SaveTaskGraph _ ->
-                "save the task graph"
-            | SaveTaskGraphAsDot _ ->
-                "save the task graph in .dot format and exit"
-            | SaveSyntax _ ->
-                "save the AST in text format and exit"
+            | SaveTaskGraph _ -> "save the task graph"
+            | SaveTaskGraphAsDot _ -> "save the task graph in .dot format and exit"
+            | SaveSyntax _ -> "save the AST in text format and exit"
             | Filename _ -> "VoxLogicA session file"
+
+
+// TEST
+
+let rec fib x =
+    if x < 2 then
+        1
+    else
+        fib (x - 1) + fib (x - 2)
+
+type ArithmeticsResource() =
+    static let mutable id = 0
+
+    do
+        ErrorMsg.Logger.Debug $"Resource #{id} created"
+        id <- id + 1
+
+    member val Contents: int = 0 with get, set
+
+    override __.ToString() = $"Resource #{id}"
+
+// TEST
+
+open VoxLogicA.Interpreter
+open VoxLogicA.Resources
+open System.Threading.Tasks
+open VoxLogicA.Reducer
+
+type ArithmeticsResourceType = IntCell
+
+type Arithmetics() =
+    let opFib =
+        OperatorImplementation(
+            Requirements([ ("internal", IntCell) ]),
+            (fun resources args ->
+                let task =
+                    new Task<_>(
+                        (fun () ->
+                            ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${resources}"
+                            let inp = (args[0].Value: ArithmeticsResource)
+                            let resource = resources.ByKey "internal" // Same key as in the requirements
+                            let result = fib inp.Contents // Could use resource if needed
+                            resource.Value.Contents <- result
+                            ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${resources}"
+                            resource), // NOTE: can return the same resource; if the result must be a different resource it must be added to the requirements with a specific key
+                        TaskCreationOptions.PreferFairness
+                    )
+
+                task.Start()
+                task)
+        )
+
+    interface ExecutionEngine<ArithmeticsResource, ArithmeticsResourceType> with
+        member __.ImplementationOf s =
+            match s with
+            | Number n ->
+                OperatorImplementation(
+                    Requirements([ ("result", IntCell) ]),
+                    (fun resources _ ->
+                        task {
+                            let resource = resources["result"]
+                            resource.Value.Contents <- int n
+                            return resource
+                        })
+                )
+            | (Identifier "fib"
+            | Identifier "+") -> opFib
+            | _ -> ErrorMsg.fail $"Unknown operator: {s}"
+
+// TEST END
 
 [<EntryPoint>]
 let main (argv: string array) =
@@ -41,11 +106,17 @@ let main (argv: string array) =
     let version = name.Version
 
     let informationalVersion =
-        ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
+        ((Assembly
+            .GetEntryAssembly()
+            .GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0])
+        :?> AssemblyInformationalVersionAttribute)
+            .InformationalVersion
+
     let cmdLineParser =
         ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
 
     let parsed = cmdLineParser.Parse argv
+
     if Option.isSome (parsed.TryGetResult Version) then
         printfn "%s" informationalVersion
         exit 0
@@ -99,24 +170,30 @@ let main (argv: string array) =
     //         ErrorMsg.Logger.LogToStdout ()
     //         ignore
 
-    ErrorMsg.Logger.LogToStdout ()
+    ErrorMsg.Logger.LogToStdout()
+
     if version.Revision <> 0 then
-        ErrorMsg.Logger.Warning
-            (sprintf
+        ErrorMsg.Logger.Warning(
+            sprintf
                 "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d."
-                 name.Name
-                 version.Major
-                 version.Minor
-                 version.Build)
+                name.Name
+                version.Major
+                version.Minor
+                version.Build
+        )
+
     try
 
         let filename =
-            if parsed.Contains Filename then parsed.GetResult Filename else "src/test.imgql"
-            // try (parsed.GetResult Filename)
-            // with _ ->
-            //     printfn "%s version: %s" name.Name informationalVersion
-            //     printfn "%s\n" (cmdLineParser.PrintUsage())
-            //     exit 0
+            if parsed.Contains Filename then
+                parsed.GetResult Filename
+            else
+                "src/test.imgql"
+        // try (parsed.GetResult Filename)
+        // with _ ->
+        //     printfn "%s version: %s" name.Name informationalVersion
+        //     printfn "%s\n" (cmdLineParser.PrintUsage())
+        //     exit 0
 
         ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
 
@@ -127,12 +204,12 @@ let main (argv: string array) =
 
         if parsed.Contains SaveSyntax then
             let filenameOpt = parsed.GetResult SaveSyntax
+
             match filenameOpt with
             | Some filename ->
                 ErrorMsg.Logger.Debug $"Saving the abstract syntax to {filename}"
-                System.IO.File.WriteAllText(filename,$"{syntax}")
-            | None ->
-                ErrorMsg.Logger.Debug $"{syntax}"
+                System.IO.File.WriteAllText(filename, $"{syntax}")
+            | None -> ErrorMsg.Logger.Debug $"{syntax}"
 
         let program = Reducer.reduceProgram syntax
 
@@ -141,36 +218,39 @@ let main (argv: string array) =
 
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph
+
             match filenameOpt with
             | Some filename ->
                 ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
-                System.IO.File.WriteAllText(filename,$"{program}")
-            | None ->
-                ErrorMsg.Logger.Debug $"{program}"
+                System.IO.File.WriteAllText(filename, $"{program}")
+            | None -> ErrorMsg.Logger.Debug $"{program}"
 
         if parsed.Contains SaveTaskGraphAsDot then
             let filename = parsed.GetResult SaveTaskGraphAsDot
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
-            System.IO.File.WriteAllText(filename,program.ToDot())
+            System.IO.File.WriteAllText(filename, program.ToDot())
 
-        let engine = Interpreter.Arithmetics()
+        let engine = Arithmetics()
 
         let interpreter = Interpreter.Interpreter(engine)
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)
         ErrorMsg.Logger.Debug "Running interpreter"
+
         let tasks =
             Seq.map
                 (fun goal ->
                     match goal with
-                    | (Reducer.GoalSave(label,id)|Reducer.GoalPrint(label,id)) ->
+                    | (Reducer.GoalSave (label, id)
+                    | Reducer.GoalPrint (label, id)) ->
                         task {
                             let! result = interpreter.Query id
                             ErrorMsg.Logger.Result label result
-                        } :> System.Threading.Tasks.Task)
-                program.goals |>
-            Seq.toArray
+                        }
+                        :> System.Threading.Tasks.Task)
+                program.goals
+            |> Seq.toArray
 
         System.Threading.Tasks.Task.WaitAll tasks
         ErrorMsg.Logger.Debug "All done."
@@ -197,7 +277,8 @@ let main (argv: string array) =
         //     run "test.imgql"
 
         0
-    with e ->
+    with
+    | e ->
         ErrorMsg.Logger.DebugExn e
         raise e
         // finish (Some e)

@@ -2,19 +2,12 @@ module VoxLogicA.Resources
 
 open System.Collections.Generic
 
-type ResourceType =
-    interface
-    end
-
-
 type ResourceKey = string
 
-type Requirements(dict: IReadOnlyDictionary<ResourceKey, ResourceType>) =
+type Requirements<'kind>(dict: IReadOnlyDictionary<ResourceKey, 'kind>) =
     member __.ByKey x = dict[x]
 
-    static member Null = Requirements(new Dictionary<_, _>())
-
-    new(reqs: seq<ResourceKey * ResourceType>) =
+    new(reqs: seq<ResourceKey * 'kind>) =
         assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
         let dict = new Dictionary<_, _>()
 
@@ -22,9 +15,9 @@ type Requirements(dict: IReadOnlyDictionary<ResourceKey, ResourceType>) =
 
         Requirements(dict)
 
-and Resource<'t>(value: 't, resourceType) =
-    let mutable assignedTo = new HashSet<Resources<'t>>() // TODO: do this in debug; for release, use just a reference count.
-    member val ResourceType: ResourceType = resourceType
+and Resource<'t,'kind when 'kind : equality>(value: 't, resourceType : 'kind) =
+    let mutable assignedTo = new HashSet<Resources<'t,'kind>>() // TODO: do this in debug; for release, use just a reference count.
+    member val ResourceType: 'kind = resourceType
     member __.AssignedTo = assignedTo
 
     member __.AssignTo resources = assignedTo.Add resources
@@ -35,11 +28,11 @@ and Resource<'t>(value: 't, resourceType) =
 
     member __.Value = value
 
-and Resources<'t>() =
-    let byKey = new Dictionary<ResourceKey, Resource<'t>>()
-    let byType = new Dictionary<ResourceType, list<Resource<'t>>>()
+and Resources<'t,'kind when 'kind : equality>() =
+    let byKey = new Dictionary<ResourceKey, Resource<'t,'kind>>()
+    let byType = new Dictionary<'kind, list<Resource<'t,'kind>>>()
 
-    member __.ComplyWith(requirements: Requirements) =
+    member __.ComplyWith(requirements: Requirements<'kind>) =
         Seq.forall
             id
             (seq {
@@ -48,10 +41,10 @@ and Resources<'t>() =
             })
 
     member __.ByKey k = byKey[k]
-    member __.ByType t = byType[t] :> seq<Resource<'t>>
+    member __.ByType t = byType[t] :> seq<Resource<'t,'kind>>
     member __.Item k = byKey[k]
 
-    member this.Assign(k, resource: Resource<'t>) =
+    member this.Assign(k, resource: Resource<'t,'kind>) =
         assert not (byKey.ContainsKey k)
         byKey[k] <- resource
         let t = resource.ResourceType
@@ -67,3 +60,7 @@ and Resources<'t>() =
         byKey.Clear()
         byType.Clear()
         v
+
+open System.Threading.Tasks
+type ResourceManager<'t,'kind when 'kind : equality> =
+    abstract member Allocator : 'kind -> Task<'t>
