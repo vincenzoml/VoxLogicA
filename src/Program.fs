@@ -163,8 +163,8 @@ let main (argv: string array) =
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
             System.IO.File.WriteAllText(filename, program.ToDot())
 
-        let engine = Arithmetics()
-        let resourceManager = ArithmeticsResourceManager()
+        let engine = Fib()
+        let resourceManager = FibResourceManager()
 
         let interpreter = Interpreter(engine, resourceManager)
 

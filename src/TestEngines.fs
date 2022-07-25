@@ -11,7 +11,7 @@ let rec fib x =
     else
         fib (x - 1) + fib (x - 2)
 
-type ArithmeticsResource() =
+type FibResource() =
     static let mutable id = 0
     let myId = id
 
@@ -23,31 +23,31 @@ type ArithmeticsResource() =
 
     override this.ToString() = $"#{myId} = {this.Contents}"
 
-type ArithmeticsResourceKind = KIntCell
-type ArithmeticsResourceManager() =
+type FibResourceKind = KIntCell
+type FibResourceManager() =
 
-    interface Resources.IResourceManager<ArithmeticsResource, ArithmeticsResourceKind> with
+    interface Resources.IResourceManager<FibResource, FibResourceKind> with
         member __.Allocator(requirements) =
             task {
                 let result = Resources()
 
-                Seq.iter (fun key -> result.Assign key (Resource(ArithmeticsResource(),requirements.AsDictionary[key]))) requirements.AsDictionary.Keys
+                Seq.iter (fun key -> result.Assign key (Resource(FibResource(),requirements.AsDictionary[key]))) requirements.AsDictionary.Keys
 
                 return result
             }
 
-type Arithmetics() =
+type Fib() =
     let opFib =
         OperatorImplementation(
-            Requirements([ ("internalAndResult", KIntCell) ]),
+            Requirements([ ("internalAndResult", KIntCell); ("unused", KIntCell) ]),
             (fun resources args ->
                 let task =
                     new Task<_>(
                         (fun () ->
-                            let id = (args[1] : Resource<ArithmeticsResource,ArithmeticsResourceKind>).Value.Contents
+                            let id = (args[1] : Resource<FibResource,FibResourceKind>).Value.Contents
                             let argsStr = String.concat ", " (Seq.map string args)
                             ErrorMsg.Logger.Debug $"[{id}]: running fib({argsStr}) on resources {resources}"
-                            let inp = (args[0].Value: ArithmeticsResource)
+                            let inp = (args[0].Value: FibResource)
                             let resource = resources.ByKey "internalAndResult" // Same key as in the requirements
                             let result = fib inp.Contents // Could use resource if needed
                             resource.Value.Contents <- result
@@ -60,7 +60,7 @@ type Arithmetics() =
                 task)
         )
 
-    interface ExecutionEngine<ArithmeticsResource, ArithmeticsResourceKind> with
+    interface ExecutionEngine<FibResource, FibResourceKind> with
         member __.ImplementationOf s =
             match s with
             | Number n ->
