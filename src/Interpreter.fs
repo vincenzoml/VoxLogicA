@@ -34,27 +34,28 @@ type ComputeUnit<'t,'kind when 'kind : equality>(operatorImplementation: Operato
     let result = TaskCompletionSource<Resource<'t,'kind>>() // But see also the new Channel type in dotnet as an alternative.
     let mutable running = false
 
+    member __.Running = running
+
     member val Requirements = operatorImplementation.Requires
 
-    member __.Run(resources) =
+    member this.Run(resources) =
         // assert this.Resources.ComplyWith this.Requirements
+        assert not running
+        running <- true
 
-        if not running then
-            running <- true
+        ignore
+        <| task {
+            let inputThreads =
+                Array.map (fun (x: ComputeUnit<'t,'kind>) -> (x.Task: Task<Resource<'t,'kind>>)) arguments
 
-            ignore
-            <| task {
-                let inputThreads =
-                    Array.map (fun (x: ComputeUnit<'t,'kind>) -> (x.Task: Task<Resource<'t,'kind>>)) arguments
+            let! inputs = Task.WhenAll inputThreads
 
-                let! inputs = Task.WhenAll inputThreads
-
-                try
-                    let! r = operatorImplementation.Run resources inputs
-                    result.SetResult r
-                with
-                | e -> result.SetException e
-            }
+            try
+                let! r = operatorImplementation.Run resources inputs
+                result.SetResult r
+            with
+            | e -> result.SetException e
+        }
 
     member __.Task = result.Task
 
@@ -83,8 +84,9 @@ type Interpreter<'t,'kind when 'kind : equality>(executionEngine: ExecutionEngin
             System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
 
             for cu in computeUnits.Values do
-                let! resources = resourceManager.Allocator(cu.Requirements)
-                cu.Run(resources)
+                if not cu.Running then
+                    let! resources = resourceManager.Allocator(cu.Requirements)
+                    cu.Run(resources)
 
             return! computeUnits[id].Task
         }

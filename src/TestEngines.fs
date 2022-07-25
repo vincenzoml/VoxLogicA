@@ -13,15 +13,15 @@ let rec fib x =
 
 type ArithmeticsResource() =
     static let mutable id = 0
+    let myId = id
 
     do
         ErrorMsg.Logger.Debug $"Resource #{id} created"
         id <- id + 1
 
-    member val private Id = id
     member val Contents: int = 0 with get, set
 
-    override this.ToString() = $"#{this.Id} = {this.Contents}"
+    override this.ToString() = $"#{myId} = {this.Contents}"
 
 type ArithmeticsResourceKind = KIntCell
 type ArithmeticsResourceManager() =
