@@ -5,9 +5,7 @@ open System.Collections.Generic
 type ResourceKey = string
 
 type Requirements<'kind>(dict: IReadOnlyDictionary<ResourceKey, 'kind>) =
-    inherit Dictionary<ResourceKey,'kind>(dict)
-
-    member __.ByKey x = dict[x]
+    member __.AsDictionary = dict
 
     new(reqs: seq<ResourceKey * 'kind>) =
         assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
@@ -22,7 +20,8 @@ and Resource<'t,'kind when 'kind : equality>(value: 't, resourceType : 'kind) =
     member val ResourceType: 'kind = resourceType
     member __.AssignedTo = assignedTo
 
-    member __.AssignTo resources = assignedTo.Add resources
+    member __.AssignTo resources =
+        ignore <| assignedTo.Add resources
 
     member __.Reclaim(res) =
         assert assignedTo.Contains res
@@ -39,7 +38,7 @@ and Resources<'t,'kind when 'kind : equality>() =
             id
             (seq {
                 for kv in byKey do
-                    yield requirements.ByKey kv.Key = kv.Value.ResourceType
+                    yield requirements.AsDictionary[kv.Key] = kv.Value.ResourceType
             })
 
     member __.ByKey k =
@@ -49,9 +48,9 @@ and Resources<'t,'kind when 'kind : equality>() =
             ErrorMsg.fail $"Resource not available: {k}"
 
     member __.ByType t = byType[t] :> seq<Resource<'t,'kind>>
-    member __.Item = __.ByKey
+    member __.Item with get x = byKey[x]
 
-    member this.Assign(k, resource: Resource<'t,'kind>) =
+    member this.Assign k (resource: Resource<'t,'kind>) =
         assert not (byKey.ContainsKey k)
         byKey[k] <- resource
         let t = resource.ResourceType

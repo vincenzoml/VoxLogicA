@@ -61,14 +61,13 @@ type ArithmeticsResourceManager() =
             task {
                 let result = Resources()
 
-                for key in requirements.Keys do
-                    result[key] <- Resource(IntCell(), ())
+                Seq.iter (fun key -> result.Assign key (Resource(IntCell(), ()))) requirements.AsDictionary.Keys
 
                 return result
             }
 
 type Arithmetics() =
-    let opFib = 
+    let opFib =
         OperatorImplementation(
             Requirements([ ("internalAndResult", ()) ]),
             (fun resources args ->
