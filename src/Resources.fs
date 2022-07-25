@@ -54,7 +54,7 @@ and Resources<'t,'kind when 'kind : equality>() =
         assert not (byKey.ContainsKey k)
         byKey[k] <- resource
         let t = resource.ResourceType
-        byType[t] <- resource :: byType[t]
+        byType[t] <- if byType.ContainsKey t then resource :: byType[t] else [resource]
         resource.AssignTo this
 
     member this.Reclaim() = // deliberately not fine-grained
@@ -66,6 +66,9 @@ and Resources<'t,'kind when 'kind : equality>() =
         byKey.Clear()
         byType.Clear()
         v
+
+    override __.ToString() =
+        byKey.ToString()
 
 open System.Threading.Tasks
 

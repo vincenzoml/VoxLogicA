@@ -30,82 +30,8 @@ type CmdLine =
             | SaveSyntax _ -> "save the AST in text format and exit"
             | Filename _ -> "VoxLogicA session file"
 
-// TEST
-
 open VoxLogicA.Interpreter
-open VoxLogicA.Resources
-open System.Threading.Tasks
-open VoxLogicA.Reducer
-
-let rec fib x =
-    if x < 2 then
-        1
-    else
-        fib (x - 1) + fib (x - 2)
-
-type IntCell() =
-    static let mutable id = 0
-
-    do
-        ErrorMsg.Logger.Debug $"Resource #{id} created"
-        id <- id + 1
-
-    member val Contents: int = 0 with get, set
-
-    override __.ToString() = $"Resource #{id}"
-
-type ArithmeticsResourceManager() =
-
-    interface Resources.IResourceManager<IntCell, unit> with
-        member __.Allocator(requirements) =
-            task {
-                let result = Resources()
-
-                Seq.iter (fun key -> result.Assign key (Resource(IntCell(), ()))) requirements.AsDictionary.Keys
-
-                return result
-            }
-
-type Arithmetics() =
-    let opFib =
-        OperatorImplementation(
-            Requirements([ ("internalAndResult", ()) ]),
-            (fun resources args ->
-                let task =
-                    new Task<_>(
-                        (fun () ->
-                            ErrorMsg.Logger.Debug $"{args[1]}]: running fib({args[0]}) on resources ${resources}"
-                            let inp = (args[0].Value: IntCell)
-                            let resource = resources.ByKey "internalAndResult" // Same key as in the requirements
-                            let result = fib inp.Contents // Could use resource if needed
-                            resource.Value.Contents <- result
-                            ErrorMsg.Logger.Debug $"{args[1]}]: finished fib({args[0]}) on resources ${resources}"
-                            resource), // NOTE: can return the same resource; if the result must be a different resource it must be added to the requirements with a specific key
-                        TaskCreationOptions.PreferFairness
-                    )
-
-                task.Start()
-                task)
-        )
-
-    interface ExecutionEngine<IntCell, unit> with
-        member __.ImplementationOf s =
-            match s with
-            | Number n ->
-                OperatorImplementation<IntCell,unit>(
-                    Requirements([ ("result", ()) ]),
-                    (fun resources _ ->
-                        task {
-                            let resource = resources["result"]
-                            resource.Value.Contents <- int n
-                            return resource
-                        })
-                )
-            | (Identifier "fib"
-            | Identifier "+") -> opFib
-            | _ -> ErrorMsg.fail $"Unknown operator: {s}"
-
-// TEST END
+open VoxLogicA.TestEngines
 
 [<EntryPoint>]
 let main (argv: string array) =
@@ -238,8 +164,9 @@ let main (argv: string array) =
             System.IO.File.WriteAllText(filename, program.ToDot())
 
         let engine = Arithmetics()
+        let resourceManager = ArithmeticsResourceManager()
 
-        let interpreter = Interpreter(engine, failwith "stub")
+        let interpreter = Interpreter(engine, resourceManager)
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)

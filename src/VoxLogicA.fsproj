@@ -47,6 +47,7 @@
     <Compile Include="Reducer.fs" />
     <Compile Include="Resources.fs" />
     <Compile Include="Interpreter.fs" />
+    <Compile Include="TestEngines.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
