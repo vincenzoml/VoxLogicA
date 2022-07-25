@@ -15,46 +15,55 @@ type Requirements<'kind>(dict: IReadOnlyDictionary<ResourceKey, 'kind>) =
 
         Requirements(dict)
 
-and Resource<'t,'kind when 'kind : equality>(value: 't, resourceType : 'kind) =
-    let mutable assignedTo = new HashSet<Resources<'t,'kind>>() // TODO: do this in debug; for release, use just a reference count.
-    member val ResourceType: 'kind = resourceType
+and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
+    let mutable assignedTo = new HashSet<Resources<'t, 'kind>>() // TODO: do this in debug; for release, use just a reference count.
+
     member __.AssignedTo = assignedTo
 
-    member __.AssignTo resources =
-        ignore <| assignedTo.Add resources
+    member __.AssignTo resources = ignore <| assignedTo.Add resources
 
     member __.Reclaim(res) =
         assert assignedTo.Contains res
         ignore <| assignedTo.Remove res // TODO: do this in debug; for release, use just a reference count.
 
     member __.Value = value
+    member __.Kind: 'kind = kind
 
-and Resources<'t,'kind when 'kind : equality>() =
-    let byKey = new Dictionary<ResourceKey, Resource<'t,'kind>>()
-    let byType = new Dictionary<'kind, list<Resource<'t,'kind>>>()
+    override __.ToString() = $"Resource [{value}: {kind}]"
+
+and Resources<'t, 'kind when 'kind: equality>() =
+    let byKey = new Dictionary<ResourceKey, Resource<'t, 'kind>>()
+    let byType = new Dictionary<'kind, list<Resource<'t, 'kind>>>()
 
     member __.ComplyWith(requirements: Requirements<'kind>) =
         Seq.forall
             id
             (seq {
                 for kv in byKey do
-                    yield requirements.AsDictionary[kv.Key] = kv.Value.ResourceType
+                    yield requirements.AsDictionary[kv.Key] = kv.Value.Kind
             })
 
     member __.ByKey k =
         try
             byKey[k]
-        with :? KeyNotFoundException ->
-            ErrorMsg.fail $"Resource not available: {k}"
+        with
+        | :? KeyNotFoundException -> ErrorMsg.fail $"Resource not available: {k}"
 
-    member __.ByType t = byType[t] :> seq<Resource<'t,'kind>>
-    member __.Item with get x = byKey[x]
+    member __.ByType t = byType[t] :> seq<Resource<'t, 'kind>>
 
-    member this.Assign k (resource: Resource<'t,'kind>) =
+    member __.Item
+        with get x = byKey[x]
+
+    member this.Assign k (resource: Resource<'t, 'kind>) =
         assert not (byKey.ContainsKey k)
         byKey[k] <- resource
-        let t = resource.ResourceType
-        byType[t] <- if byType.ContainsKey t then resource :: byType[t] else [resource]
+        let t = resource.Kind
+
+        byType[t] <- if byType.ContainsKey t then
+                         resource :: byType[t]
+                     else
+                         [ resource ]
+
         resource.AssignTo this
 
     member this.Reclaim() = // deliberately not fine-grained
@@ -67,10 +76,14 @@ and Resources<'t,'kind when 'kind : equality>() =
         byType.Clear()
         v
 
-    override __.ToString() =
-        byKey.ToString()
+    override __.ToString() = 
+        let strings = (seq { for k in byKey.Keys do yield $"{k} -> {byKey[k]}"})
+        let sep = ", "
+        let sstart = "{"
+        let send = "}"
+        $"{sstart} {String.concat sep strings} {send}"
 
 open System.Threading.Tasks
 
-type IResourceManager<'t,'kind when 'kind : equality> =
-    abstract member Allocator : Requirements<'kind> -> Task<Resources<'t,'kind>>
+type IResourceManager<'t, 'kind when 'kind: equality> =
+    abstract member Allocator: Requirements<'kind> -> Task<Resources<'t, 'kind>>
