@@ -186,6 +186,7 @@ let main (argv: string array) =
                 program.goals
             |> Seq.toArray
 
+        ErrorMsg.Logger.Debug "tasks launched, waiting..."
         System.Threading.Tasks.Task.WaitAll tasks
         ErrorMsg.Logger.Debug "All done."
 

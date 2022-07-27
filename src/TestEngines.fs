@@ -14,6 +14,7 @@ let rec fib x =
 
 
 type FibResourceKind = KIntCell
+
 type FibResource private () =
     let max = 10
     static let mutable id = 0
@@ -26,7 +27,8 @@ type FibResource private () =
         else
             failwith ""
 
-    static member NewResourceManager () = new Resources.ResourceManager<_,_>(fun _ -> Resources.Resource(FibResource(),KIntCell))
+    static member NewResourceManager() =
+        new Resources.ResourceManager<_, _>(fun _ -> Resources.Resource(FibResource(), KIntCell))
 
     member val Contents: int = 0 with get, set
 
@@ -36,25 +38,36 @@ type FibResource private () =
 type Fib() =
     let opFib =
         OperatorImplementation(
-            Requirements([ ("internalAndResult", KIntCell); ("unused", KIntCell) ]),
+            Requirements(
+                [ ("internalAndResult", KIntCell)
+                  ("unused", KIntCell) ]
+            ),
             (fun resources args ->
-                let task =
+                let t =
                     new Task<_>(
                         (fun () ->
-                            let id = (args[1] : Resource<FibResource,FibResourceKind>).Value.Contents
+                            let id =
+                                (args[1]: Resource<FibResource, FibResourceKind>)
+                                    .Value
+                                    .Contents
+
                             let argsStr = String.concat ", " (Seq.map string args)
                             ErrorMsg.Logger.Debug $"[{id}]: running fib({argsStr}) on resources {resources}"
                             let inp = (args[0].Value: FibResource)
-                            let resource = resources.ByKey "internalAndResult" // Same key as in the requirements
+                            let resource = resources["internalAndResult"]
                             let result = fib inp.Contents // Could use resource if needed
                             resource.Value.Contents <- result
-                            ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"
-                            resource), // NOTE: can return the same resource; if the result must be a different resource it must be added to the requirements with a specific key
+                            ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"), // NOTE: can return the same resource; if the result must be a different resource it must be added to the requirements with a specific key
                         TaskCreationOptions.PreferFairness
                     )
 
-                task.Start()
-                task)
+                t.Start()
+
+                let x =
+                    { task = t
+                      result = resources["internalAndResult"] }
+
+                task { return x })
         )
 
     interface ExecutionEngine<FibResource, FibResourceKind> with
@@ -67,9 +80,24 @@ type Fib() =
                         task {
                             let resource = resources["result"]
                             resource.Value.Contents <- int n
-                            return resource
+
+                            return
+                                { result = resource
+                                  task = Task.CompletedTask }
                         })
                 )
-            | (Identifier "fib"
-            | Identifier "+") -> opFib
+            | Identifier "fib" -> opFib
+            | Identifier "succ" ->
+                OperatorImplementation(
+                    Requirements([ ("result"), KIntCell ]),
+                    (fun resources args ->
+                        task {
+                            let resource = resources["result"]
+                            resource.Value.Contents <- args[0].Value.Contents + 1
+
+                            return
+                                { result = resource
+                                  task = Task.CompletedTask }
+                        })
+                )
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"

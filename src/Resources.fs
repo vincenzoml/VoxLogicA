@@ -1,26 +1,93 @@
 module VoxLogicA.Resources
 
 open System.Collections.Generic
+open System.Threading.Tasks
+open System.Linq
 
 type ResourceKey = string
 
+type ResourceData<'kind>() =
+    inherit Dictionary<ResourceKey, 'kind>()
 
-type Requirements<'kind>(dict: IReadOnlyDictionary<ResourceKey, 'kind>) =
-    member __.AsDictionary = dict
+    new(reqs: seq<ResourceKey * 'kind>) as this =
+        ResourceData() then
+        //assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
+            Seq.iter this.Add reqs
 
-    new(reqs: seq<ResourceKey * 'kind>) =
-        assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
-        let dict = new Dictionary<_, _>()
-
-        Seq.iter dict.Add reqs
-
-        Requirements(dict)
-
-    override __.ToString() =
+    override this.ToString() =
         let strings =
             (seq {
-                for k in dict.Keys do
-                    yield $"{k} -> {dict[k]}"
+                for k in this.Keys do
+                    yield $"{k} -> {this[k]}"
+            })
+
+        let sep = ", "
+        let sstart = "{"
+        let send = "}"
+        $"{sstart} {String.concat sep strings} {send}"
+
+and Requirements<'kind> = ResourceData<'kind>
+and Resources<'t, 'kind when 'kind: equality>() =
+    inherit ResourceData<Resource<'t,'kind>>()
+
+    member this.Respect(requirements : Requirements<'kind>) =
+        query {
+            for kv in requirements do
+            let key,kind = kv.Key,kv.Value
+            all (this[key].Kind = kind)
+        }
+
+    // let byKey = new Dictionary<ResourceKey, Resource<'t, 'kind>>()
+    // // let byType = new Dictionary<'kind, list<Resource<'t, 'kind>>>()
+
+    // member __.ComplyWith(requirements: Requirements<'kind>) =
+    //     Seq.forall
+    //         id
+    //         (seq {
+    //             for kv in byKey do
+    //                 yield requirements.AsDictionary[kv.Key] = kv.Value.Kind
+    //         })
+
+    // member __.Item
+    //     with get x = byKey[x]
+
+    // member __.Values = byKey.Values
+
+    // member __.ByKey k =
+    //     try
+    //         byKey[k]
+    //     with
+    //     | :? KeyNotFoundException -> ErrorMsg.fail $"Resource not available: {k}"
+
+    //member __.ByType t = byType[t] :> seq<Resource<'t, 'kind>>
+
+    // member this.Assign k (resource: Resource<'t, 'kind>) =
+    //     assert not (byKey.ContainsKey k)
+    //     byKey[k] <- resource
+    //     let t = resource.Kind
+
+    //     byType[t] <- if byType.ContainsKey t then
+    //                      resource :: byType[t]
+    //                  else
+    //                      [ resource ]
+
+    //     resource.AssignTo this
+
+    // member this.Reclaim() = // deliberately not fine-grained
+    //     let v = byKey.Values
+
+    //     for res in v do
+    //         res.Reclaim(this)
+
+    //     byKey.Clear()
+    //     byType.Clear()
+    //     v
+
+    override this.ToString() =
+        let strings =
+            (seq {
+                for k in this.Keys do
+                    yield $"{k} -> {this[k]}"
             })
 
         let sep = ", "
@@ -29,79 +96,23 @@ type Requirements<'kind>(dict: IReadOnlyDictionary<ResourceKey, 'kind>) =
         $"{sstart} {String.concat sep strings} {send}"
 
 and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
-    let mutable assignedTo = new HashSet<Resources<'t, 'kind>>() // TODO: do this in debug; for release, use just a reference count.
+    let assignedTo = new HashSet<obj>() // TODO: do this in debug; for release, use just a reference count.
 
-    member __.AssignedTo = assignedTo
+    member __.AssignedTo = assignedTo :> seq<obj>
 
-    member __.AssignTo resources = ignore <| assignedTo.Add resources
+    member __.AssignTo o =
+        assert (not (assignedTo.Contains o))
+        ignore <| assignedTo.Add o
 
-    member __.Reclaim(res) =
-        assert assignedTo.Contains res
-        ignore <| assignedTo.Remove res // TODO: do this in debug; for release, use just a reference count.
+    member __.Reclaim(o) =
+        // Do not "assert assignedTo.Contains o" because the result of an operation can be one of the resources passed as input or even one of the arguments
+        ignore <| assignedTo.Remove o // TODO: do this in debug; for release, use just a reference count.
 
     member __.Value = value
     member __.Kind: 'kind = kind
 
     override __.ToString() = $"Resource [{value}: {kind}]"
 
-and Resources<'t, 'kind when 'kind: equality>() =
-    let byKey = new Dictionary<ResourceKey, Resource<'t, 'kind>>()
-    let byType = new Dictionary<'kind, list<Resource<'t, 'kind>>>()
-
-    member __.ComplyWith(requirements: Requirements<'kind>) =
-        Seq.forall
-            id
-            (seq {
-                for kv in byKey do
-                    yield requirements.AsDictionary[kv.Key] = kv.Value.Kind
-            })
-
-    member __.ByKey k =
-        try
-            byKey[k]
-        with
-        | :? KeyNotFoundException -> ErrorMsg.fail $"Resource not available: {k}"
-
-    member __.ByType t = byType[t] :> seq<Resource<'t, 'kind>>
-
-    member __.Item
-        with get x = byKey[x]
-
-    member __.Values = byKey.Values
-
-    member this.Assign k (resource: Resource<'t, 'kind>) =
-        assert not (byKey.ContainsKey k)
-        byKey[k] <- resource
-        let t = resource.Kind
-
-        byType[t] <- if byType.ContainsKey t then
-                         resource :: byType[t]
-                     else
-                         [ resource ]
-
-        resource.AssignTo this
-
-    member this.Reclaim() = // deliberately not fine-grained
-        let v = byKey.Values
-
-        for res in v do
-            res.Reclaim(this)
-
-        byKey.Clear()
-        byType.Clear()
-        v
-
-    override __.ToString() =
-        let strings =
-            (seq {
-                for k in byKey.Keys do
-                    yield $"{k} -> {byKey[k]}"
-            })
-
-        let sep = ", "
-        let sstart = "{"
-        let send = "}"
-        $"{sstart} {String.concat sep strings} {send}"
 
 type Repository<'a, 'b when 'a: equality>() =
     let dict = Dictionary<'a, HashSet<'b>>()
@@ -133,38 +144,22 @@ type Repository<'a, 'b when 'a: equality>() =
 
     member __.Values = failwith "stub" // TODO: must remove duplicates Seq.concat dict.Values
 
-open System.Threading.Tasks
-
-// type IResourceManager<'t, 'kind when 'kind: equality> =
-//     abstract member Allocate: Requirements<'kind> -> Task<option<Resources<'t, 'kind>>>
-//     abstract member Wait: Requirements<'kind> -> Task<option<Resources<'t, 'kind>>>
-//     abstract member Return: Resources<'t, 'kind> -> Task
-//     abstract member CanWait: Requirements<'kind> -> bool
-
-open System.Linq
 
 type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> Resource<'t, 'kind>) =
     let allocated = Repository<'kind, Resource<'t, 'kind>>()
     let free = Repository<'kind, Resource<'t, 'kind>>()
 
-    // let available (requirements: Requirements<'kind>) =
-    //     query {
-    //         for kind in requirements.AsDictionary.Values do
-    //             groupBy kind into g
-    //             all (g.Count() < free[g.Key].Count)
-    //     }
-
     let satisfiable (requirements: Requirements<'kind>) =
         query {
-            for kind in requirements.AsDictionary.Values do
+            for kind in requirements.Values do
                 groupBy kind into g
                 all (g.Count() < free[g.Key].Count + allocated[g.Key].Count)
         }
 
-    let mutable waiters: list<Requirements<'kind> * TaskCompletionSource<option<Resources<'t, 'kind>>>> =
+    let mutable waiters: list<{| requirements : Requirements<'kind>; tcs: TaskCompletionSource<option<Resources<'t, 'kind>>> |}> =
         []
 
-    member __.Allocate(requirements: Requirements<'kind>) =
+    member __.Allocate (requirements: Requirements<'kind>) =
         let tmp = Resources<'t, 'kind>()
 
         let rec processKVs (s: seq<KeyValuePair<ResourceKey, 'kind>>) =
@@ -180,45 +175,45 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> Resourc
                 | None ->
                     try
                         let resource = allocator kind
-                        tmp.Assign key resource
+                        tmp[key] <- resource
                         allocated.Add kind resource
                         processKVs kvs
                     with
                     | _ ->
-                        for resource in tmp.Reclaim() do
+                        for resource in tmp.Values do
                             free.Add resource.Kind resource // They are already allocated, doesn't make sense to throw them away
-
                         None
                 | Some res ->
-                    tmp.Assign key res
                     processKVs kvs
 
-        processKVs requirements.AsDictionary
+        processKVs requirements
 
-    member __.Wait(requirements: Requirements<'kind>) =
+    member __.Wait (requirements: Requirements<'kind>) =
         if satisfiable requirements then
             let tcs = new TaskCompletionSource<_>()
-            waiters <- (requirements, tcs) :: waiters
+            waiters <- {| requirements = requirements; tcs = tcs |} :: waiters
             tcs.Task
         else
             task { return None }
 
-    member this.Return(resources: Resources<'t, 'kind>) =
-        for resource in resources.Reclaim() do
-            free.Add resource.Kind resource
-            allocated.Remove resource.Kind resource
+    member this.Return(resource: Resource<'t, 'kind>) =
+        free.Add resource.Kind resource
+        allocated.Remove resource.Kind resource
 
         waiters <-
             List.filter
-                (fun (requirements: Requirements<'kind>, tcs: TaskCompletionSource<option<Resources<'t, 'kind>>>) ->
-                    let resOpt = this.Allocate requirements
+                (fun waiter ->
+                    let resOpt = this.Allocate waiter.requirements
 
                     if resOpt.IsSome then
-                        tcs.SetResult resOpt
+                        waiter.tcs.SetResult resOpt
                         false
-                    else if satisfiable requirements then // TODO: if no recompaction happen, satisfiable can't change
+                    else if satisfiable waiter.requirements then // TODO: if no recompaction happen, satisfiable can't change
                         true
                     else
-                        tcs.SetResult None
+                        waiter.tcs.SetResult None
                         false)
                 waiters
+
+
+
