@@ -34,7 +34,7 @@ and Resources<'t, 'kind when 'kind: equality>() =
         query {
             for kv in requirements do
             let key,kind = kv.Key,kv.Value
-            all (this[key].Kind = kind)
+            all (if this.ContainsKey key then this[key].Kind = kind else false)
         }
 
     // let byKey = new Dictionary<ResourceKey, Resource<'t, 'kind>>()
@@ -101,11 +101,9 @@ and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
     member __.AssignedTo = assignedTo :> seq<obj>
 
     member __.AssignTo o =
-        assert (not (assignedTo.Contains o))
         ignore <| assignedTo.Add o
 
     member __.Reclaim(o) =
-        // Do not "assert assignedTo.Contains o" because the result of an operation can be one of the resources passed as input or even one of the arguments
         ignore <| assignedTo.Remove o // TODO: do this in debug; for release, use just a reference count.
 
     member __.Value = value
@@ -144,8 +142,7 @@ type Repository<'a, 'b when 'a: equality>() =
 
     member __.Values = failwith "stub" // TODO: must remove duplicates Seq.concat dict.Values
 
-
-type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> Resource<'t, 'kind>) =
+type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<'t>) =
     let allocated = Repository<'kind, Resource<'t, 'kind>>()
     let free = Repository<'kind, Resource<'t, 'kind>>()
 
@@ -171,22 +168,31 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> Resourc
                 let key = kv.Key
                 let kind = kv.Value
 
-                match free.Pop kind with
+                match free.Pop kind with // TODO: below a threshold, call allocator, and avoid waiting and freeing
                 | None ->
-                    try
-                        let resource = allocator kind
+                    match allocator kind with
+                    | Some value ->
+                        let resource = Resource(value,kind)
                         tmp[key] <- resource
                         allocated.Add kind resource
                         processKVs kvs
-                    with
-                    | _ ->
+                    | None ->
                         for resource in tmp.Values do
                             free.Add resource.Kind resource // They are already allocated, doesn't make sense to throw them away
                         None
-                | Some res ->
+                | Some resource ->
+                    allocated.Add kind resource
+                    free.Remove kind resource
+                    tmp[key] <- resource
                     processKVs kvs
 
-        processKVs requirements
+        let result = processKVs requirements
+        assert
+            match result with
+            | None -> true
+            | Some result -> result.Respect requirements
+
+        result
 
     member __.Wait (requirements: Requirements<'kind>) =
         if satisfiable requirements then

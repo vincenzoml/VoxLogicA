@@ -15,20 +15,18 @@ let rec fib x =
 
 type FibResourceKind = KIntCell
 
-type FibResource private () =
-    let max = 10
+type FibResource private (myId) =
+    static let maxId = 1000
     static let mutable id = 0
-    let myId = id
 
-    do
-        if id < max then
+    static member Allocator _ =
+        if id < maxId then
             ErrorMsg.Logger.Debug $"Resource #{id} created"
+            let result = Some (new FibResource(id))
             id <- id + 1
+            result
         else
-            failwith ""
-
-    static member NewResourceManager() =
-        new Resources.ResourceManager<_, _>(fun _ -> Resources.Resource(FibResource(), KIntCell))
+            None
 
     member val Contents: int = 0 with get, set
 
@@ -36,6 +34,35 @@ type FibResource private () =
 
 
 type Fib() =
+    let opFibSeq =
+        OperatorImplementation(
+            Requirements(
+                [ ("internalAndResult", KIntCell)
+                  ("unused", KIntCell) ]
+            ),
+            (fun resources args ->
+                let t = task {
+                    let id =
+                        (args[1]: Resource<FibResource, FibResourceKind>)
+                            .Value
+                            .Contents
+
+                    let argsStr = String.concat ", " (Seq.map string args)
+                    ErrorMsg.Logger.Debug $"[{id}]: running fib({argsStr}) on resources {resources}"
+                    let inp = (args[0].Value: FibResource)
+                    let resource = resources["internalAndResult"]
+                    let result = fib inp.Contents
+                    resource.Value.Contents <- result
+                    ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"
+                }
+
+                let x =
+                    { task = t
+                      result = resources["internalAndResult"] }
+
+                task { return x })
+        )
+
     let opFib =
         OperatorImplementation(
             Requirements(
@@ -70,6 +97,36 @@ type Fib() =
                 task { return x })
         )
 
+    let opDelay =
+        OperatorImplementation(
+            Requirements(
+                [ ("internalAndResult", KIntCell)
+                  ("unused", KIntCell) ]
+            ),
+            (fun resources args ->
+                let t = task {
+                    let id =
+                        (args[1]: Resource<FibResource, FibResourceKind>)
+                            .Value
+                            .Contents
+
+                    let argsStr = String.concat ", " (Seq.map string args)
+                    ErrorMsg.Logger.Debug $"[{id}]: running delay({argsStr}) on resources {resources}"
+                    let inp = (args[0].Value: FibResource)
+                    let resource = resources["internalAndResult"]
+                    do! Task.Delay inp.Contents
+                    resource.Value.Contents <- inp.Contents
+                    ErrorMsg.Logger.Debug $"[{id}]: finished delay({argsStr}) on resources {resources}"
+                }
+
+                let x =
+                    { task = t
+                      result = resources["internalAndResult"] }
+
+                task { return x })
+        )
+    
+
     interface ExecutionEngine<FibResource, FibResourceKind> with
         member __.ImplementationOf s =
             match s with
@@ -87,9 +144,11 @@ type Fib() =
                         })
                 )
             | Identifier "fib" -> opFib
+            | Identifier "fibSeq" -> opFibSeq
+            | Identifier "delay" -> opDelay
             | Identifier "succ" ->
                 OperatorImplementation(
-                    Requirements([ ("result"), KIntCell ]),
+                    Requirements(["result",KIntCell]),
                     (fun resources args ->
                         task {
                             let resource = resources["result"]

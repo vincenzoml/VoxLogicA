@@ -121,13 +121,14 @@ let main (argv: string array) =
             if parsed.Contains Filename then
                 parsed.GetResult Filename
             else
+                #if DEBUG 
                 "src/test.imgql"
-        // try (parsed.GetResult Filename)
-        // with _ ->
-        //     printfn "%s version: %s" name.Name informationalVersion
-        //     printfn "%s\n" (cmdLineParser.PrintUsage())
-        //     exit 0
-
+                #else 
+                printfn "%s version: %s" name.Name informationalVersion
+                printfn "%s\n" (cmdLineParser.PrintUsage())
+                exit 0
+                #endif
+        
         ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
 
         // let performance = parsed.Contains PerformanceTest
@@ -164,7 +165,7 @@ let main (argv: string array) =
             System.IO.File.WriteAllText(filename, program.ToDot())
 
         let engine = Fib()
-        let resourceManager = FibResource.NewResourceManager()
+        let resourceManager = Resources.ResourceManager<_, _>(FibResource.Allocator)
 
         let interpreter = Interpreter(engine, resourceManager)
 

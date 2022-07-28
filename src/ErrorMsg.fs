@@ -61,7 +61,8 @@ type Logger private () =
                 sr.ReadToEnd())
 
     static member Debug s = print "info" s
-    static member Warning s = print "Warning" s
+    static member Assert s = print "debg" s; true 
+    static member Warning s = print "warn" s
     static member Failure s = print "fail" s
 
     static member Result name value =
