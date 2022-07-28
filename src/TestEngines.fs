@@ -63,6 +63,35 @@ type Fib() =
                 task { return x })
         )
 
+    let opFibBackground =
+        OperatorImplementation(
+            Requirements(
+                [ ("internalAndResult", KIntCell)
+                  ("unused", KIntCell) ]
+            ),
+            (fun resources args ->
+                let t () = 
+                    let id =
+                        (args[1]: Resource<FibResource, FibResourceKind>)
+                            .Value
+                            .Contents
+
+                    let argsStr = String.concat ", " (Seq.map string args)
+                    ErrorMsg.Logger.Debug $"[{id}]: running fib({argsStr}) on resources {resources}"
+                    let inp = (args[0].Value: FibResource)
+                    let resource = resources["internalAndResult"]
+                    let result = fib inp.Contents
+                    resource.Value.Contents <- result
+                    ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"
+
+                let x =
+                    { task = Task.Run(t)
+                      result = resources["internalAndResult"] }
+
+                task { return x })
+        )
+
+
     let opFib =
         OperatorImplementation(
             Requirements(
@@ -145,6 +174,7 @@ type Fib() =
                 )
             | Identifier "fib" -> opFib
             | Identifier "fibSeq" -> opFibSeq
+            | Identifier "fibBackground" -> opFibBackground
             | Identifier "delay" -> opDelay
             | Identifier "succ" ->
                 OperatorImplementation(
