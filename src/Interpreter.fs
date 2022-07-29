@@ -65,13 +65,6 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
             return output.result
         }
 
-// let runTaskGraph (program: WorkPlan) = Array.mapi mkComputeUnit program.tasks
-
-type Scheduler<'t, 'kind when 'kind: equality> =
-    member __.X = ""
-
-open System.Threading
-
 type Interpreter<'t, 'kind when 'kind: equality>
     (
         executionEngine: ExecutionEngine<'t, 'kind>,
