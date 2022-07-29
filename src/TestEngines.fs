@@ -16,11 +16,11 @@ let rec fib x =
 type FibResourceKind = KIntCell
 
 type FibResource private (myId) =
-    static let maxId = 100
+    static let maxResources = 2
     static let mutable id = 0
 
     static member Allocator _ =
-        if id < maxId then
+        if id < maxResources then
             ErrorMsg.Logger.Debug $"Resource #{id} created"
             let result = Some (new FibResource(id))
             id <- id + 1
