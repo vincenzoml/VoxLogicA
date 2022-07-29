@@ -35,7 +35,7 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
         resourceManager: ResourceManager<'t, 'kind>
     ) =
     let mutable started = false
-    let outputTCS = TaskCompletionSource<Result<'t, 'kind>>()
+    let outputTCS = TaskCompletionSource<seq<Resource<'t, 'kind>> * Result<'t, 'kind>>()
 
     member __.Id = id
     member val Requirements = operatorImplementation.Requires
@@ -49,7 +49,8 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
         task {
             let! inputs = Task.WhenAll(Seq.toArray arguments)
             let! output = operatorImplementation.Run resources inputs
-            outputTCS.SetResult output
+
+            outputTCS.SetResult(inputs, output)
         }
 
     member val Awaiters = new HashSet<obj>()
@@ -60,9 +61,9 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
 
             let! output = outputTCS.Task
 
-            do! output.task
+            do! (snd output).task
 
-            return output.result
+            return (fst output), (snd output).result
         }
 
 type Interpreter<'t, 'kind when 'kind: equality>
@@ -79,7 +80,13 @@ type Interpreter<'t, 'kind when 'kind: equality>
             (fun id operation ->
                 let arguments =
                     Seq.toArray
-                    <| Seq.map (fun i -> computeUnits[i].Result) operation.arguments
+                    <| Seq.map
+                        (fun i ->
+                            task {
+                                let! _, x = computeUnits[i].Result
+                                return x
+                            })
+                        operation.arguments
 
                 let cu =
                     ComputeUnit(id, executionEngine.ImplementationOf operation.operator, arguments, resourceManager)
@@ -126,20 +133,16 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
                     do! cu.Start resources
 
-                    try
-                        let! result = cu.Result
+                    let! (arguments,result) = cu.Result
 
-                        for awaiter in cu.Awaiters do
-                            result.AssignTo awaiter
+                    for awaiter in cu.Awaiters do
+                        result.AssignTo awaiter
 
-                        ()
-                    finally
+                    for resource in Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ] do
+                        resource.Reclaim(cu)
 
-                        for resource in resources.Values do
-                            resource.Reclaim(cu)
-
-                            if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
-                                resourceManager.Return resource
+                        if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
+                            resourceManager.Return resource
             }
 
         task {

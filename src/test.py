@@ -1,7 +1,7 @@
 import random
 
 
-for i in range(0,1000):
-    k = j + random.randint(10,40)
+for i in range(0,5000):
+    k = random.randint(35,35)
 
-    print(f'''print "fibBackground({k},{i})" fibBackground({k},{i})''')
+    print(f'''print "fib({k},{i})" fib({k},{i})''')

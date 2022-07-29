@@ -72,6 +72,7 @@ and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
         ignore <| assignedTo.Add o
 
     member __.Reclaim(o) =
+        assert assignedTo.Contains o
         ignore <| assignedTo.Remove o // TODO: do this in debug; for release, use just a reference count.
 
     member __.Value = value
