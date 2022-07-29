@@ -16,7 +16,7 @@ let rec fib x =
 type FibResourceKind = KIntCell
 
 type FibResource private (myId) =
-    static let maxId = 1000
+    static let maxId = 100009
     static let mutable id = 0
 
     static member Allocator _ =
@@ -85,7 +85,7 @@ type Fib() =
                     ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"
 
                 let x =
-                    { task = Task.Run(t)
+                    { task = Task.Run t 
                       result = resources["internalAndResult"] }
 
                 task { return x })

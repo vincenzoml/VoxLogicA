@@ -21,8 +21,8 @@ type Operator =
 type Arguments = seq<OperationId>
 
 type Operation =
-    {   operator: Operator
-        arguments: Arguments }
+    { operator: Operator
+      arguments: Arguments }
 
     override this.ToString() =
         let sep = ","
@@ -46,7 +46,9 @@ module private Internals =
 
 
     // "Internal" representation of operations; differs from the "external" because OperationId is not needed after reduction
-    type InternalOperation = { id: OperationId; operation: Operation }
+    type InternalOperation =
+        { id: OperationId
+          operation: Operation }
 
     let memoize = true
 
@@ -95,6 +97,7 @@ module private Internals =
     let emptyOperations () =
         { byTerm = new Dictionary<_, _>()
           byId = new Dictionary<_, _>() }
+
     type DVal =
         | Operation of OperationId
         | Fun of Environment * list<identifier> * Parser.Expression
@@ -124,29 +127,27 @@ module private Internals =
 
     let emptyEnvironment = Environment Map.empty
 
-    let rec reduceProgramRec<'a>
+    let rec reduceProgramRec
         (env: Environment, operations, (goals: HashSet<Goal>), parsedImports: HashSet<string>)
-        (Program p)
-        (cont: Operations -> 'a)
+        (pRef: ref<list<Command>>)
         =
-        match p with
-        | [] -> cont operations
+        match pRef.Value with
+        | [] -> operations
         | command :: commands ->
-            reduceCommand (env, operations, goals, parsedImports) command
-            <| fun (env', imports) ->
-                let newProgram = (Program(List.concat [ imports; commands ]))
-                reduceProgramRec (env', operations, goals, parsedImports) newProgram cont
+            pRef.Value <- commands
+            let env', imports = reduceCommand (env, operations, goals, parsedImports) command id
+            let newProgram = List.concat [ imports; pRef.Value ]
+            pRef.Value <- newProgram
+            reduceProgramRec (env', operations, goals, parsedImports) pRef
 
-    and reduceCommand
-        (env, operations, (goals: HashSet<Goal>), parsedImports)
-        command
-        (cont: Environment * list<Command> -> 'a)
-        =
+    and reduceCommand (env, operations, (goals: HashSet<Goal>), parsedImports) command (cont) =
         match command with
         | Save (pos, filename, expr) -> // TODO: use pos
             reduceExpr [ ($"save {filename}", pos) ] (env, operations) expr
             <| fun operationId ->
-                ignore <| goals.Add(GoalSave(filename, operationId))
+                ignore
+                <| goals.Add(GoalSave(filename, operationId))
+
                 cont (env, [])
         | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), [])
         | Print (pos, str, expr) -> // TODO: use pos
@@ -200,12 +201,7 @@ module private Internals =
             else
                 cont (env, [])
 
-    and reduceExpr
-        (stack: ErrorMsg.Stack)
-        (env: Environment, operations: Operations)
-        (expr: Expression)
-        (cont: OperationId -> 'a)
-        =
+    and reduceExpr (stack: ErrorMsg.Stack) (env: Environment, operations: Operations) (expr: Expression) (cont) =
         match expr with
         | ENumber f -> cont <| operations.FindOrCreate (Number f) []
         | EBool b -> cont <| operations.FindOrCreate (Bool b) []
@@ -245,7 +241,9 @@ module private Internals =
                             operations.Alias (Identifier ide) actualArgs operation''
                             cont operation''
                     | Some (Operation t) -> cont t
-                    | None -> cont <| operations.Create (Identifier ide) actualArgs
+                    | None ->
+                        cont
+                        <| operations.Create (Identifier ide) actualArgs
 // with
 // | :? System.Collections.Generic.KeyNotFoundException ->
 //
@@ -259,7 +257,8 @@ type WorkPlan =
             <| Array.mapi (fun i el -> $"{i} -> {el}") this.operations
 
         let g =
-            String.concat "," <| Array.map (fun x -> x.ToString()) this.goals
+            String.concat ","
+            <| Array.map (fun x -> x.ToString()) this.goals
 
         $"goals: {g}\noperations:\n{t}"
 
@@ -278,11 +277,15 @@ type WorkPlan =
 
         str + "\n}"
 
-let reduceProgram prog =
+let reduceProgram (Parser.Program prog) =
     let goals = new HashSet<_>()
 
+    let pRef = ref prog
+
     let operations =
-        Internals.reduceProgramRec (Internals.emptyEnvironment, Internals.emptyOperations (), goals, new HashSet<_>()) prog id
+        Internals.reduceProgramRec
+            (Internals.emptyEnvironment, Internals.emptyOperations (), goals, new HashSet<_>())
+            pRef
 
     { operations = Array.init operations.byId.Count (fun i -> operations.byId[i].operation)
       goals = Array.ofSeq goals }
@@ -349,5 +352,3 @@ let reduceProgram prog =
             member this.GetEnumerator(): IEnumerator<'t> = getEnumerator count item
 
     *)
-
-    
