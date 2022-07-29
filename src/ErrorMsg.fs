@@ -27,10 +27,12 @@ type Report private () =
     static member Get () = (List.rev print,List.rev save)
 
 type Logger private () =
+    static let mutable logLevel = new System.Collections.Generic.HashSet<string>()
     static let stopWatch = System.Diagnostics.Stopwatch.StartNew()
     static let mutable destinations = [] // this is a placeholder for permitting more simultaneous destinations.
 
-    static let print prefix (string: string) =
+
+    static let print prefix (string: string) =        
         let printer (destination : TextWriter) =
             lock destination (fun () ->
                 fprintfn
@@ -41,7 +43,11 @@ type Logger private () =
                     (string.Replace("\n", "\n                      "))
                 destination.Flush())
 
-        lock destinations (fun () -> List.iter printer destinations)
+        if logLevel.Count = 0 || logLevel.Contains prefix then
+            lock destinations (fun () -> List.iter printer destinations)
+
+    static member AddLogLevel(x : string) =
+        ignore <| logLevel.Add(x)
 
     static member LogToStdout() =
         lock destinations (fun () ->
@@ -61,7 +67,7 @@ type Logger private () =
                 sr.ReadToEnd())
 
     static member Debug s = print "info" s
-    static member Assert s = print "debg" s; true 
+    static member Assert s = print "debg" s; true
     static member Warning s = print "warn" s
     static member Failure s = print "fail" s
 

@@ -1,4 +1,8 @@
+import random
+
 j = 10
 
 for i in range(0,1000):
-    print(f'''print "fibBackground({j},{i})" fibBackground({j},{i})''')
+    k = j + random.randint(0,5)
+
+    print(f'''print "fibBackground({k},{i})" fibBackground({k},{i})''')

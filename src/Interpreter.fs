@@ -8,17 +8,6 @@ open System.Threading.Tasks
 
 open VoxLogicA.Resources
 
-(*
-
-tasks always return a Handle<'t> not a 't
-
-Handles have a Read method
-
-SEE https://docs.microsoft.com/en-us/archive/msdn-magazine/2019/october/csharp-accessing-xml-documentation-via-reflection
-
-http://moiraesoftware.github.io/blog/2012/01/22/FSharp-Dataflow-agents-I/
-*)
-
 type Result<'t, 'kind when 'kind: equality> =
     { task: Task
       result: Resource<'t, 'kind> }
@@ -42,7 +31,8 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
     (
         id: int,
         operatorImplementation: OperatorImplementation<'t, 'kind>,
-        arguments: seq<Task<Resource<'t, 'kind>>>
+        arguments: seq<Task<Resource<'t, 'kind>>>,
+        resourceManager: ResourceManager<'t, 'kind>
     ) =
     let mutable started = false
     let outputTCS = TaskCompletionSource<Result<'t, 'kind>>()
@@ -67,6 +57,7 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
     /// Method to read the result
     member __.Result =
         task {
+
             let! output = outputTCS.Task
 
             do! output.task
@@ -79,6 +70,8 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
 type Scheduler<'t, 'kind when 'kind: equality> =
     member __.X = ""
 
+open System.Threading
+
 type Interpreter<'t, 'kind when 'kind: equality>
     (
         executionEngine: ExecutionEngine<'t, 'kind>,
@@ -87,6 +80,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
     let computeUnits = new Dictionary<int, ComputeUnit<'t, 'kind>>()
     let started = new HashSet<int>()
 
+
     member __.Prepare(program: WorkPlan) =
         Array.iteri
             (fun id operation ->
@@ -94,10 +88,14 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     Seq.toArray
                     <| Seq.map (fun i -> computeUnits[i].Result) operation.arguments
 
-                let cu = ComputeUnit(id, executionEngine.ImplementationOf operation.operator, arguments)
+                let cu =
+                    ComputeUnit(id, executionEngine.ImplementationOf operation.operator, arguments, resourceManager)
+
                 computeUnits[id] <- cu
+
                 for argumentId in operation.arguments do
-                    ignore <| computeUnits[argumentId].Awaiters.Add cu)
+                    ignore
+                    <| computeUnits[ argumentId ].Awaiters.Add cu)
 
             program.operations
 
@@ -106,6 +104,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
         let allocate requirements =
             task {
+
                 let resourcesOpt = resourceManager.Allocate(requirements)
 
                 match resourcesOpt with
@@ -123,7 +122,8 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
         let run (cuId: int) =
             task {
-                if (started.Add cuId) then
+                if not (started.Contains cuId) then
+                    started.Add cuId
                     assert ErrorMsg.Logger.Assert $"starting cuId {cuId}"
                     let cu = computeUnits[cuId]
                     let! resources = allocate cu.Requirements
@@ -135,11 +135,13 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
                     try
                         let! result = cu.Result
-                        
+
                         for awaiter in cu.Awaiters do
                             result.AssignTo awaiter
+
                         ()
                     finally
+
                         for resource in resources.Values do
                             resource.Reclaim(cu)
 

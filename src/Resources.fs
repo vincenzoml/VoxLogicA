@@ -1,18 +1,32 @@
 module VoxLogicA.Resources
 
-open System.Collections.Generic
+open System.Collections.Concurrent
 open System.Threading.Tasks
 open System.Linq
 
 type ResourceKey = string
 
+type HashSet<'a>() =
+    inherit ConcurrentDictionary<'a,unit>()
+    member this.Add x = this[x] <- ()
+
+    member this.Contains x = this.ContainsKey x
+
+    member this.Remove x =
+        this.Keys.Remove x
+
+    new (s : seq<'a>) as this =
+        new HashSet<'a>() then
+            for x in s do
+                this.Add x
+
+
 type ResourceData<'kind>() =
-    inherit Dictionary<ResourceKey, 'kind>()
+    inherit ConcurrentDictionary<ResourceKey, 'kind>()
 
     new(reqs: seq<ResourceKey * 'kind>) as this =
         ResourceData() then
-        //assert (Seq.length (Seq.groupBy id (Seq.map fst reqs)) = Seq.length reqs)
-            Seq.iter this.Add reqs
+            Seq.iter (fun (k,v) -> this[k] <- v ) reqs
 
     override this.ToString() =
         let strings =
@@ -37,52 +51,6 @@ and Resources<'t, 'kind when 'kind: equality>() =
             all (if this.ContainsKey key then this[key].Kind = kind else false)
         }
 
-    // let byKey = new Dictionary<ResourceKey, Resource<'t, 'kind>>()
-    // // let byType = new Dictionary<'kind, list<Resource<'t, 'kind>>>()
-
-    // member __.ComplyWith(requirements: Requirements<'kind>) =
-    //     Seq.forall
-    //         id
-    //         (seq {
-    //             for kv in byKey do
-    //                 yield requirements.AsDictionary[kv.Key] = kv.Value.Kind
-    //         })
-
-    // member __.Item
-    //     with get x = byKey[x]
-
-    // member __.Values = byKey.Values
-
-    // member __.ByKey k =
-    //     try
-    //         byKey[k]
-    //     with
-    //     | :? KeyNotFoundException -> ErrorMsg.fail $"Resource not available: {k}"
-
-    //member __.ByType t = byType[t] :> seq<Resource<'t, 'kind>>
-
-    // member this.Assign k (resource: Resource<'t, 'kind>) =
-    //     assert not (byKey.ContainsKey k)
-    //     byKey[k] <- resource
-    //     let t = resource.Kind
-
-    //     byType[t] <- if byType.ContainsKey t then
-    //                      resource :: byType[t]
-    //                  else
-    //                      [ resource ]
-
-    //     resource.AssignTo this
-
-    // member this.Reclaim() = // deliberately not fine-grained
-    //     let v = byKey.Values
-
-    //     for res in v do
-    //         res.Reclaim(this)
-
-    //     byKey.Clear()
-    //     byType.Clear()
-    //     v
-
     override this.ToString() =
         let strings =
             (seq {
@@ -98,7 +66,7 @@ and Resources<'t, 'kind when 'kind: equality>() =
 and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
     let assignedTo = new HashSet<obj>() // TODO: do this in debug; for release, use just a reference count.
 
-    member __.AssignedTo = assignedTo :> seq<obj>
+    member __.AssignedTo = assignedTo.Keys :> seq<obj>
 
     member __.AssignTo o =
         ignore <| assignedTo.Add o
@@ -113,7 +81,7 @@ and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
 
 
 type Repository<'a, 'b when 'a: equality>() =
-    let dict = Dictionary<'a, HashSet<'b>>()
+    let dict = ConcurrentDictionary<'a, HashSet<'b>>()
 
     member __.Item key = dict[key]
 
@@ -129,7 +97,7 @@ type Repository<'a, 'b when 'a: equality>() =
             if hs.Count = 0 then
                 None
             else
-                let el = Seq.head (hs :> seq<'b>)
+                let el = Seq.head (hs.Keys :> seq<'b>)
                 ignore <| hs.Remove el
                 Some el
 
@@ -159,7 +127,7 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
     member __.Allocate (requirements: Requirements<'kind>) =
         let tmp = Resources<'t, 'kind>()
 
-        let rec processKVs (s: seq<KeyValuePair<ResourceKey, 'kind>>) =
+        let rec processKVs (s: seq<System.Collections.Generic.KeyValuePair<ResourceKey, 'kind>>) =
             if Seq.isEmpty s then
                 Some tmp
             else
@@ -194,11 +162,13 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
 
         result
 
-    member __.Wait (requirements: Requirements<'kind>) =
+    member this.Wait (requirements: Requirements<'kind>) =
         if satisfiable requirements then
             let tcs = new TaskCompletionSource<_>()
             waiters <- {| requirements = requirements; tcs = tcs |} :: waiters
-            tcs.Task
+            task {
+                return! tcs.Task
+            }
         else
             task { return None }
 

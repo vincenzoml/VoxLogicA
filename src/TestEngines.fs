@@ -63,6 +63,7 @@ type Fib() =
                 task { return x })
         )
 
+
     let opFibBackground =
         OperatorImplementation(
             Requirements(
@@ -70,7 +71,7 @@ type Fib() =
                   ("unused", KIntCell) ]
             ),
             (fun resources args ->
-                let t () = 
+                let t () =
                     let id =
                         (args[1]: Resource<FibResource, FibResourceKind>)
                             .Value
@@ -85,7 +86,10 @@ type Fib() =
                     ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"
 
                 let x =
-                    { task = Task.Run t 
+                    { task =
+                        task {
+                            return t()
+                        }
                       result = resources["internalAndResult"] }
 
                 task { return x })
@@ -154,7 +158,7 @@ type Fib() =
 
                 task { return x })
         )
-    
+
 
     interface ExecutionEngine<FibResource, FibResourceKind> with
         member __.ImplementationOf s =
