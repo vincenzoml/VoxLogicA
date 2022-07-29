@@ -13,7 +13,7 @@ type HashSet<'a>() =
     member this.Contains x = this.ContainsKey x
 
     member this.Remove x =
-        this.Keys.Remove x
+        this.TryRemove (System.Collections.Generic.KeyValuePair(x,()))
 
     new (s : seq<'a>) as this =
         new HashSet<'a>() then

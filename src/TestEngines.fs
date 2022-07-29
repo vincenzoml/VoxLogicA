@@ -87,9 +87,7 @@ type Fib() =
 
                 let x =
                     { task =
-                        task {
-                            return t()
-                        }
+                        Task.Run t
                       result = resources["internalAndResult"] }
 
                 task { return x })
