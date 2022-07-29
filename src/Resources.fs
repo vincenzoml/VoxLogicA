@@ -1,29 +1,30 @@
 module VoxLogicA.Resources
 
-open System.Collections.Concurrent
+open System.Collections.Generic
 open System.Threading.Tasks
 open System.Linq
 
 type ResourceKey = string
 
-type HashSet<'a>() =
-    inherit ConcurrentDictionary<'a, unit>()
-    member this.Add x = this[x] <- ()
+// type HashSet<'a>() =
+//     inherit ConcurrentDictionary<'a, unit>()
+//     member this.Add x = this[x] <- ()
 
-    member this.Contains x = this.ContainsKey x
+//     member this.Contains x = this.ContainsKey x
 
-    member this.Remove x =
-        this.TryRemove(System.Collections.Generic.KeyValuePair(x, ()))
+//     member this.Remove x =
+//         this.TryRemove(System.Collections.Generic.KeyValuePair(x, ()))
 
-    new(s: seq<'a>) as this =
-        new HashSet<'a>()
-        then
-            for x in s do
-                this.Add x
+//     new(s: seq<'a>) as this =
+//         new HashSet<'a>()
+//         then
+//             for x in s do
+//                 this.Add x
 
 
 type ResourceData<'kind>() =
-    inherit ConcurrentDictionary<ResourceKey, 'kind>()
+    //inherit ConcurrentDictionary<ResourceKey, 'kind>()
+    inherit Dictionary<ResourceKey, 'kind>()
 
     new(reqs: seq<ResourceKey * 'kind>) as this =
         ResourceData()
@@ -74,7 +75,7 @@ and Resources<'t, 'kind when 'kind: equality>() =
 and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
     let assignedTo = new HashSet<obj>() // TODO: do this in debug; for release, use just a reference count.
 
-    member __.AssignedTo = assignedTo.Keys :> seq<obj>
+    member __.AssignedTo = assignedTo :> seq<obj>
 
     member __.AssignTo o = ignore <| assignedTo.Add o
 
@@ -89,40 +90,42 @@ and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
 
 
 type Repository<'a, 'b when 'a: equality>() =
-    let dict = ConcurrentDictionary<'a, HashSet<'b>>()
+    let dict = Dictionary<'a, HashSet<'b>>()
 
     member this.Count key =
-        lock this (fun () ->
+        // lock this (fun () ->
             match dict.TryGetValue key with
             | (false, _) -> 0
             | (_, s) -> s.Count
 
-        )
-
+        // )
 
     member this.Add (key: 'a) (value: 'b) =
-        lock this (fun () -> // TODO: use Dict.TryAdd or similar
+        // lock this (fun () -> // TODO: use Dict.TryAdd or similar
             match dict.TryGetValue key with
             | (false, _) -> dict[key] <- new HashSet<'b>(seq { value })
-            | (_, s) -> ignore (s.Add value))
+            | (_, s) -> ignore (s.Add value)
+            // )
 
     member this.Pop key =
-        lock this (fun () ->
+        // lock this (fun () ->
             match dict.TryGetValue key with
             | (false, _) -> None
             | (_, hs) ->
                 if hs.Count = 0 then
                     None
                 else
-                    let el = Seq.head (hs.Keys :> seq<'b>)
+                    let el = Seq.head (hs :> seq<'b>)
                     ignore <| hs.Remove el
-                    Some el)
+                    Some el
+                    // )
 
     member this.Remove key value =
-        lock this (fun () ->
+        // lock this (fun () ->
             match dict.TryGetValue key with
             | (false, _) -> ()
-            | (_, hs) -> ignore (hs.Remove value))
+            | (_, hs) -> ignore (hs.Remove value)
+            // )
 
     member __.Keys = dict.Keys
 
@@ -146,7 +149,7 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
     member __.Allocate(requirements: Requirements<'kind>) =
         let tmp = Resources<'t, 'kind>()
 
-        let rec processKVs (s: seq<System.Collections.Generic.KeyValuePair<ResourceKey, 'kind>>) =
+        let rec processKVs (s: seq<KeyValuePair<ResourceKey, 'kind>>) =
             if Seq.isEmpty s then
                 Some tmp
             else
@@ -183,7 +186,7 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
 
         result
 
-    member this.Wait(requirements: Requirements<'kind>) =
+    member __.Wait(requirements: Requirements<'kind>) =
         if satisfiable requirements then
             let tcs = new TaskCompletionSource<_>()
 
@@ -208,9 +211,10 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
                     if resOpt.IsSome then
                         waiter.tcs.SetResult resOpt
                         false
-                    else if satisfiable waiter.requirements then // TODO: if no recompaction happen, satisfiable can't change
+                    else if satisfiable waiter.requirements then // TODO: if no recompaction happens, satisfiable can't change
                         true
                     else
                         waiter.tcs.SetResult None
-                        false)
+                        ErrorMsg.fail "Resources exhausted")
                 waiters
+

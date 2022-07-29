@@ -46,8 +46,10 @@ type Logger private () =
         if logLevel.Count = 0 || logLevel.Contains prefix then
             lock destinations (fun () -> List.iter printer destinations)
 
-    static member AddLogLevel(x : string) =
-        ignore <| logLevel.Add(x)
+    static member SetLogLevel(x : list<string>) =
+        logLevel.Clear()
+        for ll in x do             
+            ignore <| logLevel.Add(ll)
 
     static member LogToStdout() =
         lock destinations (fun () ->
@@ -67,7 +69,7 @@ type Logger private () =
                 sr.ReadToEnd())
 
     static member Debug s = print "info" s
-    static member Assert s = print "debg" s; true
+    static member Assert s = print "asrt" s; true
     static member Warning s = print "warn" s
     static member Failure s = print "fail" s
 

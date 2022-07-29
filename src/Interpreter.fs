@@ -94,8 +94,8 @@ type Interpreter<'t, 'kind when 'kind: equality>
                 computeUnits[id] <- cu
 
                 for argumentId in operation.arguments do
-                    printfn $"ADDING AWAITER {cu.Id} to {argumentId}"
-                    ignore                    
+                    ErrorMsg.Logger.Debug $"ADDING AWAITER {cu.Id} to {argumentId}"
+                    ignore
                     <| computeUnits[argumentId].Awaiters.Add cu)
 
             program.operations
@@ -124,35 +124,38 @@ type Interpreter<'t, 'kind when 'kind: equality>
         let run (cuId: int) =
             task {
                 if not (started.Contains cuId) then
-                    started.Add cuId
-                    assert ErrorMsg.Logger.Assert $"starting cuId {cuId}"
+                    ignore <| started.Add cuId
+                    assert ErrorMsg.Logger.Assert $"STARTING cuId {cuId}"
                     let cu = computeUnits[cuId]
                     let! resources = allocate cu.Requirements
 
                     for resource in resources.Values do
-                        printfn $"ASSIGNING RESOURCE {resource} to {cuId}"
+                        assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {resource} to {cuId}"
                         resource.AssignTo cu
 
                     do! cu.Start resources
+                    ErrorMsg.Logger.Result "SC" System.Threading.SynchronizationContext.Current
+                    ErrorMsg.Logger.Result "TID" System.Threading.Thread.CurrentThread.ManagedThreadId
 
                     let! (arguments,result) = cu.Result
 
+                    assert ErrorMsg.Logger.Assert $"FINISHED cuId {cuId}"
+                    ErrorMsg.Logger.Result "SC" System.Threading.SynchronizationContext.Current
+                    ErrorMsg.Logger.Result "TID" System.Threading.Thread.CurrentThread.ManagedThreadId
+
                     for awaiter in cu.Awaiters do
-                        printfn $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
+                        assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
                         result.AssignTo awaiter
 
                     let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
-                    let odd = 
-                        Array.filter 
-                            (fun (res : Resource<'t,'kind>) -> not (Seq.contains (cu :> obj) res.AssignedTo))
-                            deallocate
 
                     for resource in deallocate do
-                        printfn $"REVOKING RESOURCE {resource} from {cuId}"
+                        assert ErrorMsg.Logger.Assert $"REVOKING RESOURCE {resource} from {cuId}"
+                        ErrorMsg.Logger.Result "TID" System.Threading.Thread.CurrentThread.ManagedThreadId
                         resource.Reclaim cu
 
                         if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
-                            printfn "RELEASING RESOURCE {resource}"
+                            assert ErrorMsg.Logger.Assert $"RELEASING RESOURCE {resource}"
                             resourceManager.Return resource
             }
 
