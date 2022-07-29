@@ -2,11 +2,11 @@ module VoxLogicA.Interpreter
 
 open VoxLogicA.Reducer
 
-open System.Collections.Generic
 
 open System.Threading.Tasks
 
 open VoxLogicA.Resources
+open System.Collections.Generic
 
 type Result<'t, 'kind when 'kind: equality> =
     { task: Task
@@ -94,8 +94,9 @@ type Interpreter<'t, 'kind when 'kind: equality>
                 computeUnits[id] <- cu
 
                 for argumentId in operation.arguments do
-                    ignore
-                    <| computeUnits[ argumentId ].Awaiters.Add cu)
+                    printfn $"ADDING AWAITER {cu.Id} to {argumentId}"
+                    ignore                    
+                    <| computeUnits[argumentId].Awaiters.Add cu)
 
             program.operations
 
@@ -129,6 +130,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     let! resources = allocate cu.Requirements
 
                     for resource in resources.Values do
+                        printfn $"ASSIGNING RESOURCE {resource} to {cuId}"
                         resource.AssignTo cu
 
                     do! cu.Start resources
@@ -136,12 +138,21 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     let! (arguments,result) = cu.Result
 
                     for awaiter in cu.Awaiters do
+                        printfn $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
                         result.AssignTo awaiter
 
-                    for resource in Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ] do
-                        resource.Reclaim(cu)
+                    let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
+                    let odd = 
+                        Array.filter 
+                            (fun (res : Resource<'t,'kind>) -> not (Seq.contains (cu :> obj) res.AssignedTo))
+                            deallocate
+
+                    for resource in deallocate do
+                        printfn $"REVOKING RESOURCE {resource} from {cuId}"
+                        resource.Reclaim cu
 
                         if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
+                            printfn "RELEASING RESOURCE {resource}"
                             resourceManager.Return resource
             }
 

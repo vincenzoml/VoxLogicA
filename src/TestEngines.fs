@@ -16,7 +16,7 @@ let rec fib x =
 type FibResourceKind = KIntCell
 
 type FibResource private (myId) =
-    static let maxResources = 2
+    static let maxResources = 4
     static let mutable id = 0
 
     static member Allocator _ =

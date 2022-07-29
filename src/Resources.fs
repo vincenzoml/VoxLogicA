@@ -7,16 +7,17 @@ open System.Linq
 type ResourceKey = string
 
 type HashSet<'a>() =
-    inherit ConcurrentDictionary<'a,unit>()
+    inherit ConcurrentDictionary<'a, unit>()
     member this.Add x = this[x] <- ()
 
     member this.Contains x = this.ContainsKey x
 
     member this.Remove x =
-        this.TryRemove (System.Collections.Generic.KeyValuePair(x,()))
+        this.TryRemove(System.Collections.Generic.KeyValuePair(x, ()))
 
-    new (s : seq<'a>) as this =
-        new HashSet<'a>() then
+    new(s: seq<'a>) as this =
+        new HashSet<'a>()
+        then
             for x in s do
                 this.Add x
 
@@ -25,8 +26,8 @@ type ResourceData<'kind>() =
     inherit ConcurrentDictionary<ResourceKey, 'kind>()
 
     new(reqs: seq<ResourceKey * 'kind>) as this =
-        ResourceData() then
-            Seq.iter (fun (k,v) -> this[k] <- v ) reqs
+        ResourceData()
+        then Seq.iter (fun (k, v) -> this[k] <- v) reqs
 
     override this.ToString() =
         let strings =
@@ -41,14 +42,21 @@ type ResourceData<'kind>() =
         $"{sstart} {String.concat sep strings} {send}"
 
 and Requirements<'kind> = ResourceData<'kind>
-and Resources<'t, 'kind when 'kind: equality>() =
-    inherit ResourceData<Resource<'t,'kind>>()
 
-    member this.Respect(requirements : Requirements<'kind>) =
+and Resources<'t, 'kind when 'kind: equality>() =
+    inherit ResourceData<Resource<'t, 'kind>>()
+
+    member this.Respect(requirements: Requirements<'kind>) =
         query {
             for kv in requirements do
-            let key,kind = kv.Key,kv.Value
-            all (if this.ContainsKey key then this[key].Kind = kind else false)
+                let key, kind = kv.Key, kv.Value
+
+                all (
+                    if this.ContainsKey key then
+                        this[key].Kind = kind
+                    else
+                        false
+                )
         }
 
     override this.ToString() =
@@ -68,8 +76,7 @@ and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
 
     member __.AssignedTo = assignedTo.Keys :> seq<obj>
 
-    member __.AssignTo o =
-        ignore <| assignedTo.Add o
+    member __.AssignTo o = ignore <| assignedTo.Add o
 
     member __.Reclaim(o) =
         assert assignedTo.Contains o
@@ -84,28 +91,38 @@ and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
 type Repository<'a, 'b when 'a: equality>() =
     let dict = ConcurrentDictionary<'a, HashSet<'b>>()
 
-    member __.Item key = dict[key]
+    member this.Count key =
+        lock this (fun () ->
+            match dict.TryGetValue key with
+            | (false, _) -> 0
+            | (_, s) -> s.Count
 
-    member __.Add (key: 'a) (value: 'b) =
-        match dict.TryGetValue key with
-        | (false, _) -> dict[key] <- new HashSet<'b>(seq { value })
-        | (_, s) -> ignore (s.Add value)
+        )
 
-    member __.Pop key =
-        match dict.TryGetValue key with
-        | (false, _) -> None
-        | (_, hs) ->
-            if hs.Count = 0 then
-                None
-            else
-                let el = Seq.head (hs.Keys :> seq<'b>)
-                ignore <| hs.Remove el
-                Some el
 
-    member __.Remove key value =
-        match dict.TryGetValue key with
-        | (false, _) -> ()
-        | (_, hs) -> ignore (hs.Remove value)
+    member this.Add (key: 'a) (value: 'b) =
+        lock this (fun () -> // TODO: use Dict.TryAdd or similar
+            match dict.TryGetValue key with
+            | (false, _) -> dict[key] <- new HashSet<'b>(seq { value })
+            | (_, s) -> ignore (s.Add value))
+
+    member this.Pop key =
+        lock this (fun () ->
+            match dict.TryGetValue key with
+            | (false, _) -> None
+            | (_, hs) ->
+                if hs.Count = 0 then
+                    None
+                else
+                    let el = Seq.head (hs.Keys :> seq<'b>)
+                    ignore <| hs.Remove el
+                    Some el)
+
+    member this.Remove key value =
+        lock this (fun () ->
+            match dict.TryGetValue key with
+            | (false, _) -> ()
+            | (_, hs) -> ignore (hs.Remove value))
 
     member __.Keys = dict.Keys
 
@@ -119,13 +136,14 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
         query {
             for kind in requirements.Values do
                 groupBy kind into g
-                all (g.Count() < free[g.Key].Count + allocated[g.Key].Count)
+                all (g.Count() < (free.Count g.Key) + (allocated.Count g.Key))
         }
 
-    let mutable waiters: list<{| requirements : Requirements<'kind>; tcs: TaskCompletionSource<option<Resources<'t, 'kind>>> |}> =
+    let mutable waiters: list<{| requirements: Requirements<'kind>
+                                 tcs: TaskCompletionSource<option<Resources<'t, 'kind>>> |}> =
         []
 
-    member __.Allocate (requirements: Requirements<'kind>) =
+    member __.Allocate(requirements: Requirements<'kind>) =
         let tmp = Resources<'t, 'kind>()
 
         let rec processKVs (s: seq<System.Collections.Generic.KeyValuePair<ResourceKey, 'kind>>) =
@@ -141,13 +159,14 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
                 | None ->
                     match allocator kind with
                     | Some value ->
-                        let resource = Resource(value,kind)
+                        let resource = Resource(value, kind)
                         tmp[key] <- resource
                         allocated.Add kind resource
                         processKVs kvs
                     | None ->
                         for resource in tmp.Values do
                             free.Add resource.Kind resource // They are already allocated, doesn't make sense to throw them away
+
                         None
                 | Some resource ->
                     allocated.Add kind resource
@@ -156,6 +175,7 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
                     processKVs kvs
 
         let result = processKVs requirements
+
         assert
             match result with
             | None -> true
@@ -163,13 +183,16 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
 
         result
 
-    member this.Wait (requirements: Requirements<'kind>) =
+    member this.Wait(requirements: Requirements<'kind>) =
         if satisfiable requirements then
             let tcs = new TaskCompletionSource<_>()
-            waiters <- {| requirements = requirements; tcs = tcs |} :: waiters
-            task {
-                return! tcs.Task
-            }
+
+            waiters <-
+                {| requirements = requirements
+                   tcs = tcs |}
+                :: waiters
+
+            task { return! tcs.Task }
         else
             task { return None }
 
@@ -191,6 +214,3 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
                         waiter.tcs.SetResult None
                         false)
                 waiters
-
-
-
