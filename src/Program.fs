@@ -104,7 +104,7 @@ let main (argv: string array) =
     //         ignore
 
     ErrorMsg.Logger.LogToStdout()
-    ErrorMsg.Logger.SetLogLevel(["user";"asrt"])
+    ErrorMsg.Logger.SetLogLevel([ "user" ])
 
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning(
@@ -122,13 +122,13 @@ let main (argv: string array) =
             if parsed.Contains Filename then
                 parsed.GetResult Filename
             else
-                #if DEBUG
+#if DEBUG
                 "src/test.imgql"
-                #else
+#else
                 printfn "%s version: %s" name.Name informationalVersion
                 printfn "%s\n" (cmdLineParser.PrintUsage())
                 exit 0
-                #endif
+#endif
 
         ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
 
@@ -175,22 +175,27 @@ let main (argv: string array) =
         interpreter.Prepare(program)
         ErrorMsg.Logger.Debug "Running interpreter"
 
-        let tasks =
-            Seq.map
-                (fun goal ->
-                    match goal with
-                    | (Reducer.GoalSave (label, id)
-                    | Reducer.GoalPrint (label, id)) ->
-                        task {
-                            let! result = interpreter.QueryAsync id
-                            ErrorMsg.Logger.Result label result
-                        }
-                        :> System.Threading.Tasks.Task)
-                program.goals
-            |> Seq.toArray
+        let t = 
+            (task {
+                return
+                    Seq.map
+                        (fun goal ->
+                            match goal with
+                            | (Reducer.GoalSave (label, id)
+                            | Reducer.GoalPrint (label, id)) ->
+                                task {
+                                    let! result = interpreter.QueryAsync id
+                                    ErrorMsg.Logger.Result label result
+                                }
+                                :> System.Threading.Tasks.Task)
+                        program.goals
+                    |> Seq.toArray
+
+            }).Result
 
         ErrorMsg.Logger.Debug "tasks launched, waiting..."
-        System.Threading.Tasks.Task.WaitAll tasks
+        System.Threading.Tasks.Task.WaitAll t
+        
         ErrorMsg.Logger.Debug "All done."
 
         //ErrorMsg.Logger.Debug $"{x}"

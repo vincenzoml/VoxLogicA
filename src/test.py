@@ -1,7 +1,7 @@
 import random
 
 
-for i in range(0,2):
-    k = random.randint(25,35)
+for i in range(0,5000):
+    k = random.randint(10,20)
 
     print(f'''print "fib({k},{i})" fib({k},{i})''')

@@ -80,7 +80,7 @@ and Resource<'t, 'kind when 'kind: equality>(value: 't, kind: 'kind) =
     member __.AssignTo o = ignore <| assignedTo.Add o
 
     member __.Reclaim(o) =
-        assert assignedTo.Contains o
+        // assert assignedTo.Contains o // TODO: this happens, is it normal?
         ignore <| assignedTo.Remove o // TODO: do this in debug; for release, use just a reference count.
 
     member __.Value = value

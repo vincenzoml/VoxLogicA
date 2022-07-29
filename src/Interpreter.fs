@@ -134,15 +134,11 @@ type Interpreter<'t, 'kind when 'kind: equality>
                         resource.AssignTo cu
 
                     do! cu.Start resources
-                    ErrorMsg.Logger.Result "SC" System.Threading.SynchronizationContext.Current
-                    ErrorMsg.Logger.Result "TID" System.Threading.Thread.CurrentThread.ManagedThreadId
-
+                    
                     let! (arguments,result) = cu.Result
 
                     assert ErrorMsg.Logger.Assert $"FINISHED cuId {cuId}"
-                    ErrorMsg.Logger.Result "SC" System.Threading.SynchronizationContext.Current
-                    ErrorMsg.Logger.Result "TID" System.Threading.Thread.CurrentThread.ManagedThreadId
-
+                    
                     for awaiter in cu.Awaiters do
                         assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
                         result.AssignTo awaiter
@@ -151,7 +147,6 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
                     for resource in deallocate do
                         assert ErrorMsg.Logger.Assert $"REVOKING RESOURCE {resource} from {cuId}"
-                        ErrorMsg.Logger.Result "TID" System.Threading.Thread.CurrentThread.ManagedThreadId
                         resource.Reclaim cu
 
                         if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
