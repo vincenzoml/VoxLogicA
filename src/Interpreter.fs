@@ -43,9 +43,9 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
 
     /// returns only the output resource so that its reference count can be increased before passing it to other ComputeUnits
     member this.Start(resources: Resources<'t, 'kind>) =
-        assert resources.Respect this.Requirements
-
         task {
+            assert resources.Respect this.Requirements
+
             let! inputs = Task.WhenAll(Seq.toArray arguments)
             let! output = operatorImplementation.Run resources inputs
 
@@ -100,7 +100,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
             program.operations
 
-    member __.QueryAsync(id: OperationId) =
+    member this.QueryAsync(id: OperationId) =
         assert computeUnits.ContainsKey id
 
         let allocate requirements =
@@ -129,39 +129,34 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     let cu = computeUnits[cuId]
                     let! resources = allocate cu.Requirements
 
-                    for resource in resources.Values do
-                        assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {resource} to {cuId}"
-                        resource.AssignTo cu
+                    ErrorMsg.Logger.Debug "Enable resource allocation by decommenting in source code"
+                    // UNCOMMENT HERE
+                    // for resource in resources.Values do
+                    //     assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {resource} to {cuId}"
+                    //     resource.AssignTo cu
+                    // UNTIL HERE
 
                     do! cu.Start resources
-                    let opt = new System.Threading.Channels.UnboundedChannelOptions()
-                    opt.AllowSynchronousContinuations <- false
-                    
-                    let ch = System.Threading.Channels.Channel.CreateUnbounded(opt)
 
-                    let t = task {
-                        let! x = cu.Result
-                        let b = ch.Writer.TryWrite x
-                        assert b
-                    }
+                    // UNCOMMENT HERE
+                    // let! (arguments,result) = cu.Result
 
-                    let! (arguments,result) = ch.Reader.ReadAsync()
-                    // assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
-                    assert ErrorMsg.Logger.Assert $"FINISHED cuId {cuId}"
+                    // assert ErrorMsg.Logger.Assert $"FINISHED cuId {cuId}"
 
-                    for awaiter in cu.Awaiters do
-                        assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
-                        result.AssignTo awaiter
+                    // for awaiter in cu.Awaiters do
+                    //     assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
+                    //     result.AssignTo awaiter
 
-                    let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
+                    // let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
 
-                    for resource in deallocate do
-                        assert ErrorMsg.Logger.Assert $"REVOKING RESOURCE {resource} from {cuId}"
-                        resource.Reclaim cu
+                    // for resource in deallocate do
+                    //     assert ErrorMsg.Logger.Assert $"REVOKING RESOURCE {resource} from {cuId}"
+                    //     resource.Reclaim cu
 
-                        if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
-                            assert ErrorMsg.Logger.Assert $"RELEASING RESOURCE {resource}"
-                            resourceManager.Return resource
+                    //     if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
+                    //         assert ErrorMsg.Logger.Assert $"RELEASING RESOURCE {resource}"
+                    //         resourceManager.Return resource
+                    // UNTIL HERE
             }
 
         task {
