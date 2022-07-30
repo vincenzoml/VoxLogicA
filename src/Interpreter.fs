@@ -31,8 +31,7 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
     (
         id: int,
         operatorImplementation: OperatorImplementation<'t, 'kind>,
-        arguments: seq<Task<Resource<'t, 'kind>>>,
-        resourceManager: ResourceManager<'t, 'kind>
+        arguments: seq<Task<Resource<'t, 'kind>>>
     ) =
     let mutable started = false
     let outputTCS = TaskCompletionSource<seq<Resource<'t, 'kind>> * Result<'t, 'kind>>()
@@ -73,6 +72,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
     ) =
     let computeUnits = new Dictionary<int, ComputeUnit<'t, 'kind>>()
     let started = new HashSet<int>()
+    let tid = System.Threading.Thread.CurrentThread.ManagedThreadId
 
 
     member __.Prepare(program: WorkPlan) =
@@ -89,7 +89,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
                         operation.arguments
 
                 let cu =
-                    ComputeUnit(id, executionEngine.ImplementationOf operation.operator, arguments, resourceManager)
+                    ComputeUnit(id, executionEngine.ImplementationOf operation.operator, arguments)
 
                 computeUnits[id] <- cu
 
@@ -134,11 +134,21 @@ type Interpreter<'t, 'kind when 'kind: equality>
                         resource.AssignTo cu
 
                     do! cu.Start resources
+                    let opt = new System.Threading.Channels.UnboundedChannelOptions()
+                    opt.AllowSynchronousContinuations <- false
                     
-                    let! (arguments,result) = cu.Result
+                    let ch = System.Threading.Channels.Channel.CreateUnbounded(opt)
 
+                    let t = task {
+                        let! x = cu.Result
+                        let b = ch.Writer.TryWrite x
+                        assert b
+                    }
+
+                    let! (arguments,result) = ch.Reader.ReadAsync()
+                    // assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
                     assert ErrorMsg.Logger.Assert $"FINISHED cuId {cuId}"
-                    
+
                     for awaiter in cu.Awaiters do
                         assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
                         result.AssignTo awaiter

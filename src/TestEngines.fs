@@ -63,7 +63,6 @@ type Fib() =
                 task { return x })
         )
 
-
     let opFib =
         OperatorImplementation(
             Requirements(
@@ -84,8 +83,7 @@ type Fib() =
                     resource.Value.Contents <- result
 
                 let x =
-                    { task =
-                        Task.Run t
+                    { task = Task.Run t
                       result = resources["result"] }
 
                 task { return x })
