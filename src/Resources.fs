@@ -136,11 +136,13 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
     let free = Repository<'kind, Resource<'t, 'kind>>()
 
     let satisfiable (requirements: Requirements<'kind>) =
-        query {
+        let res = query {
             for kind in requirements.Values do
                 groupBy kind into g
-                all (g.Count() < (free.Count g.Key) + (allocated.Count g.Key))
+                all (g.Count() <= (free.Count g.Key) + (allocated.Count g.Key))
         }
+        ErrorMsg.Logger.Test $"Satisfiable {requirements} {res}"
+        res
 
     let mutable waiters: list<{| requirements: Requirements<'kind>
                                  tcs: TaskCompletionSource<option<Resources<'t, 'kind>>> |}> =

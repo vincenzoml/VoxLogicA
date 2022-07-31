@@ -72,7 +72,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
     let started = new HashSet<int>()
     let queries = new Dictionary<int, TaskCompletionSource<int>>()
     let results = new Dictionary<int, TaskCompletionSource<Resource<'t, 'kind>>>()
-
+    let allocated = new Dictionary<int, TaskCompletionSource<int * Resources<'t,'kind>>>()
     let toManage =
         new Dictionary<int, TaskCompletionSource<int * Resources<'t, 'kind> * seq<Resource<'t, 'kind>> * Resource<'t, 'kind>>>()
 
@@ -100,6 +100,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
                 queries[id] <- new TaskCompletionSource<_>()
                 toManage[id] <- new TaskCompletionSource<_>()
                 results[id] <- new TaskCompletionSource<_>()
+                allocated[id] <- new TaskCompletionSource<_>()
 
 
                 for argumentId in operation.arguments do
@@ -118,45 +119,59 @@ type Interpreter<'t, 'kind when 'kind: equality>
     member this.Compute() =
         let allocate requirements cuId =
             task {
+                ErrorMsg.Logger.Test $"Called allocate on {cuId}"
 
                 let resourcesOpt = resourceManager.Allocate(requirements)
 
                 match resourcesOpt with
-                | Some resources -> 
+                | Some resources ->
                     ErrorMsg.Logger.Test $"Allocated resources for cu {cuId}"
-                    return resources
-                | None ->
-                    failwith "ABOUT TO WAIT; CHECK COMMENT at Interpreter.fs:130"
-                    // Comment for after summer:
-                    // this approach is wrong, waiting here blocks the main thread. 
-                    // One should wait in the Thread.run which is some lines below this. 
-                    // However since after waiting one needs to assing resources, 
-                    // and that must be synchronous, then waiting instead should become a separate 
-                    // message in the message queue. 
-                    // Btw the message queues should be unified with a single message type.
-                    ErrorMsg.Logger.Test $"Waiting for resources for cu {cuId}"
-                    let! resourcesOpt = resourceManager.Wait requirements
+                    allocated[cuId].SetResult(cuId,resources)
 
-                    match resourcesOpt with
-                    | None ->
-                        ErrorMsg.Logger.Test $"Resources for cu {cuId} cannot be allocated"
-                        return
-                            (ErrorMsg.fail
-                                $"Not enough resources to satisfy requirements {requirements} for computeUnit #{id}")
-                    | Some resources -> 
-                        ErrorMsg.Logger.Test "Obtained resources for cu {cuId} after waiting"
-                        return resources
+                | None ->
+                    // failwith "ABOUT TO WAIT; CHECK COMMENT at Interpreter.fs:130"
+                    // Comment for after summer:
+                    // this approach is wrong, waiting here blocks the main thread.
+                    // One should wait in the Thread.run which is some lines below this.
+                    // However since after waiting one needs to assing resources,
+                    // and that must be synchronous, then waiting instead should become a separate
+                    // message in the message queue.
+                    // Btw the message queues should be unified with a single message type.
+                    ignore <| Task.Run (fun () -> ignore (task {
+                        ErrorMsg.Logger.Test $"Waiting for resources for cu {cuId}"
+                        let! resourcesOpt = resourceManager.Wait requirements
+
+                        match resourcesOpt with
+                        | None ->
+                            ErrorMsg.Logger.Test $"Resources for cu {cuId} cannot be allocated"
+
+                            return
+                                (ErrorMsg.fail
+                                    $"Not enough resources to satisfy requirements {requirements} for computeUnit #{id}")
+                        | Some resources ->
+                            ErrorMsg.Logger.Test "Obtained resources for cu {cuId} after waiting"
+                            allocated[cuId].SetResult(cuId,resources)
+                    }))
+
             }
 
-        let run (cuId: int) =
+        let preRun (cuId: int) =
             task {
-                ErrorMsg.Logger.Test $"About to start {cuId}; started is {started.Contains cuId}"
+                //ErrorMsg.Logger.Test $"About to start {cuId}; started is {started.Contains cuId}"
+                ErrorMsg.Logger.Test $"Called preRun on {cuId}"
                 if not (started.Contains cuId) then
                     ignore <| started.Add cuId
                     ErrorMsg.Logger.Test $"STARTING cuId {cuId}"
                     let cu = computeUnits[cuId]
-                    let! resources = allocate cu.Requirements cuId
+                    do! allocate cu.Requirements cuId
+            }
+
+        let doRun (cuId : int,resources : Resources<'t,'kind>) =
+            task {
+                    ErrorMsg.Logger.Test $"Called doRun on {cuId}"
+                    let cu = computeUnits[cuId]
                     ErrorMsg.Logger.Test $"GOT all resources for {cuId}"
+
                     if not manageResources then
                         ErrorMsg.Logger.Debug "Resource management is disabled"
 
@@ -169,7 +184,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     ErrorMsg.Logger.Test $"***** STARTED {cuId} ***"
 
                     ignore
-                    <| Task.Run(
+                    <| Task.Run( // TODO why is this required?
                         (fun () ->
                             ignore
                             <| task {
@@ -177,7 +192,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
                                 result.AssignTo this
                                 results[ cuId ].SetResult result
                                 ErrorMsg.Logger.Test $"FINISHED cuId {cuId}"
-
+                                
                                 toManage[cuId]
                                     .SetResult(cuId, resources, arguments, result)
                             })
@@ -225,49 +240,72 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
             let m = Array.init toManage.Count (fun i -> toManage[i].Task)
 
-            let mkQueue (x : array<Task<_>>) =
+            let r = Array.init allocated.Count (fun i -> allocated[i].Task)
+
+            let mkQueue (x: array<Task<_>>) (name : string) =
                 Array.mapi
                     (fun i t ->
                         (i,
                          task {
                              let! r = t
+                             ErrorMsg.Logger.Test $"Receved on queue {name} id {i}"
                              return (i, r)
                          }))
                     x
 
-            let tignore t =
+            let tignore (_,t) =
                 task {
-                    let _ = t
+                    let! _ = t
                     return ()
-                } 
+                }
 
-            let qQ = mkQueue q
-            let mQ = mkQueue m
-            let aQ = mkQueue (Array.concat [Array.map tignore qQ; Array.map tignore mQ])
+            let qQ = mkQueue q "q"
+            let mQ = mkQueue m "m"
+            let rQ = mkQueue r "r"
+
+            let aQ =
+                mkQueue (
+                    Array.concat [ Array.map tignore qQ
+                                   Array.map tignore mQ
+                                   Array.map tignore rQ ]
+                ) "a"
 
             while not finish.Task.IsCompleted do
                 ErrorMsg.Logger.Test "AWAITING NEXT MESSAGE"
-                let! newMessageTask = Task.WhenAny (Array.map snd aQ)
-                let! (i,_) = newMessageTask
-                let completed = Array.filter (fun (i,t: Task<_>) -> t.IsCompleted) aQ
-                for (j,_) in completed do
-                    aQ[i] <- (i,(new TaskCompletionSource<_>()).Task)
+                let! newMessageTask = Task.WhenAny(Array.map snd aQ)
+                let! (i, _) = newMessageTask
+                let completed = Array.filter (fun (i, t: Task<_>) -> t.IsCompleted) aQ
+
+                for (j, _) in completed do
+                    aQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
 
                 ErrorMsg.Logger.Test "NEW MESSAGE"
 
-                let completed = Array.filter (fun (i,t: Task<_>) -> t.IsCompleted) mQ
+                let completed = Array.filter (fun (i, t: Task<_>) -> t.IsCompleted) mQ
 
-                for (i : int, t : Task<int * (int * Resources<'t,'kind> * seq<Resource<'t,'kind>> * Resource<'t,'kind>)>) in completed do // BY THE ABOVE NOTE
+                for (i: int,
+                     t: Task<int * (int * Resources<'t, 'kind> * seq<Resource<'t, 'kind>> * Resource<'t, 'kind>)>) in
+                    completed do // BY THE ABOVE NOTE
                     mQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
                     let! (i, (id, resources, arguments, result)) = t
                     do! manage (id, resources, arguments, result)
 
+                let completed = Array.filter (fun (i, t: Task<_>) -> t.IsCompleted) rQ
+
+                for (i: int,
+                     t: Task<int * (int * Resources<'t, 'kind>)>) in
+                    completed do // BY THE ABOVE NOTE
+                    rQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
+                    let! (i, (j, resources)) = t
+                    do! doRun (i, resources)
+
                 let completed = Array.filter (fun (i, t: Task<_>) -> t.IsCompleted) qQ
 
-                for (i, (t : Task<int * int>)) in completed do // BY THE ABOVE NOTE
+                for (i, (t: Task<int * int>)) in completed do // BY THE ABOVE NOTE
                     qQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
                     let! (i, id) = t
+
                     for j = 0 to id do
                         ErrorMsg.Logger.Test $"About to run {id}"
-                        do! run j
+                        do! preRun j
         }

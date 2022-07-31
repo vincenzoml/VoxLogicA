@@ -104,7 +104,8 @@ let main (argv: string array) =
     //         ignore
 
     ErrorMsg.Logger.LogToStdout()
-    //ErrorMsg.Logger.SetLogLevel([ "user" ])
+    ErrorMsg.Logger.SetLogLevel([ "user";"info"])
+    ErrorMsg.Logger.SetLogLevel([ "user";"info";"test";"debug"])
 
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning(
