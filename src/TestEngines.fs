@@ -76,14 +76,13 @@ type Fib() =
                             .Value
                             .Contents
 
-                    let argsStr = String.concat ", " (Seq.map string args)
                     let inp = (args[0].Value: FibResource)
                     let resource = resources["result"]
                     let result = fib inp.Contents
                     resource.Value.Contents <- result
 
                 let x =
-                    { task = Task.Run t
+                    { task = Task.Factory.StartNew(t)
                       result = resources["result"] }
 
                 task { return x })

@@ -174,6 +174,7 @@ let main (argv: string array) =
         ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)
         ErrorMsg.Logger.Debug "Running interpreter"
+        let computer = interpreter.Compute()
 
         let t = 
             (task {
@@ -186,11 +187,11 @@ let main (argv: string array) =
                                 task {
                                     let! result = interpreter.QueryAsync id
                                     ErrorMsg.Logger.Result label result
+                                    result.Reclaim(interpreter)
                                 }
                                 :> System.Threading.Tasks.Task)
                         program.goals
                     |> Seq.toArray
-
             }).Result
 
         ErrorMsg.Logger.Debug "tasks launched, waiting..."

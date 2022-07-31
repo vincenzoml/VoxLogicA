@@ -33,13 +33,10 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
         operatorImplementation: OperatorImplementation<'t, 'kind>,
         arguments: seq<Task<Resource<'t, 'kind>>>
     ) =
-    let mutable started = false
     let outputTCS = TaskCompletionSource<seq<Resource<'t, 'kind>> * Result<'t, 'kind>>()
 
     member __.Id = id
     member val Requirements = operatorImplementation.Requires
-
-    member __.Started = started
 
     /// returns only the output resource so that its reference count can be increased before passing it to other ComputeUnits
     member this.Start(resources: Resources<'t, 'kind>) =
@@ -70,10 +67,18 @@ type Interpreter<'t, 'kind when 'kind: equality>
         executionEngine: ExecutionEngine<'t, 'kind>,
         resourceManager: ResourceManager<'t, 'kind>
     ) =
+    let manageResources = true // set to false for testing
     let computeUnits = new Dictionary<int, ComputeUnit<'t, 'kind>>()
     let started = new HashSet<int>()
-    let tid = System.Threading.Thread.CurrentThread.ManagedThreadId
+    let queries = new Dictionary<int, TaskCompletionSource<int>>()
+    let results = new Dictionary<int, TaskCompletionSource<Resource<'t, 'kind>>>()
 
+    let toManage =
+        new Dictionary<int, TaskCompletionSource<int * Resources<'t, 'kind> * seq<Resource<'t, 'kind>> * Resource<'t, 'kind>>>()
+
+    let finish = new TaskCompletionSource()
+
+    member __.Finish() = finish.SetResult()
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
@@ -92,17 +97,24 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     ComputeUnit(id, executionEngine.ImplementationOf operation.operator, arguments)
 
                 computeUnits[id] <- cu
+                queries[id] <- new TaskCompletionSource<_>()
+                toManage[id] <- new TaskCompletionSource<_>()
 
                 for argumentId in operation.arguments do
                     ErrorMsg.Logger.Debug $"ADDING AWAITER {cu.Id} to {argumentId}"
+
                     ignore
-                    <| computeUnits[argumentId].Awaiters.Add cu)
+                    <| computeUnits[ argumentId ].Awaiters.Add cu)
 
             program.operations
 
-    member this.QueryAsync(id: OperationId) =
-        assert computeUnits.ContainsKey id
+    member __.QueryAsync(cuId: OperationId) =
+        assert computeUnits.ContainsKey cuId
+        results[cuId] <- new TaskCompletionSource<_>()
+        queries[cuId].SetResult cuId
+        results[cuId].Task
 
+    member this.Compute() =
         let allocate requirements =
             task {
 
@@ -125,46 +137,112 @@ type Interpreter<'t, 'kind when 'kind: equality>
             task {
                 if not (started.Contains cuId) then
                     ignore <| started.Add cuId
-                    assert ErrorMsg.Logger.Assert $"STARTING cuId {cuId}"
+                    ErrorMsg.Logger.Test $"STARTING cuId {cuId}"
                     let cu = computeUnits[cuId]
                     let! resources = allocate cu.Requirements
 
-                    ErrorMsg.Logger.Debug "Enable resource allocation by decommenting in source code"
-                    // UNCOMMENT HERE
-                    // for resource in resources.Values do
-                    //     assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {resource} to {cuId}"
-                    //     resource.AssignTo cu
-                    // UNTIL HERE
+                    if not manageResources then
+                        ErrorMsg.Logger.Debug "Resource management is disabled"
+
+                    if manageResources then
+                        for resource in resources.Values do
+                            ErrorMsg.Logger.Test $"ASSIGNING RESOURCE {resource} to {cuId}"
+                            resource.AssignTo cu
 
                     do! cu.Start resources
+                    ErrorMsg.Logger.Test $"***** STARTED {cuId} ***"
 
-                    // UNCOMMENT HERE
-                    // let! (arguments,result) = cu.Result
+                    ignore
+                    <| Task.Run(
+                        (fun () ->
+                            ignore
+                            <| task {
+                                let! (arguments, result) = cu.Result // TODO when and where to capture the exception?
+                                result.AssignTo this
+                                results[cuId].SetResult result
+                                ErrorMsg.Logger.Test $"FINISHED cuId {cuId}"
 
-                    // assert ErrorMsg.Logger.Assert $"FINISHED cuId {cuId}"
+                                toManage[cuId]
+                                    .SetResult(cuId, resources, arguments, result)
+                            })
+                    )
 
-                    // for awaiter in cu.Awaiters do
-                    //     assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
-                    //     result.AssignTo awaiter
+                    return ()
+            }
 
-                    // let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
+        let manage
+            (
+                cuId: int,
+                resources: Resources<'t, 'kind>,
+                arguments: seq<Resource<'t, 'kind>>,
+                result: Resource<'t, 'kind>
+            ) =
+            task {
+                ErrorMsg.Logger.Test $"Managing {cuId}"
+                let cu = computeUnits[cuId]
 
-                    // for resource in deallocate do
-                    //     assert ErrorMsg.Logger.Assert $"REVOKING RESOURCE {resource} from {cuId}"
-                    //     resource.Reclaim cu
+                if manageResources then
 
-                    //     if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
-                    //         assert ErrorMsg.Logger.Assert $"RELEASING RESOURCE {resource}"
-                    //         resourceManager.Return resource
-                    // UNTIL HERE
+                    for awaiter in cu.Awaiters do
+                        ErrorMsg.Logger.Test
+                            $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t, 'kind>).Id} of {cuId}"
+
+                        result.AssignTo awaiter
+
+                    let deallocate =
+                        Seq.toArray
+                        <| Seq.concat [ resources.Values :> seq<Resource<'t, 'kind>>
+                                        arguments ]
+
+                    for resource in deallocate do
+                        ErrorMsg.Logger.Test $"REVOKING RESOURCE {resource} from {cuId}"
+                        resource.Reclaim cu
+
+                        if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
+                            ErrorMsg.Logger.Test $"RELEASING RESOURCE {resource}"
+                            resourceManager.Return resource
+            // UNTIL HERE
             }
 
         task {
             // System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
-            let toRun = Seq.toArray (Seq.filter ((>=) id) computeUnits.Keys)
+            let q =
+                Array.init queries.Count (fun i ->
+                    task {
+                        let! id = queries[i].Task
+                        return Choice1Of2 id
+                    })
 
-            for cuId in toRun do
-                do! run cuId
+            let m =
+                Array.init toManage.Count (fun i ->
+                    task {
+                        let! (id, resources, arguments, result) = toManage[i].Task
+                        return Choice2Of2(id, resources, arguments, result)
+                    })
 
-            return! computeUnits[id].Result
+            let all = Array.concat [ q; m ]
+
+            let mutable cmdQueue =
+                Array.mapi
+                    (fun i t ->
+                        (i,
+                         task {
+                             let! r = t
+                             return (i, r)
+                         }))
+                    all
+
+            while not finish.Task.IsCompleted do
+                let! t' = Task.WhenAny(Array.map snd cmdQueue)
+                let! (i, cmd) = t'
+                cmdQueue[i] <- (i, (new TaskCompletionSource<_>()).Task)
+
+                match cmd with
+                | Choice1Of2 id ->
+                    for i = 0 to id do
+                        ErrorMsg.Logger.Test $"Running {id}"
+                        do! run i
+                        ErrorMsg.Logger.Test "*** CONTINUING TO MAIN THREAD ***"
+                | Choice2Of2 (id, resources, arguments, result) -> do! manage (id, resources, arguments, result)
+
         }
