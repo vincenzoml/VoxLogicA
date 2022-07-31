@@ -206,24 +206,11 @@ type Interpreter<'t, 'kind when 'kind: equality>
             }
 
         task {
-            // System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
-            let q =
-                Array.init queries.Count (fun i ->
-                    task {
-                        let! id = queries[i].Task
-                        return Choice1Of2 id
-                    })
+            let q = Array.init queries.Count (fun i -> queries[i].Task)
 
-            let m =
-                Array.init toManage.Count (fun i ->
-                    task {
-                        let! (id, resources, arguments, result) = toManage[i].Task
-                        return Choice2Of2(id, resources, arguments, result)
-                    })
+            let m = Array.init toManage.Count (fun i -> toManage[i].Task)
 
-            let all = Array.concat [ q; m ]
-
-            let cmdQueue =
+            let mkQueue (x : array<Task<_>>) =
                 Array.mapi
                     (fun i t ->
                         (i,
@@ -231,25 +218,43 @@ type Interpreter<'t, 'kind when 'kind: equality>
                              let! r = t
                              return (i, r)
                          }))
-                    all
+                    x
+
+            let tignore t =
+                task {
+                    let _ = t
+                    return ()
+                } :> Task
+
+            let qQ = mkQueue q
+            let mQ = mkQueue m
+            let aQ = Array.concat [Array.map tignore qQ; Array.map tignore mQ]
 
             while not finish.Task.IsCompleted do
-                let! t' = Task.WhenAny(Array.map snd cmdQueue) // NOTE: WhenAny will ignore already completed tasks
-                let! _ = t'
-                let completed = Array.filter (fun (i,t: Task<_>) -> t.IsCompleted) cmdQueue
-                for (i,t) in completed do // BY THE ABOVE NOTE
-                    let! (i,cmd) = t 
-                    cmdQueue[i] <- (i, (new TaskCompletionSource<_>()).Task)
-                    match cmd with
-                    | Choice1Of2 id ->
-                        ErrorMsg.Logger.Test $"*** CHOICE 1"
+                ErrorMsg.Logger.Test "AWAITING NEXT MESSAGE"
+                let completed = 
+                    let tmp = Array.filter (fun (t: Task) -> t.IsCompleted) aQ
+                    if tmp.Length > 0 then tmp
+                    else
+                        (task {
+                            let! x = Task.WhenAny aQ
+                            do! x
+                            return Array.filter (fun (t: Task) -> t.IsCompleted) aQ
+                        }).Result
 
-                        for i = 0 to id do
-                            ErrorMsg.Logger.Test $"Running {id}"
-                            do! run i
-                            ErrorMsg.Logger.Test "*** CONTINUING TO MAIN THREAD ***"
-                    | Choice2Of2 (id, resources, arguments, result) -> 
-                        ErrorMsg.Logger.Test $"*** CHOICE 2"
-                        do! manage (id, resources, arguments, result)
+                ErrorMsg.Logger.Test "NEW MESSAGE"
 
+                let completed = Array.filter (fun (i,t: Task<_>) -> t.IsCompleted) mQ
+
+                for (i : int, t : Task<int * (int * Resources<'t,'kind> * seq<Resource<'t,'kind>> * Resource<'t,'kind>)>) in completed do // BY THE ABOVE NOTE
+                    mQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
+                    let! (i, (id, resources, arguments, result)) = t
+                    do! manage (id, resources, arguments, result)
+
+                let completed = Array.filter (fun (i, t: Task<_>) -> t.IsCompleted) qQ
+
+                for (i, (t : Task<int * int>)) in completed do // BY THE ABOVE NOTE
+                    mQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
+                    let! (i, id) = t
+                    do! run id
         }
