@@ -123,15 +123,23 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
                 match resourcesOpt with
                 | Some resources -> 
-                    ErrorMsg.Logger.Test "Allocated resources for cu {cuId}"
+                    ErrorMsg.Logger.Test $"Allocated resources for cu {cuId}"
                     return resources
                 | None ->
-                    ErrorMsg.Logger.Test "Waiting for resources for cu {cuId}"
+                    failwith "ABOUT TO WAIT; CHECK COMMENT at Interpreter.fs:130"
+                    // Comment for after summer:
+                    // this approach is wrong, waiting here blocks the main thread. 
+                    // One should wait in the Thread.run which is some lines below this. 
+                    // However since after waiting one needs to assing resources, 
+                    // and that must be synchronous, then waiting instead should become a separate 
+                    // message in the message queue. 
+                    // Btw the message queues should be unified with a single message type.
+                    ErrorMsg.Logger.Test $"Waiting for resources for cu {cuId}"
                     let! resourcesOpt = resourceManager.Wait requirements
 
                     match resourcesOpt with
                     | None ->
-                        ErrorMsg.Logger.Test "Resources for cu {cuId} cannot be allocated"
+                        ErrorMsg.Logger.Test $"Resources for cu {cuId} cannot be allocated"
                         return
                             (ErrorMsg.fail
                                 $"Not enough resources to satisfy requirements {requirements} for computeUnit #{id}")
@@ -240,15 +248,10 @@ type Interpreter<'t, 'kind when 'kind: equality>
             while not finish.Task.IsCompleted do
                 ErrorMsg.Logger.Test "AWAITING NEXT MESSAGE"
                 let! newMessageTask = Task.WhenAny (Array.map snd aQ)
-                    // let tmp = Array.filter (fun (t: Task) -> t.IsCompleted) aQ
-                    // if tmp.Length > 0 then ()
-                    // else
-                        // (task {
-                        //     let! x = Task.WhenAny aQ
-                        //     do! x
-                        // }).Result
                 let! (i,_) = newMessageTask
-                aQ[i] <- (i,(new TaskCompletionSource<_>()).Task)
+                let completed = Array.filter (fun (i,t: Task<_>) -> t.IsCompleted) aQ
+                for (j,_) in completed do
+                    aQ[i] <- (i,(new TaskCompletionSource<_>()).Task)
 
                 ErrorMsg.Logger.Test "NEW MESSAGE"
 

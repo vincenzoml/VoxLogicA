@@ -4,7 +4,6 @@ open VoxLogicA.Interpreter
 open VoxLogicA.Resources
 open System.Threading.Tasks
 open VoxLogicA.Reducer
-open System.Collections.Generic
 
 let rec fib x =
     if x < 2 then
