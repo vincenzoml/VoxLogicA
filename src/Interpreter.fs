@@ -116,32 +116,39 @@ type Interpreter<'t, 'kind when 'kind: equality>
         results[cuId].Task
 
     member this.Compute() =
-        let allocate requirements =
+        let allocate requirements cuId =
             task {
 
                 let resourcesOpt = resourceManager.Allocate(requirements)
 
                 match resourcesOpt with
-                | Some resources -> return resources
+                | Some resources -> 
+                    ErrorMsg.Logger.Test "Allocated resources for cu {cuId}"
+                    return resources
                 | None ->
+                    ErrorMsg.Logger.Test "Waiting for resources for cu {cuId}"
                     let! resourcesOpt = resourceManager.Wait requirements
 
                     match resourcesOpt with
                     | None ->
+                        ErrorMsg.Logger.Test "Resources for cu {cuId} cannot be allocated"
                         return
                             (ErrorMsg.fail
                                 $"Not enough resources to satisfy requirements {requirements} for computeUnit #{id}")
-                    | Some resources -> return resources
+                    | Some resources -> 
+                        ErrorMsg.Logger.Test "Obtained resources for cu {cuId} after waiting"
+                        return resources
             }
 
         let run (cuId: int) =
             task {
+                ErrorMsg.Logger.Test $"About to start {cuId}; started is {started.Contains cuId}"
                 if not (started.Contains cuId) then
                     ignore <| started.Add cuId
                     ErrorMsg.Logger.Test $"STARTING cuId {cuId}"
                     let cu = computeUnits[cuId]
-                    let! resources = allocate cu.Requirements
-
+                    let! resources = allocate cu.Requirements cuId
+                    ErrorMsg.Logger.Test $"GOT all resources for {cuId}"
                     if not manageResources then
                         ErrorMsg.Logger.Debug "Resource management is disabled"
 
@@ -224,23 +231,24 @@ type Interpreter<'t, 'kind when 'kind: equality>
                 task {
                     let _ = t
                     return ()
-                } :> Task
+                } 
 
             let qQ = mkQueue q
             let mQ = mkQueue m
-            let aQ = Array.concat [Array.map tignore qQ; Array.map tignore mQ]
+            let aQ = mkQueue (Array.concat [Array.map tignore qQ; Array.map tignore mQ])
 
             while not finish.Task.IsCompleted do
                 ErrorMsg.Logger.Test "AWAITING NEXT MESSAGE"
-                let completed = 
-                    let tmp = Array.filter (fun (t: Task) -> t.IsCompleted) aQ
-                    if tmp.Length > 0 then tmp
-                    else
-                        (task {
-                            let! x = Task.WhenAny aQ
-                            do! x
-                            return Array.filter (fun (t: Task) -> t.IsCompleted) aQ
-                        }).Result
+                let! newMessageTask = Task.WhenAny (Array.map snd aQ)
+                    // let tmp = Array.filter (fun (t: Task) -> t.IsCompleted) aQ
+                    // if tmp.Length > 0 then ()
+                    // else
+                        // (task {
+                        //     let! x = Task.WhenAny aQ
+                        //     do! x
+                        // }).Result
+                let! (i,_) = newMessageTask
+                aQ[i] <- (i,(new TaskCompletionSource<_>()).Task)
 
                 ErrorMsg.Logger.Test "NEW MESSAGE"
 
@@ -254,7 +262,9 @@ type Interpreter<'t, 'kind when 'kind: equality>
                 let completed = Array.filter (fun (i, t: Task<_>) -> t.IsCompleted) qQ
 
                 for (i, (t : Task<int * int>)) in completed do // BY THE ABOVE NOTE
-                    mQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
+                    qQ[i] <- (i, (new TaskCompletionSource<_>()).Task)
                     let! (i, id) = t
-                    do! run id
+                    for j = 0 to id do
+                        ErrorMsg.Logger.Test $"About to run {id}"
+                        do! run j
         }

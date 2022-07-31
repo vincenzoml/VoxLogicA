@@ -1,7 +1,7 @@
 import random
 
 
-for i in range(0,30):
-    k = random.randint(10,11)
+for i in range(0,3):
+    k = random.randint(1,1)
     
-    print(f'''print "fib({k},{i})" fib({1},{i})''')
+    print(f'''print "fibSeq({k},{i})" fibSeq({1},{i})''')
