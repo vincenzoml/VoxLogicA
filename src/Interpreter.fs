@@ -99,6 +99,8 @@ type Interpreter<'t, 'kind when 'kind: equality>
                 computeUnits[id] <- cu
                 queries[id] <- new TaskCompletionSource<_>()
                 toManage[id] <- new TaskCompletionSource<_>()
+                results[id] <- new TaskCompletionSource<_>()
+
 
                 for argumentId in operation.arguments do
                     ErrorMsg.Logger.Debug $"ADDING AWAITER {cu.Id} to {argumentId}"
@@ -110,8 +112,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
     member __.QueryAsync(cuId: OperationId) =
         assert computeUnits.ContainsKey cuId
-        results[cuId] <- new TaskCompletionSource<_>()
-        queries[cuId].SetResult cuId
+        queries[ cuId ].SetResult cuId
         results[cuId].Task
 
     member this.Compute() =
@@ -159,7 +160,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
                             <| task {
                                 let! (arguments, result) = cu.Result // TODO when and where to capture the exception?
                                 result.AssignTo this
-                                results[cuId].SetResult result
+                                results[ cuId ].SetResult result
                                 ErrorMsg.Logger.Test $"FINISHED cuId {cuId}"
 
                                 toManage[cuId]
@@ -222,7 +223,7 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
             let all = Array.concat [ q; m ]
 
-            let mutable cmdQueue =
+            let cmdQueue =
                 Array.mapi
                     (fun i t ->
                         (i,
@@ -233,16 +234,22 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     all
 
             while not finish.Task.IsCompleted do
-                let! t' = Task.WhenAny(Array.map snd cmdQueue)
-                let! (i, cmd) = t'
-                cmdQueue[i] <- (i, (new TaskCompletionSource<_>()).Task)
+                let! t' = Task.WhenAny(Array.map snd cmdQueue) // NOTE: WhenAny will ignore already completed tasks
+                let! _ = t'
+                let completed = Array.filter (fun (i,t: Task<_>) -> t.IsCompleted) cmdQueue
+                for (i,t) in completed do // BY THE ABOVE NOTE
+                    let! (i,cmd) = t 
+                    cmdQueue[i] <- (i, (new TaskCompletionSource<_>()).Task)
+                    match cmd with
+                    | Choice1Of2 id ->
+                        ErrorMsg.Logger.Test $"*** CHOICE 1"
 
-                match cmd with
-                | Choice1Of2 id ->
-                    for i = 0 to id do
-                        ErrorMsg.Logger.Test $"Running {id}"
-                        do! run i
-                        ErrorMsg.Logger.Test "*** CONTINUING TO MAIN THREAD ***"
-                | Choice2Of2 (id, resources, arguments, result) -> do! manage (id, resources, arguments, result)
+                        for i = 0 to id do
+                            ErrorMsg.Logger.Test $"Running {id}"
+                            do! run i
+                            ErrorMsg.Logger.Test "*** CONTINUING TO MAIN THREAD ***"
+                    | Choice2Of2 (id, resources, arguments, result) -> 
+                        ErrorMsg.Logger.Test $"*** CHOICE 2"
+                        do! manage (id, resources, arguments, result)
 
         }

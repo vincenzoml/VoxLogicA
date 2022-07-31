@@ -130,7 +130,7 @@ let main (argv: string array) =
                 exit 0
 #endif
 
-        ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
+        ErrorMsg.Logger.Info $"{name.Name} version: {informationalVersion}"
 
         // let performance = parsed.Contains PerformanceTest
 
@@ -149,7 +149,7 @@ let main (argv: string array) =
         let program = Reducer.reduceProgram syntax
 
         ErrorMsg.Logger.Debug "Program reduced"
-        ErrorMsg.Logger.Debug $"Number of tasks: {program.operations.Length}"
+        ErrorMsg.Logger.Info $"Number of tasks: {program.operations.Length}"
 
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph
@@ -173,9 +173,7 @@ let main (argv: string array) =
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
         interpreter.Prepare(program)
-        ErrorMsg.Logger.Debug "Running interpreter"
-        let computer = interpreter.Compute()
-
+        
         let t = 
             (task {
                 return
@@ -194,10 +192,13 @@ let main (argv: string array) =
                     |> Seq.toArray
             }).Result
 
+        ErrorMsg.Logger.Debug "Running interpreter"
+        let computer = interpreter.Compute()
+
         ErrorMsg.Logger.Debug "tasks launched, waiting..."
         System.Threading.Tasks.Task.WaitAll t
         
-        ErrorMsg.Logger.Debug "All done."
+        ErrorMsg.Logger.Info "All done."
 
         //ErrorMsg.Logger.Debug $"{x}"
 
