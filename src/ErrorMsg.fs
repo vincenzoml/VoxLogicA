@@ -48,7 +48,7 @@ type Logger private () =
 
     static member SetLogLevel(x : list<string>) =
         logLevel.Clear()
-        for ll in x do             
+        for ll in x do
             ignore <| logLevel.Add(ll)
 
     static member LogToStdout() =
@@ -70,7 +70,7 @@ type Logger private () =
 
     static member Debug s = 
         #if DEBUG
-        print "info" s
+        print "dbug" s
         #else
         ()
         #endif

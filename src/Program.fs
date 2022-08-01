@@ -53,61 +53,11 @@ let main (argv: string array) =
     if Option.isSome (parsed.TryGetResult Version) then
         printfn "%s" informationalVersion
         exit 0
-    // let finish =
-    //     if Option.isSome (parsed.TryGetResult JSon) then
-    //         let readLog = ErrorMsg.Logger.LogToMemory()
-    //         fun oExn ->
-    //             let (print,save) = ErrorMsg.Report.Get()
-    //             let log = readLog()
-    //             let json =
-    //                 JSonOutput.Root(
-    //                     print =
-    //                         List.toArray (
-    //                             List.map
-    //                                 (fun (name, typ, res) -> JSonOutput.Print(name = name, vltype = typ, value = res))
-    //                                 print
-    //                         ),
-    //                     layers =
-    //                         List.toArray (
-    //                             List.map
-    //                                 (fun (name, vltype, min, max, path: string) ->
-    //                                     let mutable ext = System.IO.Path.GetExtension path
-
-    //                                     let mutable fname =
-    //                                         System.IO.Path.GetFileNameWithoutExtension path
-
-    //                                     if ext = ".gz" then
-    //                                         let ext2 = System.IO.Path.GetExtension fname
-    //                                         ext <- ext2 + ext
-    //                                         fname <- System.IO.Path.GetFileNameWithoutExtension fname
-
-    //                                     JSonOutput.Layer(
-    //                                         vltype = vltype,
-    //                                         min = min,
-    //                                         max = max,
-    //                                         name = fname,
-    //                                         extension = ext
-    //                                     ))
-    //                                 save
-    //                         ), //
-    //                     error =
-    //                         FSharp.Data.JsonValue.String(
-    //                             match oExn with
-    //                             | None -> ""
-    //                             | Some exn -> exn.ToString()
-    //                         ),
-    //                     log = FSharp.Data.JsonValue.String log
-    //                 )
-    //             printf "%s" <| json.ToString()
-    //     else
-    //         ErrorMsg.Logger.LogToStdout ()
-    //         ignore
-
     ErrorMsg.Logger.LogToStdout()
     #if ! DEBUG
     ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
     #else
-    ErrorMsg.Logger.SetLogLevel(["thrd"])
+    () //ErrorMsg.Logger.SetLogLevel(["thrd"])
     #endif
 
     if version.Revision <> 0 then
@@ -135,8 +85,6 @@ let main (argv: string array) =
 #endif
 
         ErrorMsg.Logger.Info $"{name.Name} version: {informationalVersion}"
-
-        // let performance = parsed.Contains PerformanceTest
 
         let syntax = Parser.parseProgram filename
         ErrorMsg.Logger.Debug "Program parsed"
@@ -179,54 +127,29 @@ let main (argv: string array) =
         interpreter.Prepare(program)
         ErrorMsg.Logger.Debug "Running interpreter"
 
-        let t = 
-            (task {
-                return
-                    Seq.map
-                        (fun goal ->
-                            match goal with
-                            | (Reducer.GoalSave (label, id)
-                            | Reducer.GoalPrint (label, id)) ->
-                                task {
-                                    let! result = interpreter.QueryAsync id
-                                    ErrorMsg.Logger.Result label result
-                                }
-                                :> System.Threading.Tasks.Task)
-                        program.goals
-                    |> Seq.toArray
 
-            }).Result
+        let tasks = [|
+            for goal in program.goals do
+                match goal with
+                | (Reducer.GoalSave (label, id)
+                | Reducer.GoalPrint (label, id)) ->
+                        (task {
+                            System.Threading.SynchronizationContext.SetSynchronizationContext interpreter.SynchronizationContext
+                            let! result = interpreter.QueryAsync id
+                            ErrorMsg.Logger.Result label result.Value
+                            result.Reclaim(interpreter)
+                        }) :> System.Threading.Tasks.Task
+        |]
+
 
         ErrorMsg.Logger.Debug "tasks launched, waiting..."
-        System.Threading.Tasks.Task.WaitAll t
-        
+        interpreter.Run()
+
         ErrorMsg.Logger.Debug "All done."
-
-        //ErrorMsg.Logger.Debug $"{x}"
-
-        // let model = GPUModel(performance) :> IModel // SITKModel() :> IModel
-        // let checker = ModelChecker model
-
-        // if parsed.Contains Ops then
-        //     Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
-        //     exit 0
-
-        // let run filename =
-        //     let interpreter = Interpreter(model, checker)
-        //     interpreter.Batch interpreter.DefaultLibDir filename
-
-        // match (parsed.TryGetResult Filename, Util.isDebug ()) with
-        // | Some filename, _ ->
-        //     run filename
-        //     finish None
-        //     0
-        // | None, _ ->
-        //     run "test.imgql"
 
         0
     with
     | e ->
         ErrorMsg.Logger.DebugExn e
         raise e
-        // finish (Some e)
         1

@@ -151,13 +151,11 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
     let take () = 
         if n <> 0 then 
             ErrorMsg.Logger.Test "thrd" $"{System.Threading.Thread.CurrentThread.ManagedThreadId}"
-            exit 0
         assert (n = 0)
         n <- 1
     let give () = 
         if n <> 1 then 
             ErrorMsg.Logger.Test "thrd" $"{System.Threading.Thread.CurrentThread.ManagedThreadId}"
-            exit 0
         assert (n = 1)
         n <- 0
 

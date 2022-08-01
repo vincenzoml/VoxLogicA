@@ -68,29 +68,29 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
 open System.Threading
 open System.Collections.Concurrent
 
-// type ThreadOwningSyncCtx() =
-//     inherit SynchronizationContext()
+type ThreadOwningSyncCtx() =
+    inherit SynchronizationContext()
 
-//     let _queue = new BlockingCollection<(SendOrPostCallback * obj)>()
+    let _queue = new BlockingCollection<(SendOrPostCallback * obj)>()
 
-//     member _.DoWork(cancellationToken: CancellationToken) =
-//         while not cancellationToken.IsCancellationRequested do
-//             let (callback, state) = _queue.Take()
-//             callback.Invoke state
-//         ()
+    member _.DoWork() =
+        while _queue.Count > 0 do
+            let (callback, state) = _queue.Take()
+            callback.Invoke state
+        ()
 
-//     override _.Post(callback, state) =
-//         _queue.Add((callback, state))
-//         ()
+    override _.Post(callback, state) =
+        _queue.Add((callback, state))
+        ()
 
-//     override _.Send(callback, state) =
-//         let tcs = TaskCompletionSource()
-//         let cb s =
-//             callback.Invoke s
-//             tcs.SetResult()
-//         _queue.Add((cb, state))
-//         tcs.Task.Wait()
-//         ()
+    override _.Send(callback, state) =
+        let tcs = TaskCompletionSource()
+        let cb s =
+            callback.Invoke s
+            tcs.SetResult()
+        _queue.Add((cb, state))
+        tcs.Task.Wait()
+        ()
 
 type Interpreter<'t, 'kind when 'kind: equality>
     (
@@ -98,12 +98,16 @@ type Interpreter<'t, 'kind when 'kind: equality>
         resourceManager: ResourceManager<'t, 'kind>
     ) =
     let computeUnits = new Dictionary<int, ComputeUnit<'t, 'kind>>()
-    let started = new HashSet<int>()
-    let tid = 
+    let started = new Dictionary<int,Task>()
+    let tid =
         let r = System.Threading.Thread.CurrentThread.ManagedThreadId
         ErrorMsg.Logger.Test "thrd" $"{r}"
         r
-    // let syncCtx = ThreadOwningSyncCtx()
+    
+    member val SynchronizationContext = ThreadOwningSyncCtx()
+
+    member this.Run () =
+        this.SynchronizationContext.DoWork()
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
@@ -135,7 +139,9 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
         let allocate requirements =
             task {
+                SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
 
+                assert (SynchronizationContext.Current = this.SynchronizationContext)
                 let resourcesOpt = resourceManager.Allocate(requirements)
 
                 match resourcesOpt with
@@ -153,8 +159,11 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
         let run (cuId: int) =
             task {
-                if not (started.Contains cuId) then
-                    ignore <| started.Add cuId
+                SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
+
+                if not (started.ContainsKey cuId) then
+                    let tcs = new TaskCompletionSource()
+                    started[cuId] <- tcs.Task
                     ErrorMsg.Logger.Test "temp" $"STARTING cuId {cuId}"
                     let cu = computeUnits[cuId]
                     let! resources = allocate cu.Requirements
@@ -163,9 +172,21 @@ type Interpreter<'t, 'kind when 'kind: equality>
                         ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {resource} to {cuId}"
                         resource.AssignTo cu
 
+                    ignore <| Task.Run
+                        (fun () ->
+                            (ignore <| task {
+                                do! cu.Start resources
+                                tcs.SetResult ()
+                            }))
+                    do! Task.Yield()
+                    SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
+
+                    let toWait = (Array.init (started.Values.Count) (fun i -> started[i]))
+                    let cuId = Task.WaitAny toWait
+                    SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
                     assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
-                    (cu.Start resources).Result
-                    assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
+                    let cu = computeUnits[cuId]
+                    started[cuId] <- ((new TaskCompletionSource()).Task)
 
                     let! (arguments,result) = cu.Result
 
@@ -186,18 +207,23 @@ type Interpreter<'t, 'kind when 'kind: equality>
                             resourceManager.Return resource
             }
 
+
+
         task {
             // System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
             let toRun = Seq.toArray (Seq.filter ((>=) id) computeUnits.Keys)
-            // do SynchronizationContext.SetSynchronizationContext syncCtx
 
+            SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
+            assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
 
             for cuId in toRun do
                 do! run cuId
-            // let cts = new CancellationTokenSource()
 
-            // syncCtx.DoWork(cts.Token)
-
-
-            return! computeUnits[id].Result
+            let! result = computeUnits[id].Result
+            let x = snd result
+            x.AssignTo this
+            return x
         }
+
+
+
