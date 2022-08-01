@@ -73,10 +73,12 @@ type ThreadOwningSyncCtx() =
 
     let _queue = new BlockingCollection<(SendOrPostCallback * obj)>()
 
-    member _.DoWork() =
-        while _queue.Count > 0 do
+    member _.DoWork(cts : CancellationToken) =
+        while not cts.IsCancellationRequested do
+            ErrorMsg.Logger.Test "work" "work started"
             let (callback, state) = _queue.Take()
             callback.Invoke state
+            ErrorMsg.Logger.Test "work" "work finished"
         ()
 
     override _.Post(callback, state) =
@@ -103,11 +105,11 @@ type Interpreter<'t, 'kind when 'kind: equality>
         let r = System.Threading.Thread.CurrentThread.ManagedThreadId
         ErrorMsg.Logger.Test "thrd" $"{r}"
         r
-    
+
     member val SynchronizationContext = ThreadOwningSyncCtx()
 
-    member this.Run () =
-        this.SynchronizationContext.DoWork()
+    member this.Run (cts) =
+        this.SynchronizationContext.DoWork(cts)
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
@@ -182,9 +184,11 @@ type Interpreter<'t, 'kind when 'kind: equality>
                     SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
 
                     let toWait = (Array.init (started.Values.Count) (fun i -> started[i]))
+
+                    /// FROM HERE
                     let cuId = Task.WaitAny toWait
                     SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-                    assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
+                    assert (Thread.CurrentThread.ManagedThreadId = tid)
                     let cu = computeUnits[cuId]
                     started[cuId] <- ((new TaskCompletionSource()).Task)
 
@@ -214,14 +218,18 @@ type Interpreter<'t, 'kind when 'kind: equality>
             let toRun = Seq.toArray (Seq.filter ((>=) id) computeUnits.Keys)
 
             SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-            assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
+            assert (Thread.CurrentThread.ManagedThreadId = tid)
 
             for cuId in toRun do
                 do! run cuId
 
+            ErrorMsg.Logger.Test "query" $"{id} is running"
+
             let! result = computeUnits[id].Result
+            ErrorMsg.Logger.Test "query" $"{id} has finished"
             let x = snd result
             x.AssignTo this
+            ErrorMsg.Logger.Test "query" $"{id} is returning"
             return x
         }
 

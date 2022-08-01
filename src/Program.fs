@@ -53,12 +53,13 @@ let main (argv: string array) =
     if Option.isSome (parsed.TryGetResult Version) then
         printfn "%s" informationalVersion
         exit 0
+
     ErrorMsg.Logger.LogToStdout()
-    #if ! DEBUG
+#if ! DEBUG
     ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
-    #else
+#else
     () //ErrorMsg.Logger.SetLogLevel(["thrd"])
-    #endif
+#endif
 
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning(
@@ -127,25 +128,32 @@ let main (argv: string array) =
         interpreter.Prepare(program)
         ErrorMsg.Logger.Debug "Running interpreter"
 
+        let mutable n = program.goals.Length
+        let cts = new System.Threading.CancellationTokenSource()
 
-        let tasks = [|
-            for goal in program.goals do
-                match goal with
-                | (Reducer.GoalSave (label, id)
-                | Reducer.GoalPrint (label, id)) ->
-                        (task {
-                            System.Threading.SynchronizationContext.SetSynchronizationContext interpreter.SynchronizationContext
-                            let! result = interpreter.QueryAsync id
-                            ErrorMsg.Logger.Result label result.Value
-                            result.Reclaim(interpreter)
-                        }) :> System.Threading.Tasks.Task
-        |]
+        let tasks =
+            [| for goal in program.goals do
+                   match goal with
+                   | (Reducer.GoalSave (label, id)
+                   | Reducer.GoalPrint (label, id)) ->
+                       (task {
+                           System.Threading.SynchronizationContext.SetSynchronizationContext
+                               interpreter.SynchronizationContext
 
+                           let! result = interpreter.QueryAsync id
+                           ErrorMsg.Logger.Result label result.Value
+                           result.Reclaim(interpreter)
+                           n <- n - 1
+                           if n = 0 then 
+                            ErrorMsg.Logger.Test "cts" "Requesting cancellation"
+                            cts.Cancel()
+                       })
+                       :> System.Threading.Tasks.Task |]
 
-        ErrorMsg.Logger.Debug "tasks launched, waiting..."
-        interpreter.Run()
+        ErrorMsg.Logger.Info "tasks launched, waiting..."
+        interpreter.Run(cts.Token)
 
-        ErrorMsg.Logger.Debug "All done."
+        ErrorMsg.Logger.Info "All done."
 
         0
     with
