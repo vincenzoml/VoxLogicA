@@ -139,14 +139,30 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
         query {
             for kind in requirements.Values do
                 groupBy kind into g
-                all (g.Count() < (free.Count g.Key) + (allocated.Count g.Key))
+                all (g.Count() <= (free.Count g.Key) + (allocated.Count g.Key))
         }
 
     let mutable waiters: list<{| requirements: Requirements<'kind>
                                  tcs: TaskCompletionSource<option<Resources<'t, 'kind>>> |}> =
         []
 
+
+    let mutable n = 0
+    let take () = 
+        if n <> 0 then 
+            ErrorMsg.Logger.Test "thrd" $"{System.Threading.Thread.CurrentThread.ManagedThreadId}"
+            exit 0
+        assert (n = 0)
+        n <- 1
+    let give () = 
+        if n <> 1 then 
+            ErrorMsg.Logger.Test "thrd" $"{System.Threading.Thread.CurrentThread.ManagedThreadId}"
+            exit 0
+        assert (n = 1)
+        n <- 0
+
     member __.Allocate(requirements: Requirements<'kind>) =
+        take()
         let tmp = Resources<'t, 'kind>()
 
         let rec processKVs (s: seq<KeyValuePair<ResourceKey, 'kind>>) =
@@ -183,7 +199,7 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
             match result with
             | None -> true
             | Some result -> result.Respect requirements
-
+        give()
         result
 
     member __.Wait(requirements: Requirements<'kind>) =
@@ -200,6 +216,7 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
             task { return None }
 
     member this.Return(resource: Resource<'t, 'kind>) =
+        take()
         free.Add resource.Kind resource
         allocated.Remove resource.Kind resource
 
@@ -217,4 +234,4 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
                         waiter.tcs.SetResult None
                         ErrorMsg.fail "Resources exhausted")
                 waiters
-
+        give ()

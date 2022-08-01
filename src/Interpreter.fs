@@ -65,6 +65,33 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
             return (fst output), (snd output).result
         }
 
+open System.Threading
+open System.Collections.Concurrent
+
+// type ThreadOwningSyncCtx() =
+//     inherit SynchronizationContext()
+
+//     let _queue = new BlockingCollection<(SendOrPostCallback * obj)>()
+
+//     member _.DoWork(cancellationToken: CancellationToken) =
+//         while not cancellationToken.IsCancellationRequested do
+//             let (callback, state) = _queue.Take()
+//             callback.Invoke state
+//         ()
+
+//     override _.Post(callback, state) =
+//         _queue.Add((callback, state))
+//         ()
+
+//     override _.Send(callback, state) =
+//         let tcs = TaskCompletionSource()
+//         let cb s =
+//             callback.Invoke s
+//             tcs.SetResult()
+//         _queue.Add((cb, state))
+//         tcs.Task.Wait()
+//         ()
+
 type Interpreter<'t, 'kind when 'kind: equality>
     (
         executionEngine: ExecutionEngine<'t, 'kind>,
@@ -72,8 +99,11 @@ type Interpreter<'t, 'kind when 'kind: equality>
     ) =
     let computeUnits = new Dictionary<int, ComputeUnit<'t, 'kind>>()
     let started = new HashSet<int>()
-    let tid = System.Threading.Thread.CurrentThread.ManagedThreadId
-
+    let tid = 
+        let r = System.Threading.Thread.CurrentThread.ManagedThreadId
+        ErrorMsg.Logger.Test "thrd" $"{r}"
+        r
+    // let syncCtx = ThreadOwningSyncCtx()
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
@@ -125,46 +155,49 @@ type Interpreter<'t, 'kind when 'kind: equality>
             task {
                 if not (started.Contains cuId) then
                     ignore <| started.Add cuId
-                    assert ErrorMsg.Logger.Assert $"STARTING cuId {cuId}"
+                    ErrorMsg.Logger.Test "temp" $"STARTING cuId {cuId}"
                     let cu = computeUnits[cuId]
                     let! resources = allocate cu.Requirements
 
-                    ErrorMsg.Logger.Debug "Enable resource allocation by decommenting in source code"
-                    // UNCOMMENT HERE
-                    // for resource in resources.Values do
-                    //     assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {resource} to {cuId}"
-                    //     resource.AssignTo cu
-                    // UNTIL HERE
+                    for resource in resources.Values do
+                        ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {resource} to {cuId}"
+                        resource.AssignTo cu
 
-                    do! cu.Start resources
+                    assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
+                    (cu.Start resources).Result
+                    assert (System.Threading.Thread.CurrentThread.ManagedThreadId = tid)
 
-                    // UNCOMMENT HERE
-                    // let! (arguments,result) = cu.Result
+                    let! (arguments,result) = cu.Result
 
-                    // assert ErrorMsg.Logger.Assert $"FINISHED cuId {cuId}"
+                    ErrorMsg.Logger.Test "temp" $"FINISHED cuId {cuId}"
 
-                    // for awaiter in cu.Awaiters do
-                    //     assert ErrorMsg.Logger.Assert $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
-                    //     result.AssignTo awaiter
+                    for awaiter in cu.Awaiters do
+                        ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
+                        result.AssignTo awaiter
 
-                    // let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
+                    let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
 
-                    // for resource in deallocate do
-                    //     assert ErrorMsg.Logger.Assert $"REVOKING RESOURCE {resource} from {cuId}"
-                    //     resource.Reclaim cu
+                    for resource in deallocate do
+                        ErrorMsg.Logger.Test "temp" $"REVOKING RESOURCE {resource} from {cuId}"
+                        resource.Reclaim cu
 
-                    //     if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
-                    //         assert ErrorMsg.Logger.Assert $"RELEASING RESOURCE {resource}"
-                    //         resourceManager.Return resource
-                    // UNTIL HERE
+                        if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
+                            ErrorMsg.Logger.Test "temp" $"RELEASING RESOURCE {resource}"
+                            resourceManager.Return resource
             }
 
         task {
             // System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
             let toRun = Seq.toArray (Seq.filter ((>=) id) computeUnits.Keys)
+            // do SynchronizationContext.SetSynchronizationContext syncCtx
+
 
             for cuId in toRun do
                 do! run cuId
+            // let cts = new CancellationTokenSource()
+
+            // syncCtx.DoWork(cts.Token)
+
 
             return! computeUnits[id].Result
         }

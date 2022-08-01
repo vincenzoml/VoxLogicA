@@ -104,7 +104,11 @@ let main (argv: string array) =
     //         ignore
 
     ErrorMsg.Logger.LogToStdout()
-    //ErrorMsg.Logger.SetLogLevel([ "user" ])
+    #if ! DEBUG
+    ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
+    #else
+    ErrorMsg.Logger.SetLogLevel(["thrd"])
+    #endif
 
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning(
@@ -130,7 +134,7 @@ let main (argv: string array) =
                 exit 0
 #endif
 
-        ErrorMsg.Logger.Debug $"{name.Name} version: {informationalVersion}"
+        ErrorMsg.Logger.Info $"{name.Name} version: {informationalVersion}"
 
         // let performance = parsed.Contains PerformanceTest
 
@@ -149,7 +153,7 @@ let main (argv: string array) =
         let program = Reducer.reduceProgram syntax
 
         ErrorMsg.Logger.Debug "Program reduced"
-        ErrorMsg.Logger.Debug $"Number of tasks: {program.operations.Length}"
+        ErrorMsg.Logger.Info $"Number of tasks: {program.operations.Length}"
 
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph

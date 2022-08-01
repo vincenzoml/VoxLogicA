@@ -68,11 +68,21 @@ type Logger private () =
                 ignore <| str.Seek(0L,SeekOrigin.Begin)
                 sr.ReadToEnd())
 
-    static member Debug s = print "info" s
-    static member Assert s = print "asrt" s; true
+    static member Debug s = 
+        #if DEBUG
+        print "info" s
+        #else
+        ()
+        #endif
+    static member Test l s = 
+        #if DEBUG
+        print l s
+        #else
+        ()
+        #endif
     static member Warning s = print "warn" s
     static member Failure s = print "fail" s
-
+    static member Info s = print "info" s
     static member Result name value =
         print "user" (sprintf "%s=%A" name value)
 
