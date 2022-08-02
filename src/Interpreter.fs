@@ -138,6 +138,9 @@ type Interpreter<'t, 'kind when 'kind: equality>
             let mutable finish = false
             while not finish do
                 for wId in Seq.sort session.Keys do // TODO: change data structure
+                    // TODO: on the first iteration, this should only check the keys of the constants
+                    // on the subsequent iterations, this should only check the keys of the awaiters of 
+                    // the result that has been examined after waiting
                     match ready wId with
                     | None -> ()
                     | Some inputs ->
@@ -146,51 +149,70 @@ type Interpreter<'t, 'kind when 'kind: equality>
                         match resourcesOpt with
                         | None -> ()
                         | Some resources ->
-                            let tcs = new TaskCompletionSource<Resource<'t,'kind>>()
                             for resource in resources.Values do
                                 ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {resource} to {wId}"
                                 resource.AssignTo cu
                             ErrorMsg.Logger.Test "temp" $"STARTING wId {wId}"
+                            let tcs = new TaskCompletionSource<Resource<'t,'kind>>()
                             
-                            let t = task {
-                                let! r = cu.Start resources inputs
-                                tcs.SetResult r
-                            }
+                            ignore <| Task.Run( // TODO: if the task is synchronous avoid putting it into the running queue, finalize directly
+                                        fun () -> 
+                                            try
+                                                tcs.SetResult (cu.Start resources inputs).Result
+                                                ErrorMsg.Logger.Test "test" $"setting tcs for {wId}"
+                                            with e -> 
+                                                tcs.SetException e)
 
                             session[wId] <- Running (resources,inputs,tcs.Task)
 
-                        SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-                        let running = 
-                            Seq.toArray (query {
-                                for kv in session do
-                                where kv.Value.IsGoing
-                                select (kv.Key,(match kv.Value with Running (i,r,t) -> (i,r,t)))
-                            })
-                        let tasks = Array.map (fun (_,(_,_,x)) -> (x :> Task)) running
-                        let i = Task.WaitAny tasks
-                        SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-                        let (wId,(resources,arguments,toutput)) = running[i]
-                        let result = toutput.Result
-                        session[wId] <- Finished result
-                        if queries.ContainsKey wId then
-                            result.AssignTo this
-                            queries[wId].SetResult result
-                        let cu = computeUnits[wId]                    
-                        ErrorMsg.Logger.Test "temp" $"FINISHED wId {wId}"
+                SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
+                let running = 
+                    Seq.toArray (query {
+                        for kv in session do
+                        where kv.Value.IsGoing
+                        select (kv.Key,(match kv.Value with Running (i,r,t) -> (i,r,t)))
+                    })
+                if running.Length > 0 then 
+                    let tasks = Array.map (fun (_,(_,_,x)) -> (x :> Task)) running
+                    ErrorMsg.Logger.Test "temp" $"about to wait number of running taks: {tasks.Length}"
+                    let i = Task.WaitAny tasks
+                    SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
+                    let (wId,(resources,arguments,toutput)) = running[i]
+                    ErrorMsg.Logger.Test "temp" $"Gotten message {wId}"
+                    let result = toutput.Result
+                    session[wId] <- Finished result
+                    if queries.ContainsKey wId then
+                        ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {result} to interpreter"
+                        result.AssignTo this
+                        queries[wId].SetResult result
+                    let cu = computeUnits[wId]                    
+                    ErrorMsg.Logger.Test "temp" $"FINISHED wId {wId}"
 
-                        for awaiter in cu.Awaiters do
-                            ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cu.Id}"
-                            result.AssignTo awaiter
+                    for awaiter in cu.Awaiters do
+                        ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cu.Id}"
+                        result.AssignTo awaiter
 
-                        let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
+                    let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
 
-                        for resource in deallocate do
-                            ErrorMsg.Logger.Test "temp" $"REVOKING RESOURCE {resource} from {wId}"
-                            resource.Reclaim cu
+                    for resource in deallocate do
+                        ErrorMsg.Logger.Test "temp" $"REVOKING RESOURCE {resource} from {wId}"
+                        resource.Reclaim cu
 
-                            if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
-                                ErrorMsg.Logger.Test "temp" $"RELEASING RESOURCE {resource}"
-                                resourceManager.Return resource    
+                        if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
+                            ErrorMsg.Logger.Test "temp" $"RELEASING RESOURCE {resource}"
+                            resourceManager.Return resource    
+                else 
+                    let waiting = 
+                        query {
+                            for kv in session do
+                            where (match kv.Value with Waiting -> true | _ -> false)
+                            select (kv.Key,kv.Value)
+                        }
+                    if Seq.length waiting > 0 then
+                        ErrorMsg.fail $"Resources exhausted for threads {Seq.toList <| Seq.map fst waiting}"
+                    else 
+                        ErrorMsg.Logger.Debug "session finished"
+                        finish <- true
         }
 
     member __.QueryAsync(id: OperationId) =
