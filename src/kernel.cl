@@ -458,6 +458,56 @@ __kernel void volume3D(__read_only image3d_t inputImage,
   // LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
 }
 
+__kernel void min2D(__read_only image2d_t inputImage,
+                       __write_only image2d_t outputImage) { // IDX NON SERVE
+  int2 gid = (int2)(get_global_id(0), get_global_id(1));
+  int x = gid.x;
+  int y = gid.y;
+  unsigned int count = read_imagef(inputImage, sampler, gid).x;
+
+  if ((x % 2) == 0 &&
+      (y % 2) == 0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER
+                      // TUTTE LE DIMENSIONI PRENDE LA SOMMA DEI "VICINI
+                      // MAGGIORI" E LA SCRIVE NEL PUNTO CON COORDINATE LA META'
+                      // DELLE SUE IN TUTTE LE DIMENSIONI
+    count = min(count, read_imagef(inputImage, sampler, (int2)(x, y + 1)).x); // IDX DIVENTA 1
+    count = min(count, read_imagef(inputImage, sampler, (int2)(x + 1, y + 1)).x);
+    count = min(count, read_imagef(inputImage, sampler, (int2)(x + 1, y)).x);
+    write_imagef(outputImage, (int2)(x / 2, y / 2), (float)count);
+  }
+  // printf("%f", val);
+  // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE
+  // LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
+}
+
+__kernel void min3D(__read_only image3d_t inputImage,
+                       __write_only image3d_t outputImage) { // IDX NON SERVE
+  int4 gid = (int4)(get_global_id(0), get_global_id(1), get_global_id(2), 0);
+  int x = gid.x;
+  int y = gid.y;
+  int z = gid.z;
+  unsigned int count = read_imagef(inputImage, sampler, gid).x;
+
+  if ((x % 2) == 0 && (y % 2) == 0 &&
+      (z % 2) == 0) { // SI TOGLIE IDX; OGNI WORKING UNIT DI INDICE PARI PER
+                      // TUTTE LE DIMENSIONI PRENDE LA SOMMA DEI "VICINI
+                      // MAGGIORI" E LA SCRIVE NEL PUNTO CON COORDINATE LA META'
+                      // DELLE SUE IN TUTTE LE DIMENSIONI
+    count = min(count, read_imagef(inputImage, sampler, (int4)(x, y + 1, z, 0)).x); // IDX DIVENTA 1
+    count = min(count, read_imagef(inputImage, sampler, (int4)(x + 1, y + 1, z, 0)).x); 
+    count = min(count, read_imagef(inputImage, sampler, (int4)(x + 1, y, z, 0)).x);
+    count = min(count, read_imagef(inputImage, sampler, (int4)(x, y, z + 1, 0)).x);
+    count = min(count, read_imagef(inputImage, sampler, (int4)(x + 1, y, z + 1, 0)).x);
+    count = min(count, read_imagef(inputImage, sampler, (int4)(x, y + 1, z + 1, 0)).x);
+    count = min(count, read_imagef(inputImage, sampler, (int4)(x + 1, y + 1, z + 1, 0)).x);
+
+    write_imagef(outputImage, (int4)(x / 2, y / 2, z / 2, 0), (float)count);
+  }
+  // printf("%f", val);
+  // CAMBIARE L'INDICE DOVE SI SCRIVE, E' LA META' IN TUTTE
+  // LE DIMENSIONI MA QUESTA RIGA VA DENTRO L'IF
+}
+
 __kernel void readFirstPixel2D(__read_only image2d_t image,
                                __global float result[1]) {
   float f = read_imagef(image, sampler, (int2)(0, 0)).x;

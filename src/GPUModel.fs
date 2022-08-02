@@ -1110,19 +1110,124 @@ type GPUModel(performanceTest) =
             }
         //     member __.Max img = lift VoxImage.Max img
 
-        // member __.Min img =
+        member __.Min img =
+            job {
+                let! img1 = getBaseImg
+                let! g = gpu
+                let! output' = g.NewImageOnDevice(img1, 1, Float32)
+                let mutable output = output'
+                let! tmp' = g.NewImageOnDevice(img1, 1, Float32)
+                let mutable tmp = tmp'
 
-        //     job {
-        //         g.Wait img.gEvt
+                let kernelVolume =
+                    if dim = 3 then
+                        "min3D"
+                    else
+                        "min2D"
 
-        //         let cpuImg = img.gVal.Get()
+                let kernelRead =
+                    if dim = 3 then
+                        "readFirstPixel3D"
+                    else
+                        "readFirstPixel2D"
 
-        //         let result = VoxImage.Min cpuImg
+                let! e1 = 
+                    g.Run(img1.Dimension,
+                            "setFloatToZero",
+                            img.GEvt,
+                            seq {
+                                output :> KernelArg
+                                output :> KernelArg
+                            },
+                            img1.Size,
+                            None
+                        )
 
-        //         let output = g.CopyImageToDevice result
+                let! e2 = 
+                    g.Run(img1.Dimension,
+                            "setFloatToZero",
+                            [|e1|],
+                            seq {
+                                tmp :> KernelArg
+                                tmp :> KernelArg
+                            },
+                            img1.Size,
+                            None
+                        )
 
-        //         return GPUModelValue(output, [||] ,g)
-        //     }
+                let! evt' =
+                    g.Run(img1.Dimension,
+                            "castUInt8ToFloat32",
+                            [|e2|],
+                            seq {
+                                img.GVal :> KernelArg
+                                tmp :> KernelArg
+                            },
+                            img1.Size,
+                            None
+                        )
+
+                let mutable newEvent = [| evt' |]
+
+                let iterations =
+                    int (ceil (Math.Log2(float img1.Size.[0])))
+
+                let swap () =
+                    let temp = tmp
+                    tmp <- output
+                    output <- temp
+
+                let mutable currentSize = img1.Size
+
+                // ARRAY DELLE DIMENSIONI, COPIATO COME VARIABILE
+                for i = 0 to iterations - 1 do // WHILE UNA DELLE DIMENSIONI E' MAGGIORE DI 1
+                    let! event =
+                        g.Run(img1.Dimension,
+                                kernelVolume,
+                                newEvent,
+                                seq {
+                                    tmp
+                                    output
+                                },
+                                currentSize, // VETTORE DELLE DIMENSIONI
+                                None
+                            )
+
+                    // g.Wait([|event|])
+                    // let x = (VoxImage.Mult (output.Get(),float 256))
+                    // x.Save(sprintf "output/iteration-%02d.png" i)
+
+                    // AGGIUNGERE UNO ALLE DIMENSIONI DISPARI E DIMEZZARLE
+                    newEvent <- [| event |]
+                    swap ()
+                    for i in 0..currentSize.Length - 1 do
+                        if currentSize.[i] % 2 = 1 then
+                            currentSize.[i] <- currentSize.[i] + 1
+                            currentSize.[i] <- currentSize.[i] / 2
+
+                let mutable res: GPUValue<array<float32>> = g.CopyArrayToDevice([| 0f |])
+                // g.Wait(newEvent)
+                // let x = (VoxImage.Mult (tmp.Get(),float 256))
+                // x.Save("output/tmp.png")
+
+                let! ev =
+                    (g.Run(img1.Dimension,
+                            kernelRead,
+                            newEvent,
+                            seq {
+                                tmp
+                                res
+                            },
+                            [| 1 |],
+                            None
+                        ))
+
+                g.Wait([| ev |])
+                do! (tmp' :> IDisposableJob).Dispose
+                do! (output' :> IDisposableJob).Dispose
+                let result = res.Get()
+                return float result.[0] // TODO: this could be made asynchronous when the problem of passing floats is solved
+            }
 
 
 
