@@ -8,14 +8,10 @@ open System.Threading.Tasks
 open VoxLogicA.Resources
 open System.Collections.Generic
 
-type Result<'t, 'kind when 'kind: equality> =
-    { task: Task
-      result: Resource<'t, 'kind> }
-
 type OperatorImplementation<'t, 'kind when 'kind: equality>
     (
         requirements,
-        run: Resources<'t, 'kind> -> array<Resource<'t, 'kind>> -> Task<Result<'t, 'kind>>
+        run: Resources<'t, 'kind> -> array<Resource<'t, 'kind>> -> Task<Resource<'t, 'kind>>
     ) =
 
     member __.Requires = requirements
@@ -31,39 +27,19 @@ type ComputeUnit<'t, 'kind when 'kind: equality>
     (
         id: int,
         operatorImplementation: OperatorImplementation<'t, 'kind>,
-        arguments: seq<Task<Resource<'t, 'kind>>>
-    ) =
-    let mutable started = false
-    let outputTCS = TaskCompletionSource<seq<Resource<'t, 'kind>> * Result<'t, 'kind>>()
+        arguments: seq<ComputeUnit<'t,'kind>>    ) =
 
     member __.Id = id
     member val Requirements = operatorImplementation.Requires
-
-    member __.Started = started
-
+    member val Arguments = arguments
     /// returns only the output resource so that its reference count can be increased before passing it to other ComputeUnits
-    member this.Start(resources: Resources<'t, 'kind>) =
+    member this.Start (resources: Resources<'t, 'kind>) (inputs: array<Resource<'t, 'kind>>) =
         task {
-            assert resources.Respect this.Requirements
-
-            let! inputs = Task.WhenAll(Seq.toArray arguments)
-            let! output = operatorImplementation.Run resources inputs
-
-            outputTCS.SetResult(inputs, output)
+            assert resources.Respect this.Requirements            
+            return! operatorImplementation.Run resources inputs
         }
 
     member val Awaiters = new HashSet<obj>()
-
-    /// Method to read the result
-    member __.Result =
-        task {
-
-            let! output = outputTCS.Task
-
-            do! (snd output).task
-
-            return (fst output), (snd output).result
-        }
 
 open System.Threading
 open System.Collections.Concurrent
@@ -94,17 +70,21 @@ type ThreadOwningSyncCtx() =
         tcs.Task.Wait()
         ()
 
+type Work<'t, 'kind when 'kind: equality> =
+    | Waiting
+    | Finished of Resource<'t,'kind>
+    | Running of Resources<'t,'kind> * seq<Resource<'t,'kind>> * Task<Resource<'t,'kind>>
+    member this.IsGoing = match this with | Running _ -> true | _ -> false
+
+
 type Interpreter<'t, 'kind when 'kind: equality>
     (
         executionEngine: ExecutionEngine<'t, 'kind>,
         resourceManager: ResourceManager<'t, 'kind>
     ) =
-    let computeUnits = new Dictionary<int, ComputeUnit<'t, 'kind>>()
-    let started = new Dictionary<int,Task>()
-    let tid =
-        let r = System.Threading.Thread.CurrentThread.ManagedThreadId
-        ErrorMsg.Logger.Test "thrd" $"{r}"
-        r
+    let computeUnits = new Dictionary<int,ComputeUnit<'t,'kind>>()
+    
+    let queries = new Dictionary<int,TaskCompletionSource<Resource<'t,'kind>>>()
 
     member val SynchronizationContext = ThreadOwningSyncCtx()
 
@@ -113,15 +93,11 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
     member __.Prepare(program: WorkPlan) =
         Array.iteri
-            (fun id operation ->
+            (fun id (operation : Operation) ->
                 let arguments =
                     Seq.toArray
                     <| Seq.map
-                        (fun i ->
-                            task {
-                                let! _, x = computeUnits[i].Result
-                                return x
-                            })
+                        (fun i -> computeUnits[i])
                         operation.arguments
 
                 let cu =
@@ -136,102 +112,93 @@ type Interpreter<'t, 'kind when 'kind: equality>
 
             program.operations
 
-    member this.QueryAsync(id: OperationId) =
-        assert computeUnits.ContainsKey id
-
-        let allocate requirements =
-            task {
-                SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-
-                assert (SynchronizationContext.Current = this.SynchronizationContext)
-                let resourcesOpt = resourceManager.Allocate(requirements)
-
-                match resourcesOpt with
-                | Some resources -> return resources
-                | None ->
-                    let! resourcesOpt = resourceManager.Wait requirements
-
-                    match resourcesOpt with
-                    | None ->
-                        return
-                            (ErrorMsg.fail
-                                $"Not enough resources to satisfy requirements {requirements} for computeUnit #{id}")
-                    | Some resources -> return resources
-            }
-
-        let run (cuId: int) =
-            task {
-                SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-
-                if not (started.ContainsKey cuId) then
-                    let tcs = new TaskCompletionSource()
-                    started[cuId] <- tcs.Task
-                    ErrorMsg.Logger.Test "temp" $"STARTING cuId {cuId}"
-                    let cu = computeUnits[cuId]
-                    let! resources = allocate cu.Requirements
-
-                    for resource in resources.Values do
-                        ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {resource} to {cuId}"
-                        resource.AssignTo cu
-
-                    ignore <| Task.Run
-                        (fun () ->
-                            (ignore <| task {
-                                do! cu.Start resources
-                                tcs.SetResult ()
-                            }))
-                    do! Task.Yield()
-                    SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-
-                    let toWait = (Array.init (started.Values.Count) (fun i -> started[i]))
-
-                    /// FROM HERE
-                    let cuId = Task.WaitAny toWait
-                    SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-                    assert (Thread.CurrentThread.ManagedThreadId = tid)
-                    let cu = computeUnits[cuId]
-                    started[cuId] <- ((new TaskCompletionSource()).Task)
-
-                    let! (arguments,result) = cu.Result
-
-                    ErrorMsg.Logger.Test "temp" $"FINISHED cuId {cuId}"
-
-                    for awaiter in cu.Awaiters do
-                        ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cuId}"
-                        result.AssignTo awaiter
-
-                    let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
-
-                    for resource in deallocate do
-                        ErrorMsg.Logger.Test "temp" $"REVOKING RESOURCE {resource} from {cuId}"
-                        resource.Reclaim cu
-
-                        if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
-                            ErrorMsg.Logger.Test "temp" $"RELEASING RESOURCE {resource}"
-                            resourceManager.Return resource
-            }
-
-
-
+    member this.Session() =
         task {
-            // System.Threading.Thread.CurrentThread.Priority <- System.Threading.ThreadPriority.Highest
-            let toRun = Seq.toArray (Seq.filter ((>=) id) computeUnits.Keys)
-
             SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
-            assert (Thread.CurrentThread.ManagedThreadId = tid)
+            let session = new Dictionary<int, Work<'t, 'kind>>()
+            for cuId in computeUnits.Keys do
+                session[cuId] <- Waiting
 
-            for cuId in toRun do
-                do! run cuId
+            let rec readyRec l acc = 
+                match l with
+                | [] -> Some (Array.ofList (List.rev acc))
+                | (cu : ComputeUnit<'t,'kind>)::cus ->
+                    match session[cu.Id] with
+                    | Finished result -> 
+                        readyRec cus (result::acc)
+                    | _ -> None
+                
+            let ready wId = 
+                assert session.ContainsKey wId
+                match session[wId] with
+                | Waiting ->
+                    readyRec (Seq.toList <| computeUnits[wId].Arguments) []
+                | _ -> None
+            
+            let mutable finish = false
+            while not finish do
+                for wId in Seq.sort session.Keys do // TODO: change data structure
+                    match ready wId with
+                    | None -> ()
+                    | Some inputs ->
+                        let cu = computeUnits[wId]
+                        let resourcesOpt = resourceManager.Allocate cu.Requirements
+                        match resourcesOpt with
+                        | None -> ()
+                        | Some resources ->
+                            let tcs = new TaskCompletionSource<Resource<'t,'kind>>()
+                            for resource in resources.Values do
+                                ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {resource} to {wId}"
+                                resource.AssignTo cu
+                            ErrorMsg.Logger.Test "temp" $"STARTING wId {wId}"
+                            
+                            let t = task {
+                                let! r = cu.Start resources inputs
+                                tcs.SetResult r
+                            }
 
-            ErrorMsg.Logger.Test "query" $"{id} is running"
+                            session[wId] <- Running (resources,inputs,tcs.Task)
 
-            let! result = computeUnits[id].Result
-            ErrorMsg.Logger.Test "query" $"{id} has finished"
-            let x = snd result
-            x.AssignTo this
-            ErrorMsg.Logger.Test "query" $"{id} is returning"
-            return x
+                        SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
+                        let running = 
+                            Seq.toArray (query {
+                                for kv in session do
+                                where kv.Value.IsGoing
+                                select (kv.Key,(match kv.Value with Running (i,r,t) -> (i,r,t)))
+                            })
+                        let tasks = Array.map (fun (_,(_,_,x)) -> (x :> Task)) running
+                        let i = Task.WaitAny tasks
+                        SynchronizationContext.SetSynchronizationContext this.SynchronizationContext
+                        let (wId,(resources,arguments,toutput)) = running[i]
+                        let result = toutput.Result
+                        session[wId] <- Finished result
+                        if queries.ContainsKey wId then
+                            result.AssignTo this
+                            queries[wId].SetResult result
+                        let cu = computeUnits[wId]                    
+                        ErrorMsg.Logger.Test "temp" $"FINISHED wId {wId}"
+
+                        for awaiter in cu.Awaiters do
+                            ErrorMsg.Logger.Test "temp" $"ASSIGNING RESOURCE {result} to awaiter {(awaiter :?> ComputeUnit<'t,'kind>).Id} of {cu.Id}"
+                            result.AssignTo awaiter
+
+                        let deallocate = Seq.toArray <| Seq.concat [ resources.Values :> seq<Resource<'t,'kind>>; arguments ]
+
+                        for resource in deallocate do
+                            ErrorMsg.Logger.Test "temp" $"REVOKING RESOURCE {resource} from {wId}"
+                            resource.Reclaim cu
+
+                            if Seq.length resource.AssignedTo = 0 then // TODO: add a field to check this on a resource
+                                ErrorMsg.Logger.Test "temp" $"RELEASING RESOURCE {resource}"
+                                resourceManager.Return resource    
         }
+
+    member __.QueryAsync(id: OperationId) =
+        assert computeUnits.ContainsKey id
+        let tcs = new TaskCompletionSource<_>()
+        queries[id] <- tcs
+        tcs.Task
+        
 
 
 

@@ -131,6 +131,9 @@ let main (argv: string array) =
         let mutable n = program.goals.Length
         let cts = new System.Threading.CancellationTokenSource()
 
+        ignore <| System.Threading.Tasks.Task.Run(
+            fun () -> ignore <| interpreter.Session())
+
         let tasks =
             [| for goal in program.goals do
                    match goal with
@@ -151,6 +154,7 @@ let main (argv: string array) =
                        :> System.Threading.Tasks.Task |]
 
         ErrorMsg.Logger.Info "tasks launched, waiting..."
+        
         interpreter.Run(cts.Token)
 
         ErrorMsg.Logger.Info "All done."

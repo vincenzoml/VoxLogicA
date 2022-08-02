@@ -135,32 +135,18 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
     let allocated = Repository<'kind, Resource<'t, 'kind>>()
     let free = Repository<'kind, Resource<'t, 'kind>>()
 
-    let satisfiable (requirements: Requirements<'kind>) =
-        query {
-            for kind in requirements.Values do
-                groupBy kind into g
-                all (g.Count() <= (free.Count g.Key) + (allocated.Count g.Key))
-        }
+    // let satisfiable (requirements: Requirements<'kind>) =
+    //     query {
+    //         for kind in requirements.Values do
+    //             groupBy kind into g
+    //             all (g.Count() <= (free.Count g.Key) + (allocated.Count g.Key))
+    //     }
 
-    let mutable waiters: list<{| requirements: Requirements<'kind>
-                                 tcs: TaskCompletionSource<option<Resources<'t, 'kind>>> |}> =
-        []
-
-
-    let mutable n = 0
-    let take () = 
-        if n <> 0 then 
-            ErrorMsg.Logger.Test "thrd" $"{System.Threading.Thread.CurrentThread.ManagedThreadId}"
-        assert (n = 0)
-        n <- 1
-    let give () = 
-        if n <> 1 then 
-            ErrorMsg.Logger.Test "thrd" $"{System.Threading.Thread.CurrentThread.ManagedThreadId}"
-        assert (n = 1)
-        n <- 0
+    // let mutable waiters: list<{| requirements: Requirements<'kind>
+    //                              tcs: TaskCompletionSource<Resources<'t, 'kind>> |}> =
+    //     []
 
     member __.Allocate(requirements: Requirements<'kind>) =
-        take()
         let tmp = Resources<'t, 'kind>()
 
         let rec processKVs (s: seq<KeyValuePair<ResourceKey, 'kind>>) =
@@ -197,39 +183,38 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
             match result with
             | None -> true
             | Some result -> result.Respect requirements
-        give()
         result
 
-    member __.Wait(requirements: Requirements<'kind>) =
-        if satisfiable requirements then
-            let tcs = new TaskCompletionSource<_>()
+    // member __.Wait(requirements: Requirements<'kind>) =
+    //     // if satisfiable requirements then
+    //         let tcs = new TaskCompletionSource<Resources<'t,'kind>>()
 
-            waiters <-
-                {| requirements = requirements
-                   tcs = tcs |}
-                :: waiters
+    //         waiters <-
+    //             {| requirements = requirements
+    //                tcs = tcs |}
+    //             :: waiters
 
-            task { return! tcs.Task }
-        else
-            task { return None }
+    //         task { return! tcs.Task }
+    //     // else
+    //     //     task { return None }
 
     member this.Return(resource: Resource<'t, 'kind>) =
-        take()
         free.Add resource.Kind resource
         allocated.Remove resource.Kind resource
 
-        waiters <-
-            List.filter
-                (fun waiter ->
-                    let resOpt = this.Allocate waiter.requirements
+        // waiters <-
+        //     List.filter
+        //         (fun waiter ->
+        //             let resOpt = this.Allocate waiter.requirements
 
-                    if resOpt.IsSome then
-                        waiter.tcs.SetResult resOpt
-                        false
-                    else if satisfiable waiter.requirements then // TODO: if no recompaction happens, satisfiable can't change
-                        true
-                    else
-                        waiter.tcs.SetResult None
-                        ErrorMsg.fail "Resources exhausted")
-                waiters
-        give ()
+        //             match resOpt with
+        //             | Some result -> 
+        //                 waiter.tcs.SetResult result
+        //                 false
+        //             // else if satisfiable waiter.requirements then // TODO: if no recompaction happens, satisfiable can't change
+        //             //     true
+        //             // else
+        //             //     waiter.tcs.SetResult None
+        //             //     ErrorMsg.fail "Resources exhausted"
+        //             | _ -> true)
+        //         waiters

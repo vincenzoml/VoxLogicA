@@ -1,1 +1,2 @@
-print "fib(11,0)" fib(11,0)
+print "fib(17,0)" fib(17,0)
+print "fib(29,1)" fib(29,1)

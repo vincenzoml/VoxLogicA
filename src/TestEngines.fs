@@ -16,7 +16,7 @@ let rec fib x =
 type FibResourceKind = KIntCell
 
 type FibResource private (myId) =
-    static let maxResources = 2
+    static let maxResources = 6
     static let mutable id = 0
 
     static member Allocator _ =
@@ -41,7 +41,7 @@ type Fib() =
                   ("unused", KIntCell) ]
             ),
             (fun resources args ->
-                let t = task {
+                task {
                     let id =
                         (args[1]: Resource<FibResource, FibResourceKind>)
                             .Value
@@ -54,13 +54,8 @@ type Fib() =
                     let result = fib inp.Contents
                     resource.Value.Contents <- result
                     ErrorMsg.Logger.Debug $"[{id}]: finished fib({argsStr}) on resources {resources}"
-                }
-
-                let x =
-                    { task = t
-                      result = resources["result"] }
-
-                task { return x })
+                    return resources["result"]
+                })
         )
 
     let opFib =
@@ -81,12 +76,9 @@ type Fib() =
                     let resource = resources["result"]
                     let result = fib inp.Contents
                     resource.Value.Contents <- result
-
-                let x =
-                    { task = Task.Run t
-                      result = resources["result"] }
-
-                task { return x })
+                    resource
+                
+                Task.Run t)
         )
 
     let opDelay =
@@ -96,7 +88,7 @@ type Fib() =
                   ("unused", KIntCell) ]
             ),
             (fun resources args ->
-                let t = task {
+                task {
                     let id =
                         (args[1]: Resource<FibResource, FibResourceKind>)
                             .Value
@@ -106,13 +98,9 @@ type Fib() =
                     let resource = resources["result"]
                     do! Task.Delay inp.Contents
                     resource.Value.Contents <- inp.Contents
-                }
+                    return resource
+                })
 
-                let x =
-                    { task = t
-                      result = resources["result"] }
-
-                task { return x })
         )
 
 
@@ -126,10 +114,7 @@ type Fib() =
                         task {
                             let resource = resources["result"]
                             resource.Value.Contents <- int n
-
-                            return
-                                { result = resource
-                                  task = Task.CompletedTask }
+                            return resource
                         })
                 )
             | Identifier "fibSeq" -> opFibSeq
@@ -142,10 +127,7 @@ type Fib() =
                         task {
                             let resource = resources["result"]
                             resource.Value.Contents <- args[0].Value.Contents + 1
-
-                            return
-                                { result = resource
-                                  task = Task.CompletedTask }
+                            return resource
                         })
                 )
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"
