@@ -132,7 +132,7 @@ let main (argv: string array) =
         let cts = new System.Threading.CancellationTokenSource()
 
         ignore <| System.Threading.Tasks.Task.Run(
-            fun () -> ignore <| interpreter.Session())
+            fun () -> ignore <| interpreter.Session()) // TODO not clear; there should be no Task.Run here
 
         let tasks =
             [| for goal in program.goals do
@@ -150,6 +150,8 @@ let main (argv: string array) =
                            if n = 0 then 
                             ErrorMsg.Logger.Test "cts" "Requesting cancellation"
                             cts.Cancel()
+                            ErrorMsg.Logger.Test "test" "exiting, remove the exit and make cancellation work"
+                            exit 0
                        })
                        :> System.Threading.Tasks.Task |]
 
