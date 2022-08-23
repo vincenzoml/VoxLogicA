@@ -21,6 +21,7 @@ module VoxLogicA.Main
 
 open System.Reflection
 open Argu
+open FSharp.Json
 
 exception CommandLineException with
     override __.Message = "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
@@ -56,6 +57,112 @@ let (|Aut|_|) (s: string) =
     match System.IO.Path.GetExtension s with
     | ".aut" -> Some Aut
     | _ -> None
+
+let graphToAut (j: Graph.IntFileGraph) (full: bool) (s2: string) =
+    let nodeOfId = new System.Collections.Generic.Dictionary<_, _>()
+    List.iteri (fun i (v: Graph.IntNode) -> nodeOfId[v.id] <- {| index = i; node = v |}) j.nodes
+    let n = j.nodes.Length
+    let transitions = new System.Collections.Generic.HashSet<_>()
+    let addTransition t = ignore <| transitions.Add t
+
+    for a in j.arcs do
+        let src = nodeOfId[a.source]
+        let tgt = nodeOfId[a.target]
+        let condition = (List.sort (src.node.atoms)) = List.sort tgt.node.atoms
+        addTransition (src.index, (if condition then "tau" else "change"), tgt.index)
+
+        if full then
+            addTransition (tgt.index + n, (if condition then "tau" else "change"), src.index + n)
+
+    for kv in nodeOfId do
+        let idx = kv.Value.index
+
+        for atom in kv.Value.node.atoms do
+            addTransition (idx, atom, idx)
+
+        if full then
+            addTransition (idx, "l1", idx + n)
+            addTransition (idx + n, "l2", idx)
+
+    let sw = new System.IO.StreamWriter(s2)
+    fprintfn sw "des (0,%A,%A)" transitions.Count (if full then 2 * n else n)
+
+    for t in transitions do
+        fprintfn sw "%A" t
+
+    sw.Close()
+
+
+let imgToGraph (img: VoxLogicA.SITKUtil.VoxImage) =
+    let dim = img.Size.Length
+
+    let s =
+        if dim >= 3 then
+            img.Size
+        else
+            Array.append (img.Size) [| 1 |]
+
+    let mkNode (buf: NativeArray<_>) i j optk =
+        let id, start =
+            match optk with
+            | None -> string (i, j), img.NComponents * (i + (j * s.[0]))
+            | Some k -> string (i, j, k), img.NComponents * (i + (j * s.[0])) + (k * s.[1])
+
+        { Graph.id = id
+          Graph.atoms =
+            [ let r = buf.Get start
+              let g = buf.Get(start + 1)
+              let b = buf.Get(start + 2)
+              sprintf "#%02X%02X%02X" (int r) (int g) (int b) ] }
+
+    
+    img.GetBufferAsFloat 
+        (fun buf ->                
+            {   Graph.nodes = 
+                    List.ofSeq 
+                        <| seq {
+                            for i in 0 .. (s.[0] - 1) do
+                                for j in 0 .. (s.[1] - 1) do
+                                    if dim < 3 then
+                                        mkNode buf i j None
+                                    else
+                                        for k in 0 .. (s.[2] - 1) do
+                                            mkNode buf i j (Some k)
+                        }
+                Graph.arcs = 
+                    List.ofSeq <| 
+                    seq {
+                        for i in 0..(s[0] - 1) do 
+                        for j in 0..(s[1] - 1) do
+                        if dim < 3 then 
+                            for a in -1..1 do
+                            for b in -1..1 do
+                            let m = i+a
+                            let n = j+b                             
+                            if a <> 0 || b <> 0 then 
+                                if 0 <= m && m < s[0] && 0 <= n && n < s[1]
+                                then 
+                                    {
+                                        Graph.source = string (i,j)
+                                        Graph.target = string (m,n)
+                                    } 
+                        else
+                            for k in 0..(s[2] - 1) do
+                            for a in -1..1 do
+                            for b in -1..1 do
+                            for c in -1..1 do
+                            let m = i+a
+                            let n = j+b
+                            let o = k+c
+                            if a<>0 || b <> 0 || c <> 0 then
+                                if 0 <= m && m < s[0] && 0 <= n && n < s[1] && 0 <= 0 && o < s[2] then
+                                    {
+                                        Graph.source = string (i,j,k)
+                                        Graph.target = string (m,n,o)
+                                    }                      
+                    }                    
+            })            
+    
 
 [<EntryPoint>]
 let main (argv: string array) =
@@ -100,66 +207,9 @@ let main (argv: string array) =
             | Img, Aut ->
                 let (imgf, autf) = (s1, s2)
                 let img = new SITKUtil.VoxImage(imgf)
-                let dim = img.Size.Length
+                let j = imgToGraph img
+                graphToAut j false autf
 
-                let s =
-                    if dim >= 3 then
-                        img.Size
-                    else
-                        Array.append (img.Size) [| 1 |]
-
-                let mkNode (buf: NativeArray<_>) i j optk =
-                    let id, start =
-                        match optk with
-                        | None -> string (i, j), img.NComponents * (i + (j * s.[0]))
-                        | Some k -> string (i, j, k), img.NComponents * (i + (j * s.[0])) + (k * s.[1])
-
-                    { Graph.id = id
-                      Graph.atoms =
-                        [ let r = buf.Get start
-                          let g = buf.Get(start + 1)
-                          let b = buf.Get(start + 2)
-                          sprintf "#%02X%02X%02X" (int r) (int g) (int b) ] }
-
-                img.GetBufferAsFloat (fun buf ->
-                    System.IO.File.WriteAllText(
-                        autf,
-                        FSharp.Json.Json.serialize
-                            { Graph.nodes =
-                                List.ofSeq
-                                <| seq {
-                                    for i in 0 .. (s.[0] - 1) do
-                                        for j in 0 .. (s.[1] - 1) do
-                                            if dim < 3 then 
-                                                mkNode buf i j None
-                                            else 
-                                                for k in 0 .. (s.[2] - 1) do
-                                                    mkNode buf i j (Some k)
-                                }
-                              Graph.arcs =
-                                List.ofSeq
-                                <| seq {
-                                    for i in 0 .. (s.[0] - 1) do
-                                        for j in 0 .. (s.[1] - 1) do
-                                            for k in 0 .. (s.[2] - 1) do
-                                                for a in -1 .. 1 do
-                                                    for b in -1 .. 1 do
-                                                        for c in -1 .. 1 do
-                                                            let d = i + a
-                                                            let e = j + b
-                                                            let f = k + c
-                                                            // if 0 <= d && d < s.[0] && 0 <= e && e < s.[1] && 0 <= f && f < s.[2] then {
-                                                            if (List.length (List.filter (fun x -> x <> 0) [ a; b; c ])) = 1
-                                                               && 0 <= d
-                                                               && d < s.[0]
-                                                               && 0 <= e
-                                                               && e < s.[1]
-                                                               && 0 <= f
-                                                               && f < s.[2] then
-                                                                { Graph.source = string (i, j, k)
-                                                                  Graph.target = string (d, e, f) }
-                                } }
-                    ))
             | JSon, Img ->
                 let j = Graph.loadFileGraph (s1)
 
@@ -238,36 +288,18 @@ let main (argv: string array) =
                 img.Save s2
             | JSon, Aut ->
                 let j = Graph.loadFileGraph (s1)
-                let nodeOfId = new System.Collections.Generic.Dictionary<_, _>()
-                List.iteri (fun i (v: Graph.IntNode) -> nodeOfId[v.id] <- {| index = i; node = v |}) j.nodes
-                let n = j.nodes.Length
-                let transitions = new System.Collections.Generic.HashSet<_>()
-                let addTransition t = ignore <| transitions.Add t
-
-                for a in j.arcs do
-                    let src = nodeOfId[a.source]
-                    let tgt = nodeOfId[a.target]
-                    let condition = (List.sort (src.node.atoms)) = List.sort tgt.node.atoms
-                    addTransition (src.index, (if condition then "tau" else "change"), tgt.index)
-                    addTransition (tgt.index + n, (if condition then "tau" else "change"), src.index + n)
-
-                for kv in nodeOfId do
-                    let idx = kv.Value.index
-
-                    for atom in kv.Value.node.atoms do
-                        addTransition (idx, atom, idx)
-
-                    addTransition (idx, "l1", idx + n)
-                    addTransition (idx + n, "l2", idx)
-
-                let sw = new System.IO.StreamWriter(s2)
-                fprintfn sw "des (0,%A,%A)" transitions.Count (2 * n)
-
-                for t in transitions do
-                    fprintfn sw "%A" t
-
-                sw.Close()
+                graphToAut j true s2
                 exit 0
+            
+            | Img, JSon ->
+                let (imgf,jsonf) = (s1,s2)
+                let img = new SITKUtil.VoxImage(imgf)
+                let j = imgToGraph img
+                let str = Json.serialize(j)
+                let sw = new System.IO.StreamWriter(s2)
+                sw.Write str
+                sw.Close()
+
 
             | _, _ -> failwith "wrong file exensions for conversion"
 
