@@ -86,11 +86,11 @@ let graphToAut (j: Graph.IntFileGraph) (full: bool) (s2: string) =
           
     
     let sw = new System.IO.StreamWriter(s2)
-    sw.AutoFlush <- false
-    fprintfn sw "des (0,%A,%A)" transitions.Count (if full then 2 * n else n)
+    sw.AutoFlush <- false    
+    sw.Write $"des (0,{transitions.Count},{if full then 2 * n else n})"
 
     for t in transitions do
-        fprintfn sw "%A" t
+        sw.Write (t.ToString())
 
     sw.Close()
 
@@ -209,11 +209,8 @@ let main (argv: string array) =
             | Img, Aut ->
                 let (imgf, autf) = (s1, s2)
                 let img = new SITKUtil.VoxImage(imgf)
-                ErrorMsg.Logger.Debug "1"
                 let j = imgToGraph img
-                ErrorMsg.Logger.Debug "2"                
                 let r = graphToAut j false autf
-                ErrorMsg.Logger.Debug "3"
                 r                
 
             | JSon, Img ->
