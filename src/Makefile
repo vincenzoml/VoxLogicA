@@ -27,12 +27,11 @@ RELEASE=../releases/$(RELEASENAME)
 ifeq ($(VERSION),"") 
 		$(error "VERSION is not set; set the release number (e.g. 0.5.1) in VERSION.txt") 
 endif
-	
 
 ifeq ($(UNAME),Linux)
 CURRENTRID=linux-x64
 else
-CURRENTRID=osx-x64
+CURRENTRID=win-x64
 endif
 
 .PHONY: build clean restore release-linux release-osx release-win publish-internal release

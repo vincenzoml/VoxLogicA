@@ -5,5 +5,5 @@ releases/
 .ionide
 High-grade-Glioblastoma_BRATS/output
 examples/*/output
-src/tests/*/output
+output
 .fake
