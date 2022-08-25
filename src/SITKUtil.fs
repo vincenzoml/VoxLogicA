@@ -288,6 +288,7 @@ type VoxImage private (img : Image,uniqueName : string) =
                     let res = SimpleITK.Cast(img,PixelIDValueEnum.sitkFloat32)
                     img.Dispose()
                     res
+                | (x,_) when x = PixelIDValueEnum.sitkUInt8 || x = PixelIDValueEnum.sitkVectorUInt8 -> img
                 | (_,y) when y = 3u || y = 4u -> 
                     Logger.DebugOnly (sprintf "image %s\ncasted to float32" fname)
                     if y = 4u then 
