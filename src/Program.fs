@@ -107,10 +107,10 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
     let ncomps = img.NComponents
 
     let arcs =
-        (nodes * 8)
-        - 4
-        - (2 * img.Size[0])
-        - (2 * img.Size[1])
+        (nodes * 9)
+        - (4 * 5)
+        - (2 * img.Size[0] * 3)
+        - (2 * img.Size[1] * 3)
 
     let displacementsALL =
         [| -(w + 1)
@@ -146,16 +146,13 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
         | (_, false, false, true) -> displacementsD
         | (_, false, true, true) -> displacementsDR
 
+    use sw = new System.IO.StreamWriter(s2)
+    //sw.AutoFlush <- false
+    sw.WriteLine $"des (0,{arcs},{nodes})"
+
     let tmp =
         img.GetBufferAsUInt8 (fun buf ->
-            let parallelPieces = nodes / h
-            let pieceSize = nodes / parallelPieces
-            Array.Parallel.init parallelPieces (fun j ->
-                let mutable result = []
-                let start = j * pieceSize
-                let finish = if start + pieceSize < nodes then start + pieceSize else nodes - 1
-                
-                for i = start to finish do
+                for i = 0 to nodes - 1 do
                     let baseidx = i * ncomps
                     let r = buf.UGet baseidx
                     let g = buf.UGet <| baseidx + 1
@@ -164,7 +161,7 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
                     let fmt x =
                         System.String.Format("{0:X2}", (x: uint8))
 
-                    result <- (i,("#" + fmt r + fmt g + fmt b),i) :: result
+                    sw.WriteLine (string (i,("#" + fmt r + fmt g + fmt b),i))
                             
                     for d in displacements i do
                         let target = i + d
@@ -179,20 +176,8 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
                             else
                                 "change"
                         
-                        result <- (i,label,target) :: result
-                
-                result
-                ))
-
-    ErrorMsg.Logger.Debug $"writing {s2}"
-
-    use sw = new System.IO.StreamWriter(s2)
-    //sw.AutoFlush <- false
-    sw.WriteLine $"des (0,{arcs},{nodes})"
-
-    for l in tmp do
-        for s in l do
-            sw.WriteLine s
+                        sw.WriteLine (string (i,label,target))                
+                )
 
     sw.Close()
 
