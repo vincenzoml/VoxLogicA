@@ -146,12 +146,14 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
         | (_, false, false, true) -> displacementsD
         | (_, false, true, true) -> displacementsDR
 
-    use sw = new System.IO.StreamWriter(s2)
-    //sw.AutoFlush <- false
+    use fs = System.IO.File.Open(s2,System.IO.FileMode.Create)
+    use sw = new System.IO.StreamWriter(fs,System.Text.Encoding.ASCII,1048576)
+    sw.AutoFlush <- false
     sw.WriteLine $"des (0,{arcs},{nodes})"
 
-    let tmp =
-        img.GetBufferAsUInt8 (fun buf ->
+    
+    img.GetBufferAsUInt8 (
+            fun buf ->
                 for i = 0 to nodes - 1 do
                     let baseidx = i * ncomps
                     let r = buf.UGet baseidx
@@ -159,9 +161,17 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
                     let b = buf.UGet <| baseidx + 2
 
                     let fmt x =
-                        System.String.Format("{0:X2}", (x: uint8))
+                        System.String.Format("{0:X2}", (x: uint8)) : string
 
-                    sw.WriteLine (string (i,("#" + fmt r + fmt g + fmt b),i))
+                    sw.Write "(" 
+                    sw.Write i
+                    sw.Write ", #"
+                    sw.Write (fmt r)
+                    sw.Write (fmt g)
+                    sw.Write (fmt b)
+                    sw.Write ","
+                    sw.Write i
+                    sw.WriteLine ")"
                             
                     for d in displacements i do
                         let target = i + d
@@ -176,9 +186,14 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
                             else
                                 "change"
                         
-                        sw.WriteLine (string (i,label,target))                
-                )
-
+                        sw.Write "("
+                        sw.Write i
+                        sw.Write ","
+                        sw.Write label
+                        sw.Write ","
+                        sw.Write target
+                        sw.WriteLine ")"                         
+        )
     sw.Close()
 
 let imgToGraph (img: SITKUtil.VoxImage) =
