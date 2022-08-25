@@ -31,12 +31,14 @@ type LoadFlags = { fname: string; numCores: int }
 type CmdLine =
     | Ops
     | Convert of string * string
+    | ParallelConversion 
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
             match s with
             | Ops -> "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
+            | ParallelConversion -> "Use multiple cores for conversion"
             | Convert _ -> "Convert from/to image, json, aut (mcrl2)"
 
 let (|Img|_|) (s: string) =
@@ -95,7 +97,7 @@ let graphToAut (j: Graph.IntFileGraph) (full: bool) (s2: string) =
     sw.Close()
 
 
-let img2DUInt8ToGraph (img: VoxLogicA.SITKUtil.VoxImage) (s2 : string) =
+let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2 : string) =
     assert (img.BufferType = SITKUtil.PixelType.UInt8)
     assert (img.Dimension = 2) 
     let size = [| img.Size[0] ; img.Size[1] |]
@@ -131,8 +133,8 @@ let img2DUInt8ToGraph (img: VoxLogicA.SITKUtil.VoxImage) (s2 : string) =
     
     let tmp = 
         img.GetBufferAsUInt8
-            (fun buf ->
-                Array.Parallel.init
+            (fun buf ->                
+                (if parallelConversion then Array.Parallel.init else Array.init)
                     nodes
                     (fun i -> 
                         let baseidx = i * ncomps
@@ -155,7 +157,7 @@ let img2DUInt8ToGraph (img: VoxLogicA.SITKUtil.VoxImage) (s2 : string) =
             )
 
     use sw = new System.IO.StreamWriter(s2)
-    sw.AutoFlush <- false    
+    //sw.AutoFlush <- false    
     sw.WriteLine $"des (0,{arcs},{nodes})"
     for l in tmp do
         for s in l do
@@ -315,9 +317,7 @@ let main (argv: string array) =
             .InformationalVersion
 
     ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
-    let model = SITKModel() :> IModel
-    let checker = ModelChecker(model)
-
+    
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning(
             sprintf
@@ -334,26 +334,24 @@ let main (argv: string array) =
 
         let parsed = cmdLineParser.Parse argv
 
-        if parsed.Contains Ops then
-            Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
-            exit 0
 
         if parsed.Contains Convert then
+            let parallelConversion = parsed.Contains ParallelConversion
             let s1, s2 = parsed.GetResult Convert
 
             match s1, s2 with
             | Img, Aut ->
                 let (imgf, autf) = (s1, s2)
+                ErrorMsg.Logger.Debug $"Loading {imgf}"
                 let img = new SITKUtil.VoxImage(imgf)
                 if img.BufferType = SITKUtil.PixelType.UInt8 && img.Dimension = 2 && img.NComponents >= 3
                 then
                     ErrorMsg.Logger.Debug "Using optimized 2D Uint8 transform"
-                    img2DUInt8ToGraph img s2
+                    img2DUInt8ToGraph parallelConversion img s2
                 else
                     ErrorMsg.Logger.Debug $"Using non-optimized transform (dimension: {img.Dimension}, type: {img.BufferType})"
                     let j = imgToGraph img
-                    let r = graphToAut j false autf
-                    r                
+                    graphToAut j false autf              
 
             | JSon, Img ->
                 let j = Graph.loadFileGraph (s1)
@@ -449,6 +447,13 @@ let main (argv: string array) =
             | _, _ -> failwith "wrong file exensions for conversion"
 
             ErrorMsg.Logger.Debug "Conversion done."
+            exit 0
+
+        let model = SITKModel() :> IModel
+        let checker = ModelChecker(model)
+
+        if parsed.Contains Ops then
+            Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
 
         let run filename =
