@@ -31,7 +31,7 @@ type LoadFlags = { fname: string; numCores: int }
 type CmdLine =
     | Ops
     | Convert of string * string
-    | ParallelConversion 
+    | ParallelConversion
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
@@ -85,83 +85,115 @@ let graphToAut (j: Graph.IntFileGraph) (full: bool) (s2: string) =
         if full then
             addTransition (idx, "l1", idx + n)
             addTransition (idx + n, "l2", idx)
-          
-    
+
+
     let sw = new System.IO.StreamWriter(s2)
-    sw.AutoFlush <- false    
+    sw.AutoFlush <- false
     sw.Write $"des (0,{transitions.Count},{if full then 2 * n else n})\n"
 
     for t in transitions do
-        sw.WriteLine (t.ToString())
+        sw.WriteLine(t.ToString())
 
     sw.Close()
 
 
-let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2 : string) =
+let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: string) =
     assert (img.BufferType = SITKUtil.PixelType.UInt8)
-    assert (img.Dimension = 2) 
-    let size = [| img.Size[0] ; img.Size[1] |]
+    assert (img.Dimension = 2)
+    let size = [| img.Size[0]; img.Size[1] |]
     let w = size[0]
     let h = size[1]
     let nodes = img.NPixels
     let ncomps = img.NComponents
-    let arcs = (nodes * 8) - 4 - (2 * img.Size[0]) - (2 * img.Size[1]) 
-    let displacementsALL = 
-        [| -(w+1); -w; -(w-1); -1; 1; w-1; w; w+1 |]
+
+    let arcs =
+        (nodes * 8)
+        - 4
+        - (2 * img.Size[0])
+        - (2 * img.Size[1])
+
+    let displacementsALL =
+        [| -(w + 1)
+           -w
+           -(w - 1)
+           -1
+           1
+           w - 1
+           w
+           w + 1 |]
+
     let displacementsUL = [| 1; w; w + 1 |]
-    let displacementsU = [| -1; 1; w-1; w; w + 1 |]
+    let displacementsU = [| -1; 1; w - 1; w; w + 1 |]
     let displacementsUR = [| -1; w - 1; w |]
-    let displacementsL = [| -w; -(w-1); 1; w; w+1 |]
-    let displacementsR = [| -(w+1); -w; -1; w-1; w |]
-    let displacementsDL = [| -w; -(w-1); 1;|]
-    let displacementsD = [| -(w+1); -w; -(w-1); -1; 1|]
-    let displacementsDR = [| -(w+1); -w; -1 |]
+    let displacementsL = [| -w; -(w - 1); 1; w; w + 1 |]
+    let displacementsR = [| -(w + 1); -w; -1; w - 1; w |]
+    let displacementsDL = [| -w; -(w - 1); 1 |]
+    let displacementsD = [| -(w + 1); -w; -(w - 1); -1; 1 |]
+    let displacementsDR = [| -(w + 1); -w; -1 |]
 
     let displacements i =
         let m = i % w
-        let (u,l,r,d) = (i < w,m = 0,m=w-1,(h-1)*w <= i) // position of the node i
-        match (u,l,r,d) with
-            | (false,false,false,false) -> displacementsALL
-            | (true,true,false,_) -> displacementsUL
-            | (true,false,false,_) -> displacementsU
-            | (true,_,true,_) -> displacementsUR
-            | (false,true,_,false) -> displacementsL
-            | (false,_,true,false) -> displacementsR
-            | (_,true,_,true) -> displacementsDL
-            | (_,false,false,true) -> displacementsD
-            | (_,false,true,true) -> displacementsDR
-    
-    let tmp = 
-        img.GetBufferAsUInt8
-            (fun buf ->                
-                (if parallelConversion then Array.Parallel.init else Array.init)
-                    nodes
-                    (fun i -> 
-                        let baseidx = i * ncomps
-                        let r = buf.UGet baseidx
-                        let g = buf.UGet <| baseidx + 1
-                        let b = buf.UGet <| baseidx + 2
-                        let fmt x = System.String.Format("{0:X2}", (x : uint8))
-                        seq {
-                                $"({i},#{fmt r}{fmt g}{fmt b},{i})"
-                                for d in displacements i do
-                                    let target = i + d
-                                    let tbaseidx = target * ncomps
-                                    let tr = buf.UGet tbaseidx
-                                    let tg = 0uy //buf.UGet <| tbaseidx + 1
-                                    let tb = 0uy //buf.UGet <| tbaseidx + 2
-                                    let label = if r = tr && g = tg && b = tb then "tau" else "change"
-                                    $"({i},{label},{target})"
-                        }
-                    )
-            )
+        let (u, l, r, d) = (i < w, m = 0, m = w - 1, (h - 1) * w <= i) // position of the node i: upper row, leftmost column, rightmost column, last row
+
+        match (u, l, r, d) with
+        | (false, false, false, false) -> displacementsALL
+        | (true, true, false, _) -> displacementsUL
+        | (true, false, false, _) -> displacementsU
+        | (true, _, true, _) -> displacementsUR
+        | (false, true, _, false) -> displacementsL
+        | (false, _, true, false) -> displacementsR
+        | (_, true, _, true) -> displacementsDL
+        | (_, false, false, true) -> displacementsD
+        | (_, false, true, true) -> displacementsDR
+
+    let tmp =
+        img.GetBufferAsUInt8 (fun buf ->
+            let parallelPieces = nodes / h
+            let pieceSize = nodes / parallelPieces
+            Array.Parallel.init parallelPieces (fun j ->
+                let mutable result = []
+                let start = j * pieceSize
+                let finish = if start + pieceSize < nodes then start + pieceSize else nodes - 1
+                
+                for i = start to finish do
+                    let baseidx = i * ncomps
+                    let r = buf.UGet baseidx
+                    let g = buf.UGet <| baseidx + 1
+                    let b = buf.UGet <| baseidx + 2
+
+                    let fmt x =
+                        System.String.Format("{0:X2}", (x: uint8))
+
+                    result <- (i,("#" + fmt r + fmt g + fmt b),i) :: result
+                            
+                    for d in displacements i do
+                        let target = i + d
+                        let tbaseidx = target * ncomps
+                        let tr = buf.UGet tbaseidx
+                        let tg = buf.UGet <| tbaseidx + 1
+                        let tb = buf.UGet <| tbaseidx + 2
+
+                        let label =
+                            if r = tr && g = tg && b = tb then
+                                "tau"
+                            else
+                                "change"
+                        
+                        result <- (i,label,target) :: result
+                
+                result
+                ))
+
+    ErrorMsg.Logger.Debug $"writing {s2}"
 
     use sw = new System.IO.StreamWriter(s2)
-    //sw.AutoFlush <- false    
+    //sw.AutoFlush <- false
     sw.WriteLine $"des (0,{arcs},{nodes})"
+
     for l in tmp do
         for s in l do
             sw.WriteLine s
+
     sw.Close()
 
 let imgToGraph (img: SITKUtil.VoxImage) =
@@ -186,55 +218,55 @@ let imgToGraph (img: SITKUtil.VoxImage) =
               let b = buf.Get(start + 2)
               sprintf "#%02X%02X%02X" (int r) (int g) (int b) ] }
 
-    
-    img.GetBufferAsFloat 
-        (fun buf ->                
-            {   Graph.nodes = 
-                    List.ofSeq 
-                        <| seq {
-                            for i in 0 .. (s.[0] - 1) do
-                                for j in 0 .. (s.[1] - 1) do
-                                    if dim < 3 then
-                                        mkNode buf i j None
-                                    else
-                                        for k in 0 .. (s.[2] - 1) do
-                                            mkNode buf i j (Some k)
-                        }
-                Graph.arcs = 
-                    List.ofSeq <| 
-                    seq {
-                        for i in 0..(s[0] - 1) do 
-                        for j in 0..(s[1] - 1) do
-                        if dim < 3 then 
-                            for a in -1..1 do
-                            for b in -1..1 do
-                            let m = i+a
-                            let n = j+b                             
-                            if a <> 0 || b <> 0 then 
-                                if 0 <= m && m < s[0] && 0 <= n && n < s[1]
-                                then 
-                                    {
-                                        Graph.source = string (i,j)
-                                        Graph.target = string (m,n)
-                                    } 
-                        else
-                            for k in 0..(s[2] - 1) do
-                            for a in -1..1 do
-                            for b in -1..1 do
-                            for c in -1..1 do
-                            let m = i+a
-                            let n = j+b
-                            let o = k+c
-                            if a<>0 || b <> 0 || c <> 0 then
-                                if 0 <= m && m < s[0] && 0 <= n && n < s[1] && 0 <= 0 && o < s[2] then
-                                    {
-                                        Graph.source = string (i,j,k)
-                                        Graph.target = string (m,n,o)
-                                    }                      
-                    }                    
-            })     
 
-let imgToAut (img: VoxLogicA.SITKUtil.VoxImage) (s2 : string)=
+    img.GetBufferAsFloat (fun buf ->
+        { Graph.nodes =
+            List.ofSeq
+            <| seq {
+                for i in 0 .. (s.[0] - 1) do
+                    for j in 0 .. (s.[1] - 1) do
+                        if dim < 3 then
+                            mkNode buf i j None
+                        else
+                            for k in 0 .. (s.[2] - 1) do
+                                mkNode buf i j (Some k)
+            }
+          Graph.arcs =
+            List.ofSeq
+            <| seq {
+                for i in 0 .. (s[0] - 1) do
+                    for j in 0 .. (s[1] - 1) do
+                        if dim < 3 then
+                            for a in -1 .. 1 do
+                                for b in -1 .. 1 do
+                                    let m = i + a
+                                    let n = j + b
+
+                                    if a <> 0 || b <> 0 then
+                                        if 0 <= m && m < s[0] && 0 <= n && n < s[1] then
+                                            { Graph.source = string (i, j)
+                                              Graph.target = string (m, n) }
+                        else
+                            for k in 0 .. (s[2] - 1) do
+                                for a in -1 .. 1 do
+                                    for b in -1 .. 1 do
+                                        for c in -1 .. 1 do
+                                            let m = i + a
+                                            let n = j + b
+                                            let o = k + c
+
+                                            if a <> 0 || b <> 0 || c <> 0 then
+                                                if 0 <= m
+                                                   && m < s[0]
+                                                   && 0 <= n
+                                                   && n < s[1]
+                                                   && 0 <= 0
+                                                   && o < s[2] then
+                                                    { Graph.source = string (i, j, k)
+                                                      Graph.target = string (m, n, o) }
+            } })
+
+let imgToAut (img: VoxLogicA.SITKUtil.VoxImage) (s2: string) =
     let dim = img.Size.Length
 
     let s =
@@ -256,54 +288,54 @@ let imgToAut (img: VoxLogicA.SITKUtil.VoxImage) (s2 : string)=
               let b = buf.Get(start + 2)
               sprintf "#%02X%02X%02X" (int r) (int g) (int b) ] }
 
-    
-    img.GetBufferAsFloat 
-        (fun buf ->                
-            {   Graph.nodes = 
-                    List.ofSeq 
-                        <| seq {
-                            for i in 0 .. (s.[0] - 1) do
-                                for j in 0 .. (s.[1] - 1) do
-                                    if dim < 3 then
-                                        mkNode buf i j None
-                                    else
-                                        for k in 0 .. (s.[2] - 1) do
-                                            mkNode buf i j (Some k)
-                        }
-                Graph.arcs = 
-                    List.ofSeq <| 
-                    seq {
-                        for i in 0..(s[0] - 1) do 
-                        for j in 0..(s[1] - 1) do
-                        if dim < 3 then 
-                            for a in -1..1 do
-                            for b in -1..1 do
-                            let m = i+a
-                            let n = j+b                             
-                            if a <> 0 || b <> 0 then 
-                                if 0 <= m && m < s[0] && 0 <= n && n < s[1]
-                                then 
-                                    {
-                                        Graph.source = string (i,j)
-                                        Graph.target = string (m,n)
-                                    } 
+
+    img.GetBufferAsFloat (fun buf ->
+        { Graph.nodes =
+            List.ofSeq
+            <| seq {
+                for i in 0 .. (s.[0] - 1) do
+                    for j in 0 .. (s.[1] - 1) do
+                        if dim < 3 then
+                            mkNode buf i j None
                         else
-                            for k in 0..(s[2] - 1) do
-                            for a in -1..1 do
-                            for b in -1..1 do
-                            for c in -1..1 do
-                            let m = i+a
-                            let n = j+b
-                            let o = k+c
-                            if a<>0 || b <> 0 || c <> 0 then
-                                if 0 <= m && m < s[0] && 0 <= n && n < s[1] && 0 <= 0 && o < s[2] then
-                                    {
-                                        Graph.source = string (i,j,k)
-                                        Graph.target = string (m,n,o)
-                                    }                      
-                    }                    
-            })            
-  
+                            for k in 0 .. (s.[2] - 1) do
+                                mkNode buf i j (Some k)
+            }
+          Graph.arcs =
+            List.ofSeq
+            <| seq {
+                for i in 0 .. (s[0] - 1) do
+                    for j in 0 .. (s[1] - 1) do
+                        if dim < 3 then
+                            for a in -1 .. 1 do
+                                for b in -1 .. 1 do
+                                    let m = i + a
+                                    let n = j + b
+
+                                    if a <> 0 || b <> 0 then
+                                        if 0 <= m && m < s[0] && 0 <= n && n < s[1] then
+                                            { Graph.source = string (i, j)
+                                              Graph.target = string (m, n) }
+                        else
+                            for k in 0 .. (s[2] - 1) do
+                                for a in -1 .. 1 do
+                                    for b in -1 .. 1 do
+                                        for c in -1 .. 1 do
+                                            let m = i + a
+                                            let n = j + b
+                                            let o = k + c
+
+                                            if a <> 0 || b <> 0 || c <> 0 then
+                                                if 0 <= m
+                                                   && m < s[0]
+                                                   && 0 <= n
+                                                   && n < s[1]
+                                                   && 0 <= 0
+                                                   && o < s[2] then
+                                                    { Graph.source = string (i, j, k)
+                                                      Graph.target = string (m, n, o) }
+            } })
+
 [<EntryPoint>]
 let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
@@ -317,7 +349,7 @@ let main (argv: string array) =
             .InformationalVersion
 
     ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
-    
+
     if version.Revision <> 0 then
         ErrorMsg.Logger.Warning(
             sprintf
@@ -344,14 +376,18 @@ let main (argv: string array) =
                 let (imgf, autf) = (s1, s2)
                 ErrorMsg.Logger.Debug $"Loading {imgf}"
                 let img = new SITKUtil.VoxImage(imgf)
-                if img.BufferType = SITKUtil.PixelType.UInt8 && img.Dimension = 2 && img.NComponents >= 3
-                then
+
+                if img.BufferType = SITKUtil.PixelType.UInt8
+                   && img.Dimension = 2
+                   && img.NComponents >= 3 then
                     ErrorMsg.Logger.Debug "Using optimized 2D Uint8 transform"
                     img2DUInt8ToGraph parallelConversion img s2
                 else
-                    ErrorMsg.Logger.Debug $"Using non-optimized transform (dimension: {img.Dimension}, type: {img.BufferType})"
+                    ErrorMsg.Logger.Debug
+                        $"Using non-optimized transform (dimension: {img.Dimension}, type: {img.BufferType})"
+
                     let j = imgToGraph img
-                    graphToAut j false autf              
+                    graphToAut j false autf
 
             | JSon, Img ->
                 let j = Graph.loadFileGraph (s1)
@@ -433,12 +469,12 @@ let main (argv: string array) =
                 let j = Graph.loadFileGraph (s1)
                 graphToAut j true s2
                 exit 0
-            
+
             | Img, JSon ->
-                let (imgf,jsonf) = (s1,s2)
+                let (imgf, jsonf) = (s1, s2)
                 let img = new SITKUtil.VoxImage(imgf)
                 let j = imgToGraph img
-                let str = Json.serialize(j)
+                let str = Json.serialize (j)
                 let sw = new System.IO.StreamWriter(s2)
                 sw.Write str
                 sw.Close()
