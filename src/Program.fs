@@ -31,14 +31,14 @@ type LoadFlags = { fname: string; numCores: int }
 type CmdLine =
     | Ops
     | Convert of string * string
-    | ParallelConversion
+    | FakeConversion
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
             match s with
             | Ops -> "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
-            | ParallelConversion -> "Use multiple cores for conversion"
+            | FakeConversion -> "Write much less info to the destination file, used just for measurement"
             | Convert _ -> "Convert from/to image, json, aut (mcrl2)"
 
 let (|Img|_|) (s: string) =
@@ -97,7 +97,7 @@ let graphToAut (j: Graph.IntFileGraph) (full: bool) (s2: string) =
     sw.Close()
 
 
-let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: string) =
+let img2DUInt8ToGraph fakeConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: string) =
     assert (img.BufferType = SITKUtil.PixelType.UInt8)
     assert (img.Dimension = 2)
     let size = [| img.Size[0]; img.Size[1] |]
@@ -150,8 +150,7 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
     use sw = new System.IO.StreamWriter(fs,System.Text.Encoding.ASCII,1048576)
     sw.AutoFlush <- false
     sw.WriteLine $"des (0,{arcs},{nodes})"
-
-    
+    let mutable fakeConversionUtilizer = 0    
     img.GetBufferAsUInt8 (
             fun buf ->
                 for i = 0 to nodes - 1 do
@@ -160,18 +159,19 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
                     let g = buf.UGet <| baseidx + 1
                     let b = buf.UGet <| baseidx + 2
 
-                    let fmt x =
-                        System.String.Format("{0:X2}", (x: uint8)) : string
+                    if not fakeConversion then
+                        let fmt x =
+                            System.String.Format("{0:X2}", (x: uint8)) : string
 
-                    sw.Write "(" 
-                    sw.Write i
-                    sw.Write ", #"
-                    sw.Write (fmt r)
-                    sw.Write (fmt g)
-                    sw.Write (fmt b)
-                    sw.Write ","
-                    sw.Write i
-                    sw.WriteLine ")"
+                        sw.Write "(" 
+                        sw.Write i
+                        sw.Write ", #"
+                        sw.Write (fmt r)
+                        sw.Write (fmt g)
+                        sw.Write (fmt b)
+                        sw.Write ","
+                        sw.Write i
+                        sw.WriteLine ")"
                             
                     for d in displacements i do
                         let target = i + d
@@ -186,14 +186,19 @@ let img2DUInt8ToGraph parallelConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2:
                             else
                                 "change"
                         
-                        sw.Write "("
-                        sw.Write i
-                        sw.Write ","
-                        sw.Write label
-                        sw.Write ","
-                        sw.Write target
-                        sw.WriteLine ")"                         
+                        if not fakeConversion then
+                            sw.Write "("
+                            sw.Write i
+                            sw.Write ","
+                            sw.Write label
+                            sw.Write ","
+                            sw.Write target
+                            sw.WriteLine ")"                         
+                        else
+                            fakeConversionUtilizer <- label.Length
         )
+    if fakeConversion then
+        ErrorMsg.Logger.Debug $"Fake conversion done (unuseful integer: {fakeConversionUtilizer})"
     sw.Close()
 
 let imgToGraph (img: SITKUtil.VoxImage) =
@@ -368,7 +373,7 @@ let main (argv: string array) =
 
 
         if parsed.Contains Convert then
-            let parallelConversion = parsed.Contains ParallelConversion
+            let fakeConversion = parsed.Contains FakeConversion
             let s1, s2 = parsed.GetResult Convert
 
             match s1, s2 with
@@ -381,7 +386,7 @@ let main (argv: string array) =
                    && img.Dimension = 2
                    && img.NComponents >= 3 then
                     ErrorMsg.Logger.Debug "Using optimized 2D Uint8 transform"
-                    img2DUInt8ToGraph parallelConversion img s2
+                    img2DUInt8ToGraph fakeConversion img s2
                 else
                     ErrorMsg.Logger.Debug
                         $"Using non-optimized transform (dimension: {img.Dimension}, type: {img.BufferType})"
