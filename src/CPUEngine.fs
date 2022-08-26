@@ -52,6 +52,7 @@ type CPUResource =
         | _ -> ErrorMsg.fail "Internal error in CPU resource allocation"
 
 type CPUEngine() =
+
     interface ExecutionEngine<CPUResource, CPUResourceKind> with
         member __.ImplementationOf s =
             match s with
@@ -80,18 +81,26 @@ type CPUEngine() =
                 OperatorImplementation(Requirements<CPUResourceKind>[],
                     (fun _ args ->
                         task {
-                            match args[0].Value with
-                            | CPUString str ->
-                                let img = SimpleITK.ReadImage(str)
-                                let sz = Array.ofSeq <| Seq.map int (img.GetSize())
-                                let pixtype = PixelType.OfSITK (img.GetPixelID())                                
-                                let chs = int <| img.GetNumberOfComponentsPerPixel()
-                                let record = {
-                                    dimensions = sz
-                                    pixelType = pixtype
-                                    channels = chs
-                                }
-                                return (Resource (CPUImg img, KImg record))                            
+                            try
+                                match args[0].Value with
+                                | CPUString str ->
+                                    let img = SimpleITK.ReadImage(str)
+                                    let sz = Array.ofSeq <| Seq.map int (img.GetSize())
+                                    let pixtype = PixelType.OfSITK (img.GetPixelID())                                
+                                    let chs = int <| img.GetNumberOfComponentsPerPixel()
+                                    let record = {
+                                        dimensions = sz
+                                        pixelType = pixtype
+                                        channels = chs
+                                    }
+                                    return (Resource (CPUImg img, KImg record))      
+                            with e ->
+                                printfn "%A" e.StackTrace
+                                return (Resource (CPUImg (new Image()), KImg {
+                                    dimensions = [|0;0;0|]
+                                    pixelType = UInt8
+                                    channels = 0
+                                }))                
                         }
                     )
                 )
