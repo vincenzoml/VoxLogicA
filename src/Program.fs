@@ -109,8 +109,8 @@ let img2DUInt8ToGraph fakeConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: str
     let arcs =
         (nodes * 9)
         - (4 * 5)
-        - (2 * img.Size[0] * 3)
-        - (2 * img.Size[1] * 3)
+        - (2 * (img.Size[0]-2) * 3)
+        - (2 * (img.Size[1]-2) * 3)
 
     let displacementsALL =
         [| -(w + 1)
@@ -165,7 +165,7 @@ let img2DUInt8ToGraph fakeConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: str
 
                         sw.Write "(" 
                         sw.Write i
-                        sw.Write ", #"
+                        sw.Write ", c"
                         sw.Write (fmt r)
                         sw.Write (fmt g)
                         sw.Write (fmt b)
