@@ -1,0 +1,2 @@
+let img = load("tests/tests/output/a.png")
+save "tests/tests/output/aSaved.png" img

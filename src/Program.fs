@@ -32,6 +32,8 @@ type CmdLine =
 
 open VoxLogicA.Interpreter
 open VoxLogicA.TestEngines
+open VoxLogicA.CPUEngine
+open itk.simple
 
 [<EntryPoint>]
 let main (argv: string array) =
@@ -50,15 +52,16 @@ let main (argv: string array) =
 
     let parsed = cmdLineParser.Parse argv
 
-    if Option.isSome (parsed.TryGetResult Version) then
-        printfn "%s" informationalVersion
-        exit 0
+    //if Option.isSome (parsed.TryGetResult Version) then
+    //    printfn "%s" informationalVersion
+    //    exit 0
 
     ErrorMsg.Logger.LogToStdout()
 #if ! DEBUG
     ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
 #else
-    () //ErrorMsg.Logger.SetLogLevel(["thrd"])
+    //() 
+    ErrorMsg.Logger.SetLogLevel(["user"; "info"; "debug"])
 #endif
 
     if version.Revision <> 0 then
@@ -78,7 +81,8 @@ let main (argv: string array) =
                 parsed.GetResult Filename
             else
 #if DEBUG
-                "src/test.imgql"
+                //"src/test.imgql"
+                "loadTest.imgql"
 #else
                 printfn "%s version: %s" name.Name informationalVersion
                 printfn "%s\n" (cmdLineParser.PrintUsage())
@@ -119,45 +123,95 @@ let main (argv: string array) =
             System.IO.File.WriteAllText(filename, program.ToDot())
 
         let engine = Fib()
+        let loadEngine = CPUTask()
 
         let resourceManager = Resources.ResourceManager<_, _>(FibResource.Allocator)
+        let CPUResourceManager = Resources.ResourceManager<_,_>(CPUResource.Allocator)
 
         let interpreter = Interpreter(engine, resourceManager)
+        let CPUInterpreter = Interpreter(loadEngine, CPUResourceManager)
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
-        interpreter.Prepare(program)
+        CPUInterpreter.Prepare(program)
         ErrorMsg.Logger.Debug "Running interpreter"
 
         let mutable n = program.goals.Length
         let cts = new System.Threading.CancellationTokenSource()
 
         ignore <| System.Threading.Tasks.Task.Run(
-            fun () -> ignore <| interpreter.Session()) // TODO not clear; there should be no Task.Run here
+            fun () -> ignore <| CPUInterpreter.Session()) // TODO not clear; there should be no Task.Run here
 
-        let tasks =
+        //let tasks =
+        //    [| for goal in program.goals do
+        //           match goal with // DUE MATCH IN UNO
+        //            | (Reducer.GoalSave (label, id)) ->
+        //                (task {
+        //                    System.Threading.SynchronizationContext.SetSynchronizationContext
+        //                        interpreter.SynchronizationContext
+//
+        //                    let! result = interpreter.QueryAsync id
+        //                    ErrorMsg.Logger.Result label result.Value // SOSTITUISCO CON SALVATAGGIO, DOVE LABEL È IL NOME DEL FILE
+        //                    result.Reclaim(interpreter)
+        //                    n <- n - 1
+        //                    if n = 0 then 
+        //                        ErrorMsg.Logger.Test "cts" "Requesting cancellation"
+        //                        cts.Cancel()
+        //                        ErrorMsg.Logger.Test "test" "exiting, remove the exit and make cancellation work"
+        //                        exit 0
+        //               }) :> System.Threading.Tasks.Task 
+        //            | (Reducer.GoalPrint (label, id)) -> 
+        //                (task {
+        //                    System.Threading.SynchronizationContext.SetSynchronizationContext
+        //                        interpreter.SynchronizationContext
+    //
+        //                    let! result = interpreter.QueryAsync id
+        //                    ErrorMsg.Logger.Result label result.Value 
+        //                    result.Reclaim(interpreter)
+        //                    n <- n - 1
+        //                    if n = 0 then 
+        //                        ErrorMsg.Logger.Test "cts" "Requesting cancellation"
+        //                        cts.Cancel()
+        //                        ErrorMsg.Logger.Test "test" "exiting, remove the exit and make cancellation work"
+        //                        exit 0
+        //                })
+        //                :> System.Threading.Tasks.Task |]
+
+        let CPUtasks = 
             [| for goal in program.goals do
-                   match goal with
-                   | (Reducer.GoalSave (label, id)
-                   | Reducer.GoalPrint (label, id)) ->
-                       (task {
-                           System.Threading.SynchronizationContext.SetSynchronizationContext
-                               interpreter.SynchronizationContext
-
-                           let! result = interpreter.QueryAsync id
-                           ErrorMsg.Logger.Result label result.Value
-                           result.Reclaim(interpreter)
-                           n <- n - 1
-                           if n = 0 then 
+                match goal with
+                | (Reducer.GoalSave(label, id)) ->
+                    (task {
+                        System.Threading.SynchronizationContext.SetSynchronizationContext
+                            CPUInterpreter.SynchronizationContext
+                        let! result = CPUInterpreter.QueryAsync id
+                        SimpleITK.WriteImage(CPUResource.GetImg(result.Value),label) // SOSTITUISCO CON SALVATAGGIO, DOVE LABEL È IL NOME DEL FILE
+                        ErrorMsg.Logger.Test "test" "Image saved"
+                        result.Reclaim(CPUInterpreter)
+                        n <- n - 1
+                        if n = 0 then 
                             ErrorMsg.Logger.Test "cts" "Requesting cancellation"
                             cts.Cancel()
                             ErrorMsg.Logger.Test "test" "exiting, remove the exit and make cancellation work"
                             exit 0
-                       })
-                       :> System.Threading.Tasks.Task |]
+                    }) :> System.Threading.Tasks.Task
+                | (Reducer.GoalPrint(label, id )) ->
+                    (task {
+                        System.Threading.SynchronizationContext.SetSynchronizationContext
+                            CPUInterpreter.SynchronizationContext
+                        let! result = CPUInterpreter.QueryAsync id
+                        ErrorMsg.Logger.Test "test" (CPUResource.GetImg(result.Value).ToString())
+                        n <- n - 1
+                        if n = 0 then 
+                            ErrorMsg.Logger.Test "cts" "Requesting cancellation"
+                            cts.Cancel()
+                            ErrorMsg.Logger.Test "test" "exiting, remove the exit and make cancellation work"
+                            exit 0
+                    }) :> System.Threading.Tasks.Task
+            |]
 
         ErrorMsg.Logger.Info "tasks launched, waiting..."
         
-        interpreter.Run(cts.Token)
+        CPUInterpreter.Run(cts.Token)
 
         ErrorMsg.Logger.Info "All done."
 
