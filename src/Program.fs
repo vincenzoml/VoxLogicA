@@ -146,7 +146,8 @@ let img2DUInt8ToGraph fakeConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: str
         | (_, false, false, true) -> displacementsD
         | (_, false, true, true) -> displacementsDR
 
-    use fs = System.IO.File.Open(s2,System.IO.FileMode.Create)
+    let fname = if not fakeConversion then s2 else System.IO.Path.GetTempFileName()
+    use fs = System.IO.File.Open(fname,System.IO.FileMode.Create)
     use sw = new System.IO.StreamWriter(fs,System.Text.Encoding.ASCII,1048576)
     sw.AutoFlush <- false
     sw.WriteLine $"des (0,{arcs},{nodes})"
