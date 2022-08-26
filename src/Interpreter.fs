@@ -57,7 +57,6 @@ type ThreadOwningSyncCtx() =
             let (callback, state) = _queue.Take()
             callback.Invoke state
             ErrorMsg.Logger.Test "****" "work finished"
-
         ()
 
     override _.Post(callback, state) =

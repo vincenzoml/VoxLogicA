@@ -7,13 +7,33 @@ open itk.simple
 
 // This engine implements a load function, used to load an image from disk
 
-type PixelType = Float | Int8 | Int16
+type PixelType = 
+    | Float 
+    | UInt8 
+    | UInt16 
+    | UInt32
+    static member OfSITK (t : PixelIDValueEnum) =
+        match t with
+        | _ when t = PixelIDValueEnum.sitkFloat32 || t = PixelIDValueEnum.sitkVectorFloat32-> Float
+        | _ when t = PixelIDValueEnum.sitkUInt8 || t = PixelIDValueEnum.sitkVectorUInt8 -> UInt8
+        | _ when t = PixelIDValueEnum.sitkUInt16 || t = PixelIDValueEnum.sitkVectorUInt16-> UInt16
+        | _ when t = PixelIDValueEnum.sitkUInt32 || t = PixelIDValueEnum.sitkVectorUInt32-> UInt32
+        | _ -> ErrorMsg.fail $"Cannot handle pixel type {t}"
+    
 
-type ImgKind = {
-    dimensions : VectorUInt32
-    pixelType : PixelType
-    channels : uint32
-}
+type ImgKind = 
+    {
+        dimensions : array<int>
+        pixelType : PixelType
+        channels : int
+    }
+    member this.GetSTIKPixelID() =
+        match this.pixelType,this.channels with
+        | Float,1 -> PixelIDValueEnum.sitkFloat32
+        | UInt8,1 -> PixelIDValueEnum.sitkUInt8
+        | Float,_ -> PixelIDValueEnum.sitkVectorFloat32
+        | UInt8,_ -> PixelIDValueEnum.sitkVectorUInt8
+        | _ -> ErrorMsg.fail "THIS IS A STUB"
 
 type CPUResourceKind = KImg of ImgKind | KNumber | KString | KBool
 
@@ -26,22 +46,12 @@ type CPUResource =
     static member Allocator kind =
         match kind with
         | KImg imgknd -> 
-            let pixtype = 
-                match imgknd.pixelType with
-                | Float -> PixelIDValueEnum.sitkFloat32
-                | Int8 -> PixelIDValueEnum.sitkInt8
-                | Int16 -> PixelIDValueEnum.sitkInt16
-            use sz = imgknd.dimensions
+            let pixtype = imgknd.GetSTIKPixelID()
+            use sz = new VectorUInt32(imgknd.dimensions)
             Some (CPUImg (new Image(sz, pixtype, uint32 imgknd.channels)))
         | _ -> ErrorMsg.fail "Internal error in CPU resource allocation"
-    
-    static member GetImg kind = 
-        match kind with
-        | CPUImg img -> img
-        | _ -> ErrorMsg.fail "This is not an image!"
 
-
-type CPUTask() =
+type CPUEngine() =
     interface ExecutionEngine<CPUResource, CPUResourceKind> with
         member __.ImplementationOf s =
             match s with
@@ -59,36 +69,29 @@ type CPUTask() =
                             return (Resource (CPUString str, KString))
                         })
                 )
+            | Bool b -> 
+                OperatorImplementation(Requirements<CPUResourceKind>[],
+                    (fun _ _ ->
+                        task {
+                            return (Resource (CPUBool b, KBool))
+                        })
+                )
             | Identifier "load" ->
                 OperatorImplementation(Requirements<CPUResourceKind>[],
                     (fun _ args ->
                         task {
-                            printfn "starting load"
                             match args[0].Value with
                             | CPUString str ->
                                 let img = SimpleITK.ReadImage(str)
-                                printfn "Image loaded"
-                                let sz = img.GetSize()
-                                let pixId = img.GetPixelID()
-                                let pixtype =
-                                    if pixId = PixelIDValueEnum.sitkFloat32 then Float
-                                    else if pixId = PixelIDValueEnum.sitkInt8 then Int8
-                                    else if pixId = PixelIDValueEnum.sitkInt16 then Int16
-                                    else ErrorMsg.fail "Not a supported image type"
-                                printfn "got infos"
-                                let chs = img.GetNumberOfComponentsPerPixel()
+                                let sz = Array.ofSeq <| Seq.map int (img.GetSize())
+                                let pixtype = PixelType.OfSITK (img.GetPixelID())                                
+                                let chs = int <| img.GetNumberOfComponentsPerPixel()
                                 let record = {
                                     dimensions = sz
                                     pixelType = pixtype
                                     channels = chs
                                 }
-                                printfn "returning"
-                                return (Resource (CPUImg img, KImg record))
-                            | _ -> return (Resource (CPUImg (new Image()), KImg {
-                                    dimensions = new VectorUInt32([|0,0,0|])
-                                    pixelType = Int8
-                                    channels = uint32 3
-                            }))
+                                return (Resource (CPUImg img, KImg record))                            
                         }
                     )
                 )

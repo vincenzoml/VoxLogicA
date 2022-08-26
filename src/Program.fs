@@ -52,16 +52,15 @@ let main (argv: string array) =
 
     let parsed = cmdLineParser.Parse argv
 
-    //if Option.isSome (parsed.TryGetResult Version) then
-    //    printfn "%s" informationalVersion
-    //    exit 0
+    if Option.isSome (parsed.TryGetResult CmdLine.Version) then
+       printfn "%s" informationalVersion
+       exit 0
 
     ErrorMsg.Logger.LogToStdout()
-#if ! DEBUG
-    ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
+#if DEBUG
+    //ErrorMsg.Logger.SetLogLevel(["user"; "info"; "debug"])
 #else
-    //() 
-    ErrorMsg.Logger.SetLogLevel(["user"; "info"; "debug"])
+    ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])    
 #endif
 
     if version.Revision <> 0 then
@@ -81,8 +80,8 @@ let main (argv: string array) =
                 parsed.GetResult Filename
             else
 #if DEBUG
-                //"src/test.imgql"
-                "loadTest.imgql"
+                "src/test.imgql"
+                //"test.imgql"
 #else
                 printfn "%s version: %s" name.Name informationalVersion
                 printfn "%s\n" (cmdLineParser.PrintUsage())
@@ -122,14 +121,14 @@ let main (argv: string array) =
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
             System.IO.File.WriteAllText(filename, program.ToDot())
 
-        let engine = Fib()
-        let loadEngine = CPUTask()
+        // let fibEngine = Fib()
+        let cpuEngine = CPUEngine()
 
-        let resourceManager = Resources.ResourceManager<_, _>(FibResource.Allocator)
+        // let resourceManager = Resources.ResourceManager<_, _>(FibResource.Allocator)
         let CPUResourceManager = Resources.ResourceManager<_,_>(CPUResource.Allocator)
 
-        let interpreter = Interpreter(engine, resourceManager)
-        let CPUInterpreter = Interpreter(loadEngine, CPUResourceManager)
+        // let interpreter = Interpreter(engine, resourceManager)
+        let CPUInterpreter = Interpreter(cpuEngine, CPUResourceManager)
 
         ErrorMsg.Logger.Debug "Preparing interpreter"
         CPUInterpreter.Prepare(program)
@@ -184,7 +183,10 @@ let main (argv: string array) =
                         System.Threading.SynchronizationContext.SetSynchronizationContext
                             CPUInterpreter.SynchronizationContext
                         let! result = CPUInterpreter.QueryAsync id
-                        SimpleITK.WriteImage(CPUResource.GetImg(result.Value),label) // SOSTITUISCO CON SALVATAGGIO, DOVE LABEL È IL NOME DEL FILE
+                        let img = 
+                            match result.Value with
+                            | CPUImg img' -> img'
+                        SimpleITK.WriteImage(img,label) // SOSTITUISCO CON SALVATAGGIO, DOVE LABEL È IL NOME DEL FILE
                         ErrorMsg.Logger.Test "test" "Image saved"
                         result.Reclaim(CPUInterpreter)
                         n <- n - 1
@@ -199,7 +201,7 @@ let main (argv: string array) =
                         System.Threading.SynchronizationContext.SetSynchronizationContext
                             CPUInterpreter.SynchronizationContext
                         let! result = CPUInterpreter.QueryAsync id
-                        ErrorMsg.Logger.Test "test" (CPUResource.GetImg(result.Value).ToString())
+                        ErrorMsg.Logger.Result label (result.Value.ToString())                            
                         n <- n - 1
                         if n = 0 then 
                             ErrorMsg.Logger.Test "cts" "Requesting cancellation"

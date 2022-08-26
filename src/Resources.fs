@@ -148,7 +148,7 @@ type ResourceManager<'t, 'kind when 'kind: equality>(allocator: 'kind -> option<
 
     member __.Allocate(requirements: Requirements<'kind>) =
         let tmp = Resources<'t, 'kind>()
-
+        
         let rec processKVs (s: seq<KeyValuePair<ResourceKey, 'kind>>) =
             if Seq.isEmpty s then
                 Some tmp
