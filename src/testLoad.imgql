@@ -1,3 +1,4 @@
 let img = load("../docs/examples/tutorial/three_coloured_items.png")
+save "threshold.png" (threshold(3.0, img))
 save "test_saved.png" img
 print "ciao" "ciao"
