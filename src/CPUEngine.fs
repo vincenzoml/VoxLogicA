@@ -96,30 +96,24 @@ type CPUEngine() =
                     )
                 )
             | Identifier "geq" ->
-                OperatorImplementation(Requirements(
-                    [ ("result", KImg {
-                        dimensions = [| 0;0;0|]
-                        pixelType = UInt8
-                        channels = 3
-                    }) ]
-                ), 
-                (fun resources args ->
-                    task {
-                        match args[1].Value with
-                        | CPUImg baseImg ->
-                            match args[0].Value with
-                                CPUNumber f ->
-                                    use flt = new GreaterEqualImageFilter()
-                                    let img = new Image(flt.Execute(baseImg,f))
-                                    let sz = Array.ofSeq <| Seq.map int (img.GetSize())
-                                    let pixtype = PixelType.OfSITK (img.GetPixelID())                                
-                                    let chs = int <| img.GetNumberOfComponentsPerPixel()
-                                    let record = {
-                                        dimensions = sz
-                                        pixelType = pixtype
-                                        channels = chs
-                                    }
-                                    return (Resource (CPUImg img, KImg record))
-                    })
-                )
+                OperatorImplementation(Requirements<CPUResourceKind>[],
+                        (fun _ args ->
+                            task {
+                                match args[1].Value with
+                                | CPUImg baseImg ->
+                                    match args[0].Value with
+                                        CPUNumber f ->
+                                            use flt = new GreaterEqualImageFilter()
+                                            let img = new Image(flt.Execute(baseImg,f))
+                                            let sz = Array.ofSeq <| Seq.map int (img.GetSize())
+                                            let pixtype = PixelType.OfSITK (img.GetPixelID())                                
+                                            let chs = int <| img.GetNumberOfComponentsPerPixel()
+                                            let record = {
+                                                dimensions = sz
+                                                pixelType = pixtype
+                                                channels = chs
+                                            }
+                                            return (Resource (CPUImg img, KImg record))
+                            })
+                        )
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"
