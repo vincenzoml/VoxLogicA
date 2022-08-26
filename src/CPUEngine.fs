@@ -95,7 +95,7 @@ type CPUEngine() =
                         }
                     )
                 )
-            | Identifier "threshold" ->
+            | Identifier "geq" ->
                 OperatorImplementation(Requirements(
                     [ ("result", KImg {
                         dimensions = [| 0;0;0|]
