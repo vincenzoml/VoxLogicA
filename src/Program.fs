@@ -376,7 +376,7 @@ let autToGraph s =
         let l = m.Groups[2].Value
         if s = t then
             Choice1Of2 { 
-                Graph.id = s
+                Graph.id = ((int s) + startState).ToString()
                 Graph.atoms = [ l ] }
         else
             Choice2Of2 { 
