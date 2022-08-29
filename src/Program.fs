@@ -97,7 +97,7 @@ let graphToAut (j: Graph.IntFileGraph) (full: bool) (s2: string) =
     sw.Close()
 
 
-let img2DUInt8ToGraph fakeConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: string) =
+let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
     assert (img.BufferType = SITKUtil.PixelType.UInt8)
     assert (img.Dimension = 2)
     let size = [| img.Size[0]; img.Size[1] |]
@@ -105,7 +105,7 @@ let img2DUInt8ToGraph fakeConversion (img: VoxLogicA.SITKUtil.VoxImage) (s2: str
     let h = size[1]
     let nodes = img.NPixels
     let ncomps = img.NComponents
-
+ 
     let arcs =
         (nodes * 9)
         - (4 * 5)
