@@ -105,12 +105,12 @@ let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
     let h = size[1]
     let nodes = img.NPixels
     let ncomps = img.NComponents
- 
+
     let arcs =
         (nodes * 9)
         - (4 * 5)
-        - (2 * (img.Size[0]-2) * 3)
-        - (2 * (img.Size[1]-2) * 3)
+        - (2 * (img.Size[0] - 2) * 3)
+        - (2 * (img.Size[1] - 2) * 3)
 
     let displacementsALL =
         [| -(w + 1)
@@ -146,60 +146,66 @@ let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
         | (_, false, false, true) -> displacementsD
         | (_, false, true, true) -> displacementsDR
 
-    let fname = if not fakeConversion then s2 else System.IO.Path.GetTempFileName()
-    use fs = System.IO.File.Open(fname,System.IO.FileMode.Create)
-    use sw = new System.IO.StreamWriter(fs,System.Text.Encoding.ASCII,1048576)
+    let fname =
+        if not fakeConversion then
+            s2
+        else
+            System.IO.Path.GetTempFileName()
+
+    use fs = System.IO.File.Open(fname, System.IO.FileMode.Create)
+    use sw = new System.IO.StreamWriter(fs, System.Text.Encoding.ASCII, 1048576)
     sw.AutoFlush <- false
     sw.WriteLine $"des (0,{arcs},{nodes})"
-    let mutable fakeConversionUtilizer = 0    
-    img.GetBufferAsUInt8 (
-            fun buf ->
-                for i = 0 to nodes - 1 do
-                    let baseidx = i * ncomps
-                    let r = buf.UGet baseidx
-                    let g = buf.UGet <| baseidx + 1
-                    let b = buf.UGet <| baseidx + 2
+    let mutable fakeConversionUtilizer = 0
 
-                    if not fakeConversion then
-                        let fmt x =
-                            System.String.Format("{0:X2}", (x: uint8)) : string
+    img.GetBufferAsUInt8 (fun buf ->
+        for i = 0 to nodes - 1 do
+            let baseidx = i * ncomps
+            let r = buf.UGet baseidx
+            let g = buf.UGet <| baseidx + 1
+            let b = buf.UGet <| baseidx + 2
 
-                        sw.Write "(" 
-                        sw.Write i
-                        sw.Write ", c"
-                        sw.Write (fmt r)
-                        sw.Write (fmt g)
-                        sw.Write (fmt b)
-                        sw.Write ","
-                        sw.Write i
-                        sw.WriteLine ")"
-                            
-                    for d in displacements i do
-                        let target = i + d
-                        let tbaseidx = target * ncomps
-                        let tr = buf.UGet tbaseidx
-                        let tg = buf.UGet <| tbaseidx + 1
-                        let tb = buf.UGet <| tbaseidx + 2
+            if not fakeConversion then
+                let fmt x : string =
+                    System.String.Format("{0:X2}", (x: uint8))
 
-                        let label =
-                            if r = tr && g = tg && b = tb then
-                                "tau"
-                            else
-                                "change"
-                        
-                        if not fakeConversion then
-                            sw.Write "("
-                            sw.Write i
-                            sw.Write ","
-                            sw.Write label
-                            sw.Write ","
-                            sw.Write target
-                            sw.WriteLine ")"                         
-                        else
-                            fakeConversionUtilizer <- label.Length
-        )
+                sw.Write "("
+                sw.Write i
+                sw.Write ", c"
+                sw.Write(fmt r)
+                sw.Write(fmt g)
+                sw.Write(fmt b)
+                sw.Write ","
+                sw.Write i
+                sw.WriteLine ")"
+
+            for d in displacements i do
+                let target = i + d
+                let tbaseidx = target * ncomps
+                let tr = buf.UGet tbaseidx
+                let tg = buf.UGet <| tbaseidx + 1
+                let tb = buf.UGet <| tbaseidx + 2
+
+                let label =
+                    if r = tr && g = tg && b = tb then
+                        "tau"
+                    else
+                        "change"
+
+                if not fakeConversion then
+                    sw.Write "("
+                    sw.Write i
+                    sw.Write ","
+                    sw.Write label
+                    sw.Write ","
+                    sw.Write target
+                    sw.WriteLine ")"
+                else
+                    fakeConversionUtilizer <- label.Length)
+
     if fakeConversion then
         ErrorMsg.Logger.Debug $"Fake conversion done (unuseful integer: {fakeConversionUtilizer})"
+
     sw.Close()
 
 let imgToGraph (img: SITKUtil.VoxImage) =
@@ -342,6 +348,52 @@ let imgToAut (img: VoxLogicA.SITKUtil.VoxImage) (s2: string) =
                                                       Graph.target = string (m, n, o) }
             } })
 
+open System.Text.RegularExpressions
+
+let autToGraph s =
+    let partition predicate f1 f2 source =
+        let map =
+            source
+                |> Seq.groupBy predicate
+                |> Map.ofSeq
+        let get flag =
+            map
+                |> Map.tryFind flag
+                |> Option.defaultValue Seq.empty
+        (Seq.map f1 (get true)),(Seq.map f2 (get false))
+    let lines = System.IO.File.ReadLines(s)
+    let oneArg = "\s*\"?\s*([^\s\"]*)\s*\"?\s*" // Replace the "c" with whatever
+    let triple = $"\s*\({oneArg},{oneArg},{oneArg}\)\s*"
+
+    let (startState, transitions, numStates) =
+        let t = Regex.Match(Seq.head lines, $"\s*des\s*{triple}")
+        (int t.Groups[1].Value, int t.Groups[2].Value, int t.Groups[3].Value)
+
+    let parseTransition s =
+        let m = Regex.Match(s, triple)
+        let s = m.Groups[1].Value
+        let t = m.Groups[3].Value
+        let l = m.Groups[2].Value
+        if s = t then
+            Choice1Of2 { 
+                Graph.id = s
+                Graph.atoms = [ l ] }
+        else
+            Choice2Of2 { 
+                Graph.source = s
+                Graph.target = t
+            }
+
+    let unChoice1 x = match x with Choice1Of2 x -> x
+    let unChoice2 x = match x with Choice2Of2 x -> x
+    
+    let (nodes,arcs) = 
+        Seq.map parseTransition lines |>
+        partition (fun x -> match x with Choice1Of2 _ -> true | _ -> false) unChoice1 unChoice2 
+    { Graph.nodes = List.ofSeq nodes; Graph.arcs = List.ofSeq arcs}
+
+
+
 [<EntryPoint>]
 let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
@@ -481,12 +533,15 @@ let main (argv: string array) =
                 let img = new SITKUtil.VoxImage(imgf)
                 let j = imgToGraph img
                 let str = Json.serialize (j)
-                let sw = new System.IO.StreamWriter(s2)
+                use sw = new System.IO.StreamWriter(s2)
                 sw.Write str
                 sw.Close()
-
-
-            | _, _ -> failwith "wrong file exensions for conversion"
+            | Aut, JSon ->
+                let graph = autToGraph s1
+                let str = Json.serialize graph
+                use sw = new System.IO.StreamWriter(s2)
+                sw.Write(str)
+                sw.Close()
 
             ErrorMsg.Logger.Debug "Conversion done."
             exit 0
@@ -515,5 +570,9 @@ let main (argv: string array) =
     with
     | e ->
         ErrorMsg.Logger.DebugExn e
+        ErrorMsg.Logger.Failure "exiting."
+        1
+        ErrorMsg.Logger.Failure "exiting."
+        1
         ErrorMsg.Logger.Failure "exiting."
         1
