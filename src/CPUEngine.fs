@@ -63,6 +63,7 @@ type CPUResource =
         | _ -> ErrorMsg.fail "Internal error in CPU resource allocation"
 
 type CPUEngine() =
+
     let intensity cpuimg =
         match cpuimg with
         | CPUImg img ->
