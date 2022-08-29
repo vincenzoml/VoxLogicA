@@ -27,6 +27,17 @@ type ImgKind =
         pixelType : PixelType
         channels : int
     }
+    static member OfImage(img : Image) = 
+        let chs = int <| img.GetNumberOfComponentsPerPixel()
+        let sz = Array.ofSeq <| Seq.map int (img.GetSize())
+        let pixtype = PixelType.OfSITK (img.GetPixelID())                                
+        let record = {
+            dimensions = sz
+            pixelType = pixtype
+            channels = chs
+        }
+        record
+        
     member this.GetSTIKPixelID() =
         match this.pixelType,this.channels with
         | Float,1 -> PixelIDValueEnum.sitkFloat32
@@ -52,6 +63,24 @@ type CPUResource =
         | _ -> ErrorMsg.fail "Internal error in CPU resource allocation"
 
 type CPUEngine() =
+    let intensity cpuimg =
+        match cpuimg with
+        | CPUImg img ->
+            try
+                let mutable result = new Image(img)
+                let chs = int <| img.GetNumberOfComponentsPerPixel()
+                if chs <> 1 then
+                    use r = SimpleITK.VectorIndexSelectionCast(img,0ul)
+                    use g = SimpleITK.VectorIndexSelectionCast(img,1ul) 
+                    use b = SimpleITK.VectorIndexSelectionCast(img,2ul)
+                    let (rcoeff,gcoeff,bcoeff) = 0.2126,0.7152,0.0722
+                    result <- SimpleITK.Add(SimpleITK.Multiply(rcoeff,r),SimpleITK.Add(SimpleITK.Multiply(gcoeff,g),SimpleITK.Multiply(bcoeff,b)))
+                    SimpleITK.WriteImage(result,"innerSave.png")
+                let record = ImgKind.OfImage(result)
+                (result, record)
+            with e ->
+                printfn "%A" e.Message
+                exit -1
 
     interface ExecutionEngine<CPUResource, CPUResourceKind> with
         member __.ImplementationOf s =
@@ -81,26 +110,11 @@ type CPUEngine() =
                 OperatorImplementation(Requirements<CPUResourceKind>[],
                     (fun _ args ->
                         task {
-                            try
-                                match args[0].Value with
-                                | CPUString str ->
-                                    let img = SimpleITK.ReadImage(str)
-                                    let sz = Array.ofSeq <| Seq.map int (img.GetSize())
-                                    let pixtype = PixelType.OfSITK (img.GetPixelID())                                
-                                    let chs = int <| img.GetNumberOfComponentsPerPixel()
-                                    let record = {
-                                        dimensions = sz
-                                        pixelType = pixtype
-                                        channels = chs
-                                    }
-                                    return (Resource (CPUImg img, KImg record))      
-                            with e ->
-                                printfn "%A" e.StackTrace
-                                return (Resource (CPUImg (new Image()), KImg {
-                                    dimensions = [|0;0;0|]
-                                    pixelType = UInt8
-                                    channels = 0
-                                }))                
+                            match args[0].Value with
+                            | CPUString str ->
+                                let img = SimpleITK.ReadImage(str)
+                                let record = ImgKind.OfImage(img)
+                                return (Resource (CPUImg img, KImg record))                   
                         }
                     )
                 )
@@ -112,17 +126,19 @@ type CPUEngine() =
                                 | CPUImg baseImg ->
                                     match args[0].Value with
                                         CPUNumber f ->
+                                            let intsty, _ = intensity args[1].Value
                                             use flt = new GreaterEqualImageFilter()
-                                            let img = new Image(flt.Execute(baseImg,f))
-                                            let sz = Array.ofSeq <| Seq.map int (img.GetSize())
-                                            let pixtype = PixelType.OfSITK (img.GetPixelID())                                
-                                            let chs = int <| img.GetNumberOfComponentsPerPixel()
-                                            let record = {
-                                                dimensions = sz
-                                                pixelType = pixtype
-                                                channels = chs
-                                            }
-                                            return (Resource (CPUImg img, KImg record))
+                                            let img = flt.Execute(intsty,f)
+                                            let record = ImgKind.OfImage(img)
+                                            return (Resource (CPUImg img, KImg record))  
                             })
                         )
+            | Identifier "intensity" -> OperatorImplementation(Requirements<CPUResourceKind>[],
+                        (fun _ args ->
+                            task {
+                                let res, imgkind = intensity args[0].Value
+                                return Resource(CPUImg res, KImg imgkind)
+                            })
+                        )
+
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"
