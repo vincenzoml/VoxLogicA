@@ -376,7 +376,7 @@ let autToGraph s =
         let l = m.Groups[2].Value
         if s = t then
             Choice1Of2 { 
-                Graph.id = ((int s) + startState).ToString()
+                Graph.id = s // ((int s) + startState).ToString()
                 Graph.atoms = [ l ] }
         else
             Choice2Of2 { 
@@ -388,7 +388,7 @@ let autToGraph s =
     let unChoice2 x = match x with Choice2Of2 x -> x
     
     let (nodes,arcs) = 
-        Seq.map parseTransition lines |>
+        Seq.map parseTransition (Seq.tail lines) |>
         partition (fun x -> match x with Choice1Of2 _ -> true | _ -> false) unChoice1 unChoice2 
     { Graph.nodes = List.ofSeq nodes; Graph.arcs = List.ofSeq arcs}
 
