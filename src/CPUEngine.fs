@@ -3,6 +3,7 @@ module VoxLogicA.CPUEngine
 open VoxLogicA.Interpreter
 open VoxLogicA.Resources
 open VoxLogicA.Reducer
+open VoxLogicA.TypedOperators
 open itk.simple
 
 // This engine implements a load function, used to load an image from disk
@@ -141,5 +142,11 @@ type CPUEngine() =
                                 return Resource(CPUImg res, KImg imgkind)
                             })
                         )
+
+            | Identifier "multiply" -> OperatorImplementation(Requirements<CPUResourceKind>[],
+                        (fun _ args ->
+                            task {
+                                
+                            }))
 
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"
