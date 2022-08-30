@@ -142,7 +142,8 @@ type CPUEngine() =
                                             return (Resource (CPUImg img, KImg record))  
                             })
                         )
-            | Identifier "intensity" -> OperatorImplementation(Requirements<CPUResourceKind>[],
+            | Identifier "intensity" -> 
+                OperatorImplementation(Requirements<CPUResourceKind>[],
                         (fun _ args ->
                             task {
                                 let res, imgkind = intensity args[0].Value
@@ -156,10 +157,21 @@ type CPUEngine() =
                                 match args[0].Value with
                                     | CPUImg img1 ->
                                         let cimg1 = checkImageType(img1)
-                                        match args[0].Value with
+                                        match args[1].Value with
                                         | CPUImg img2 ->
                                             let cimg2 = checkImageType(img2)
-                                            let result = typedOperator.Multiply(img1, img2)
+                                            let result = typedOperator.Multiply(cimg1, cimg2)
+                                            let record = ImgKind.OfImage(result)
+                                            return Resource (CPUImg result, KImg record)
+                                        | CPUNumber f ->
+                                            let result = typedOperator.Multiply(f, cimg1)
+                                            let record = ImgKind.OfImage(result)
+                                            return Resource (CPUImg result, KImg record)
+                                    | CPUNumber v ->
+                                        match args[1].Value with
+                                        | CPUImg img2 ->
+                                            let cimg2 = checkImageType(img2)
+                                            let result = typedOperator.Multiply(v, cimg2)
                                             let record = ImgKind.OfImage(result)
                                             return Resource (CPUImg result, KImg record)
                             }))

@@ -18,5 +18,16 @@ type CPUTypedOperator() =
         SimpleITK.Cast(img, pixelID)
         
     member this.Multiply((img1 : Image), (img2 : Image)) =
-        (this :> ITypedOperators<Image, float>).Multiply(img1, img2)
+        try
+            (this :> ITypedOperators<Image, float>).Multiply(img1, img2)
+        with e ->
+            printfn "%A" e.Message
+            exit -1
+
+    member this.Multiply((f : float), (img : Image)) =
+        try
+            (this :> ITypedOperators<Image, float>).Multiply(img, f)
+        with e ->
+            printfn "%A" e.Message
+            exit -1
 
