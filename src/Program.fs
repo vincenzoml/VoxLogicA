@@ -186,7 +186,7 @@ let main (argv: string array) =
                         let img = 
                             match result.Value with
                             | CPUImg img' -> img'
-                        SimpleITK.WriteImage(img,label) // SOSTITUISCO CON SALVATAGGIO, DOVE LABEL È IL NOME DEL FILE
+                        SimpleITK.WriteImage(SimpleITK.Multiply(255.0, img),label) // SOSTITUISCO CON SALVATAGGIO, DOVE LABEL È IL NOME DEL FILE
                         ErrorMsg.Logger.Test "test" "Image saved"
                         result.Reclaim(CPUInterpreter)
                         n <- n - 1

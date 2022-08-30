@@ -84,7 +84,6 @@ type CPUEngine() =
                     use b = SimpleITK.VectorIndexSelectionCast(img,2ul)
                     let (rcoeff,gcoeff,bcoeff) = 0.2126,0.7152,0.0722
                     result <- SimpleITK.Add(SimpleITK.Multiply(rcoeff,r),SimpleITK.Add(SimpleITK.Multiply(gcoeff,g),SimpleITK.Multiply(bcoeff,b)))
-                    SimpleITK.WriteImage(result,"innerSave.png")
                 let record = ImgKind.OfImage(result)
                 (result, record)
             with e ->
