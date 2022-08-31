@@ -71,24 +71,25 @@ type CPUEngine() =
             CPUTypedOperator.ConvertImage(img, PixelIDValueEnum.sitkFloat32)
         else
             img
+    
+    let toUInt8 (img : Image) =
+        if PixelType.OfSITK(img.GetPixelID()) <> UInt8 then
+            CPUTypedOperator.ConvertImage(img, PixelIDValueEnum.sitkUInt8)
+        else img
 
     let intensity cpuimg =
         match cpuimg with
         | CPUImg img ->
-            try
-                let mutable result = new Image(img)
-                let chs = int <| img.GetNumberOfComponentsPerPixel()
-                if chs <> 1 then
-                    use r = SimpleITK.VectorIndexSelectionCast(img,0ul)
-                    use g = SimpleITK.VectorIndexSelectionCast(img,1ul) 
-                    use b = SimpleITK.VectorIndexSelectionCast(img,2ul)
-                    let (rcoeff,gcoeff,bcoeff) = 0.2126,0.7152,0.0722
-                    result <- SimpleITK.Add(SimpleITK.Multiply(rcoeff,r),SimpleITK.Add(SimpleITK.Multiply(gcoeff,g),SimpleITK.Multiply(bcoeff,b)))
-                let record = ImgKind.OfImage(result)
-                (result, record)
-            with e ->
-                printfn "%A" e.Message
-                exit -1
+            let mutable result = new Image()
+            let chs = int <| img.GetNumberOfComponentsPerPixel()
+            if chs <> 1 then
+                use r = checkImageType(SimpleITK.VectorIndexSelectionCast(img,0ul))
+                use g = checkImageType(SimpleITK.VectorIndexSelectionCast(img,1ul))
+                use b = checkImageType(SimpleITK.VectorIndexSelectionCast(img,2ul))
+                let (rcoeff,gcoeff,bcoeff) = 0.2126,0.7152,0.0722
+                result <- toUInt8(SimpleITK.Add(SimpleITK.Multiply(rcoeff,r),SimpleITK.Add(SimpleITK.Multiply(gcoeff,g),SimpleITK.Multiply(bcoeff,b))))
+            let record = ImgKind.OfImage(result)
+            (result, record)
 
     interface ExecutionEngine<CPUResource, CPUResourceKind> with
         member __.ImplementationOf s =
@@ -161,18 +162,18 @@ type CPUEngine() =
                                             let cimg2 = checkImageType(img2)
                                             let result = typedOperator.Multiply(cimg1, cimg2)
                                             let record = ImgKind.OfImage(result)
-                                            return Resource (CPUImg result, KImg record)
+                                            return Resource (CPUImg (toUInt8 result), KImg record)
                                         | CPUNumber f ->
                                             let result = typedOperator.Multiply(f, cimg1)
                                             let record = ImgKind.OfImage(result)
-                                            return Resource (CPUImg result, KImg record)
+                                            return Resource (CPUImg (toUInt8 result), KImg record)
                                     | CPUNumber v ->
                                         match args[1].Value with
                                         | CPUImg img2 ->
                                             let cimg2 = checkImageType(img2)
                                             let result = typedOperator.Multiply(v, cimg2)
                                             let record = ImgKind.OfImage(result)
-                                            return Resource (CPUImg result, KImg record)
+                                            return Resource (CPUImg (toUInt8 result), KImg record)
                             }))
 
             | _ -> ErrorMsg.fail $"Unknown operator: {s}"

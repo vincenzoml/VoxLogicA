@@ -1,5 +1,6 @@
 let img = load("../docs/examples/tutorial/three_coloured_items.png")
-//save "threshold.png" (geq(0.0, img))
+save "threshold.png" (geq(50.0, img))
 save "intensity.png" intensity(img)
+save "multiply.png" multiply(img, 3.0)
 //save "test_saved.png" img
 //print "ciao" "ciao"
