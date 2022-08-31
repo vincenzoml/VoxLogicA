@@ -47,8 +47,8 @@
     <Compile Include="Reducer.fs" />
     <Compile Include="Resources.fs" />
     <Compile Include="Interpreter.fs" />
-    <Compile Include="ITypedOperators.fs" />
-    <Compile Include="CPUTypedOperators.fs" />
+    <!--Compile Include="ITypedOperators.fs" /-->
+    <!--Compile Include="CPUTypedOperators.fs" /-->
     <Compile Include="CPUEngine.fs" />
     <Compile Include="TestEngines.fs" />
     <!--Compile Include="TestMain.fs" /-->

@@ -3,7 +3,6 @@ module VoxLogicA.CPUEngine
 open VoxLogicA.Interpreter
 open VoxLogicA.Resources
 open VoxLogicA.Reducer
-open VoxLogicA.CPUTypedOperators
 open itk.simple
 
 // This engine implements a load function, used to load an image from disk
@@ -64,17 +63,29 @@ type CPUResource =
         | _ -> ErrorMsg.fail "Internal error in CPU resource allocation"
 
 type CPUEngine() =
-    let typedOperator = new CPUTypedOperator()
+
+    let convertImage (img : Image, pixelID : PixelIDValueEnum) =
+        let chs = int <| img.GetNumberOfComponentsPerPixel()
+        let cimg = 
+            if chs <> 1 then
+                use r = SimpleITK.VectorIndexSelectionCast(img,0ul)
+                use g = SimpleITK.VectorIndexSelectionCast(img,1ul) 
+                use b = SimpleITK.VectorIndexSelectionCast(img,2ul)
+                let cimg = SimpleITK.Add(r,SimpleITK.Add(g,b))
+                cimg
+            else
+                img
+        SimpleITK.Cast(cimg, pixelID)
 
     let checkImageType (img : Image) = 
         if PixelType.OfSITK(img.GetPixelID()) <> Float then
-            CPUTypedOperator.ConvertImage(img, PixelIDValueEnum.sitkFloat32)
+            convertImage(img, PixelIDValueEnum.sitkFloat32)
         else
             img
     
     let toUInt8 (img : Image) =
         if PixelType.OfSITK(img.GetPixelID()) <> UInt8 then
-            CPUTypedOperator.ConvertImage(img, PixelIDValueEnum.sitkUInt8)
+            convertImage(img, PixelIDValueEnum.sitkUInt8)
         else img
 
     let intensity cpuimg =
@@ -160,18 +171,18 @@ type CPUEngine() =
                                         match args[1].Value with
                                         | CPUImg img2 ->
                                             let cimg2 = checkImageType(img2)
-                                            let result = typedOperator.Multiply(cimg1, cimg2)
+                                            let result = SimpleITK.Multiply(cimg1, cimg2)
                                             let record = ImgKind.OfImage(result)
                                             return Resource (CPUImg (toUInt8 result), KImg record)
                                         | CPUNumber f ->
-                                            let result = typedOperator.Multiply(f, cimg1)
+                                            let result = SimpleITK.Multiply(f, cimg1)
                                             let record = ImgKind.OfImage(result)
                                             return Resource (CPUImg (toUInt8 result), KImg record)
                                     | CPUNumber v ->
                                         match args[1].Value with
                                         | CPUImg img2 ->
                                             let cimg2 = checkImageType(img2)
-                                            let result = typedOperator.Multiply(v, cimg2)
+                                            let result = SimpleITK.Multiply(v, cimg2)
                                             let record = ImgKind.OfImage(result)
                                             return Resource (CPUImg (toUInt8 result), KImg record)
                             }))
