@@ -29,8 +29,8 @@
   <ItemGroup>
     <PackageReference Include="Argu" Version="6.1.1" />
     <PackageReference Include="FParsec" Version="1.1.1" />
-    <PackageReference Include="FSharp.Data" Version="4.0.1" />
-    <PackageReference Include="hopac" Version="0.5.0" />
+    <PackageReference Include="FSharp.Data" Version="5.0.2" />
+    <PackageReference Include="hopac" Version="0.5.1" />
     <Reference Include="SimpleITKCSharpManaged">
       <HintPath>../lib/SimpleITKCSharpManaged.dll</HintPath>
     </Reference>
@@ -44,16 +44,7 @@
       <Version>@(version)</Version>
     </PropertyGroup>
   </Target>
-  <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
-  </Target>
-  <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
-    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
-    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
-    <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
-  </Target>
-
+  
   <PropertyGroup>
     <SimpleITKVersionString>SimpleITK-2.3.0.dev298</SimpleITKVersionString>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
@@ -97,11 +88,16 @@
 
   <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
     <Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(OutDir)" />
-    <Message Importance="High" Text="Copy $(SimpleITKNative) to $(OutDir)" />
+    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
   </Target>
 
   <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
     <Copy SourceFiles="$(SimpleITKNative)" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
   </Target>
-  
+
+
 </Project>

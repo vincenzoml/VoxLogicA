@@ -66,10 +66,5 @@ upload-release:
 	echo Did you "make release" first? press enter to continue
 	./upload_helper.sh
 
-	
-install-linux: release-linux
-	#TODO: this is temporary; should be made portable
-	echo sudo "cd /opt && $(PWD)/$(RELEASE)linux-x64.zip"	
-
 upgrade: restore
 	dotnet list package --outdated | grep ">"| cut -f 5 -d " " | xargs -l dotnet add package
