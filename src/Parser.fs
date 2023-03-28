@@ -17,6 +17,7 @@
 module VoxLogicA.Parser
 
 open FParsec
+open System.IO
 
 exception ParseErrorException of s : string
     with override this.Message = sprintf "Parse error: %s" this.s
@@ -93,5 +94,5 @@ let private runParser name p stream =
     getResult (runParserOnStream p () name stream System.Text.Encoding.Default) 
 let parseProgram name stream =  runParser name program stream
 let  parseImport filename =
-    use stream = new System.IO.FileStream(filename,System.IO.FileMode.Open) :> System.IO.Stream   
+    use stream = new FileStream(filename,FileMode.Open,FileAccess.Read) :> Stream   
     runParser filename import stream
