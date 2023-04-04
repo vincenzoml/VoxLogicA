@@ -15,18 +15,21 @@ points = []
 properties = {}
 idCounter = 0
 for line in objContent:
-    # print(line)
+    print("line:",line)
     lineData = line.split()
-    # print(lineData)
+    print(lineData)
     if lineData and (lineData[0] == "v"):
-        r = float(lineData[4]) #round(float(lineData[4]) * 255)
-        g = float(lineData[5]) #round(float(lineData[5]) * 255)
-        b = float(lineData[6]) #round(float(lineData[6]) * 255)
-        colorCode = [r,g,b]
-        label = str(colorCode)
-        if label not in properties:
-            properties[label] = colorCode                    
-        points.append( [lineData[1], lineData[2], lineData[3], colorCode] )
+        if len(lineData) > 6:
+            r = float(lineData[4]) #round(float(lineData[4]) * 255)
+            g = float(lineData[5]) #round(float(lineData[5]) * 255)
+            b = float(lineData[6]) #round(float(lineData[6]) * 255)
+            colorCode = [r,g,b]
+            label = str(colorCode)
+            if label not in properties:
+                properties[label] = colorCode                    
+            points.append( [lineData[1], lineData[2], lineData[3], colorCode] )
+    else:
+        points.append( [ lineData[1], lineData[2], lineData[3] ] )
 
 # collect the edges and triangles
 edges = {}
@@ -101,9 +104,9 @@ triaCounter = 0
 triaSimplexesStrings = []
 for tria in triangles:
     color = [
-        (points[tria[0]][3][0] + points[tria[1]][3][0] + points[tria[2]][3][0]) / 3,
-        (points[tria[0]][3][1] + points[tria[1]][3][1] + points[tria[2]][3][1]) / 3,
-        (points[tria[0]][3][2] + points[tria[1]][3][2] + points[tria[2]][3][2]) / 3
+        (points[tria[0]][3][0] + points[tria[1]][3][0] + points[tria[2]][3][0]) / 3, # RED
+        (points[tria[0]][3][1] + points[tria[1]][3][1] + points[tria[2]][3][1]) / 3, # GREEN
+        (points[tria[0]][3][2] + points[tria[1]][3][2] + points[tria[2]][3][2]) / 3  # BLUE
     ]
     triaSimplexesStrings.append(
         simplexString(
