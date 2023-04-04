@@ -28,8 +28,8 @@ for line in objContent:
             if label not in properties:
                 properties[label] = colorCode                    
             points.append( [lineData[1], lineData[2], lineData[3], colorCode] )
-    else:
-        points.append( [ lineData[1], lineData[2], lineData[3] ] )
+        else:
+            points.append( [ lineData[1], lineData[2], lineData[3] ] )
 
 # collect the edges and triangles
 edges = {}
