@@ -30,9 +30,6 @@ type CmdLine =
             | SaveSyntax _ -> "save the AST in text format and exit"
             | Filename _ -> "VoxLogicA session file"
 
-open VoxLogicA.Interpreter
-open VoxLogicA.TestEngines
-
 [<EntryPoint>]
 let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
@@ -73,12 +70,12 @@ let main (argv: string array) =
 
     try
 
-        let filename =
+        let filename: string =
             if parsed.Contains Filename then
                 parsed.GetResult Filename
             else
 #if DEBUG
-                "src/test.imgql"
+                "test.imgql"
 #else
                 printfn "%s version: %s" name.Name informationalVersion
                 printfn "%s\n" (cmdLineParser.PrintUsage())
@@ -99,7 +96,7 @@ let main (argv: string array) =
                 System.IO.File.WriteAllText(filename, $"{syntax}")
             | None -> ErrorMsg.Logger.Debug $"{syntax}"
 
-        let program = Reducer.reduceProgram syntax
+        let program: Reducer.WorkPlan = Reducer.reduceProgram syntax
 
         ErrorMsg.Logger.Debug "Program reduced"
         ErrorMsg.Logger.Info $"Number of tasks: {program.operations.Length}"
@@ -117,47 +114,6 @@ let main (argv: string array) =
             let filename = parsed.GetResult SaveTaskGraphAsDot
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
             System.IO.File.WriteAllText(filename, program.ToDot())
-
-        let engine = Fib()
-
-        let resourceManager = Resources.ResourceManager<_, _>(FibResource.Allocator)
-
-        let interpreter = Interpreter(engine, resourceManager)
-
-        ErrorMsg.Logger.Debug "Preparing interpreter"
-        interpreter.Prepare(program)
-        ErrorMsg.Logger.Debug "Running interpreter"
-
-        let mutable n = program.goals.Length
-        let cts = new System.Threading.CancellationTokenSource()
-
-        ignore <| System.Threading.Tasks.Task.Run(
-            fun () -> ignore <| interpreter.Session()) // TODO not clear; there should be no Task.Run here
-
-        let tasks =
-            [| for goal in program.goals do
-                   match goal with
-                   | (Reducer.GoalSave (label, id)
-                   | Reducer.GoalPrint (label, id)) ->
-                       (task {
-                           System.Threading.SynchronizationContext.SetSynchronizationContext
-                               interpreter.SynchronizationContext
-
-                           let! result = interpreter.QueryAsync id
-                           ErrorMsg.Logger.Result label result.Value
-                           result.Reclaim(interpreter)
-                           n <- n - 1
-                           if n = 0 then 
-                            ErrorMsg.Logger.Test "cts" "Requesting cancellation"
-                            cts.Cancel()
-                            ErrorMsg.Logger.Test "test" "exiting, remove the exit and make cancellation work"
-                            exit 0
-                       })
-                       :> System.Threading.Tasks.Task |]
-
-        ErrorMsg.Logger.Info "tasks launched, waiting..."
-        
-        interpreter.Run(cts.Token)
 
         ErrorMsg.Logger.Info "All done."
 
