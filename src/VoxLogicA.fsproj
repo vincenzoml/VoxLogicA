@@ -45,6 +45,7 @@
     <Compile Include="ErrorMsg.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Reducer.fs" />
+    <Compile Include="Resources.fs"/>
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
