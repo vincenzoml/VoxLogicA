@@ -22,6 +22,7 @@ type Arguments = seq<OperationId>
 
 type Operation =
     { operator: Operator
+      id: OperationId
       arguments: Arguments }
 
     override this.ToString() =
@@ -80,6 +81,7 @@ module private Internals =
                 { id = newId
                   operation =
                     { operator = operator
+                      id = newId
                       arguments = arguments } }
 
             if memoize then

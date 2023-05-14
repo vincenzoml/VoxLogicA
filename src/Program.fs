@@ -98,7 +98,7 @@ let main (argv: string array) =
 
         let program: Reducer.WorkPlan = Reducer.reduceProgram syntax
 
-        //let allocatedStrategy = Resources.Resources.ComputeStrategy program
+        let allocatedStrategy = Resources.computeStrategy program
 
         // FINE NOTE
         ErrorMsg.Logger.Debug "Program reduced"
@@ -116,7 +116,7 @@ let main (argv: string array) =
         if parsed.Contains SaveTaskGraphAsDot then
             let filename = parsed.GetResult SaveTaskGraphAsDot
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
-            System.IO.File.WriteAllText(filename, Resources.Resources.ToDot(program))
+            System.IO.File.WriteAllText(filename, allocatedStrategy.ToDot())
 
         ErrorMsg.Logger.Info "All done."
 
