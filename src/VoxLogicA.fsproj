@@ -7,7 +7,7 @@
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <PropertyGroup>
-    <SimpleITKVersionString>SimpleITK-2.3.0.dev300</SimpleITKVersionString>
+    <SimpleITKVersionString>SimpleITK-2.2.1</SimpleITKVersionString>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>
@@ -19,7 +19,7 @@
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'osx-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'win-x64'">lib/$(SimpleITKFullName)/SimpleITKCSharpNative.dll</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.so</SimpleITKNative>
-    <DownloadPath>https://github.com/SimpleITK/SimpleITK/releases/download/latest/$(SimpleITKFullName).zip</DownloadPath>
+    <DownloadPath>https://github.com/SimpleITK/SimpleITK/releases/download/v2.2.1/$(SimpleITKFullName).zip</DownloadPath>
     <ZipName>lib/$(SimpleITKFullName).zip</ZipName>
   </PropertyGroup>
   <ItemGroup>
@@ -46,6 +46,7 @@
     <Compile Include="Parser.fs" />
     <Compile Include="Reducer.fs" />
     <Compile Include="Cache.fs"/>
+    <Compile Include="VLTask.fs"/>
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
