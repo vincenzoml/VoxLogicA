@@ -97,7 +97,7 @@ let main (argv: string array) =
             | None -> ErrorMsg.Logger.Debug $"{syntax}"
 
         let program: Reducer.WorkPlan = Reducer.reduceProgram syntax
-        let tasks: VLTask.TaskPool<string> = VLTask.fromWorkPlan program (Array.init 24 (fun x -> VLTask.StubType("I'm running")))
+        let tasks: VLTask.TaskPool<string> = VLTask.fromWorkPlan program
         printfn "%A" (Array.length tasks.nodes)
         // let allocatedStrategy = Resources.computeStrategy program
 
