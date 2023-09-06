@@ -496,8 +496,8 @@ type VoxImage private (img : Image,uniqueName : string) =
     static member Logor (img1 : VoxImage) (img2 : VoxImage) = new VoxImage(SimpleITK.Or(img1.Image,img2.Image))
     static member Lognot (img : VoxImage) = new VoxImage(SimpleITK.Not(img.Image))
 
-    static member Near (img : VoxImage) = new VoxImage(SimpleITK.BinaryDilate(img.Image,new VectorUInt32([|1ul,1ul,1ul|]),KernelEnum.sitkBox,1.0))
-    static member Interior (img : VoxImage) = new VoxImage(SimpleITK.BinaryErode(img.Image,new VectorUInt32([|1ul,1ul,1ul|]),KernelEnum.sitkBox,0.0))
+    static member Near (img : VoxImage) = new VoxImage(SimpleITK.BinaryDilate(img.Image,new VectorUInt32([|1ul;1ul;1ul|]),KernelEnum.sitkBox,1.0))
+    static member Interior (img : VoxImage) = new VoxImage(SimpleITK.BinaryErode(img.Image,new VectorUInt32([|1ul;1ul;1ul|]),KernelEnum.sitkBox,0.0))
 
     static member Subtract (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Subtract(img1.Image,img2.Image))
     static member Subtract (k : float,img2 : VoxImage) = new VoxImage(SimpleITK.Subtract(k,img2.Image))

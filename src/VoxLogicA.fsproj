@@ -46,8 +46,8 @@
   </Target>
   
   <PropertyGroup>
-    <SimpleITKVersionString>SimpleITK-2.3.0rc2</SimpleITKVersionString>
-    <SimpleITKRelease>v2.3rc2</SimpleITKRelease>
+    <SimpleITKVersionString>SimpleITK-2.3.0rc2.post17</SimpleITKVersionString>
+    <SimpleITKRelease>latest</SimpleITKRelease>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>

@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "msbuild",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"label": "build",
+			"detail": "Rebuild the VoxLogicA.fsproj project using dotnet msbuild /t:Rebuild"
+		}
+	]
+}
