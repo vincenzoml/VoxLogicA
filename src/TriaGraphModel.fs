@@ -111,7 +111,7 @@ type SITKModel() =
         member __.Not v = lift Not v
  
     interface ISpatialModel<Truth> with
-        member __.Near v = job { return (upClosure (getBaseTriaGraph()) v) }
+        member __.Near v = job { return (downClosure (getBaseTriaGraph()) v) } // NB: this was "upClosure" up to version 0.3 -- Vincenzo 21/02/2024
         member __.Interior v = job { return (interior (getBaseTriaGraph()) v) }
         member __.Through v1 v2 = job {return (reach (getBaseTriaGraph()) v1 v2)}           
    
