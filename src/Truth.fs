@@ -10,11 +10,11 @@ let And = Array.map2 (&&)
 let Or = Array.map2 (||) 
 let Not = Array.map not
 
-let saveTruth =
-        let saveLock = ref ()
-        fun (filename : string) (truth : Truth) ->
-            lock            
-                saveLock
-                (fun () ->
-                    ErrorMsg.Logger.Debug <| sprintf "saving (filename: %s) is still not implemented; a printout follows" filename
-                    ErrorMsg.Logger.Debug <| sprintf "%A" (Array.mapi (fun idx v -> (idx,v)) truth))
+// let saveTruth =
+//         let saveLock = ref ()
+//         fun (filename : string) (truth : Truth) ->
+//             lock            
+//                 saveLock
+//                 (fun () ->
+//                     ErrorMsg.Logger.Debug <| sprintf "saving (filename: %s) is still not implemented; a printout follows" filename
+//                     ErrorMsg.Logger.Debug <| sprintf "%A" (Array.mapi (fun idx v -> (idx,v)) truth))

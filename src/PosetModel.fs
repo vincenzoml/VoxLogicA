@@ -15,21 +15,22 @@
 // limitations under the License.
 
 namespace VoxLogicA
+
 open System.Collections.Generic
 open FSharp.Json
 
-exception NoModelLoadedException 
-    with override __.Message = "No model loaded"
+exception NoModelLoadedException with
+    override __.Message = "No model loaded"
 
 
-exception MoreThanOneModelUnsupportedException
-    with override __.Message = "Loading more than one graph is not yet supported"
+exception MoreThanOneModelUnsupportedException with
+    override __.Message = "Loading more than one graph is not yet supported"
 
 open Hopac
 
 module Lifts =
     let lift = Job.lift
-    let lift2 = fun fn x y  -> job { return fn x y }
+    let lift2 = fun fn x y -> job { return fn x y }
 
 open Lifts
 
@@ -37,62 +38,70 @@ open Poset
 
 open Truth
 
-type SITKModel() =    
+type PosetModel() =
     inherit IModel()
-    let mutable basePoset : option<Poset> = None
-    let getBasePoset() = match basePoset with None -> raise NoModelLoadedException | Some poset -> poset
-    let atoms = Dictionary<_,_>()
-        
-    let supportedExtensions = [".json"] // TODO: make this list exhaustive
-    
-    override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
-        // TODO: changed save policy with OnExit
+    let mutable basePoset: option<Poset> = None
+
+    let getBasePoset () =
+        match basePoset with
+        | None -> raise NoModelLoadedException
+        | Some poset -> poset
+
+    let atoms = Dictionary<_, _>()
+
+    override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         true
-        // match t with 
-        // | (TValuation(TBool)) when List.exists (f.EndsWith : string -> bool) supportedExtensions -> true 
-        // | _ -> false
 
     override __.Save atomName v =
         let t = v :?> Truth
-        atoms.Add(atomName,t)
-            
+        atoms.Add(atomName, t)
+
     override __.Load s =
         let poset = loadPoset s
-        let res = 
+
+        let res =
             match basePoset with
-            | None -> 
+            | None ->
                 basePoset <- Some poset
+
+                List.iteri
+                    (fun idx (point:Point) ->
+                        assert ((int point.id) = idx)
+                        List.iter
+                            (fun atom ->
+                                printfn "%A" atom
+                                if not (atoms.ContainsKey atom) then
+                                    atoms[atom] <- FF poset.points.Length
+                                let v = atoms[atom]
+                                v[idx] <- true)
+                            point.atoms)
+                    poset.points
+
                 poset
-            | Some _ ->                
-                raise MoreThanOneModelUnsupportedException
+            | Some _ -> raise MoreThanOneModelUnsupportedException
+
         res :> obj
 
-    override __.OnExit () =
-        let atomsToPrint =
-            (atoms :> seq<_>)
-            |> Seq.map (|KeyValue|)
-            |> Map.ofSeq
+    override __.OnExit() =
+        let atomsToPrint = (atoms :> seq<_>) |> Seq.map (|KeyValue|) |> Map.ofSeq
         System.IO.File.WriteAllText("result.json", Json.serialize atomsToPrint)
 
     interface IAtomicModel<Truth> with
-        member __.Ap s = job { 
-                let poset = getBasePoset()
-                let ap = getPosetAp poset s
-                let res = Array.create poset.size false 
-                Set.iter (fun idx -> res.[idx] <- true) ap
-                return res
+        member __.Ap s =
+            job {
+                // let poset = getBasePoset() TODO: this is redundant because we can only load one model (see the code of "__.Load") but when one can load more posets, the table "atoms" is part of *each* model
+                return atoms[s]
             }
 
-    // interface IBooleanModel<Truth> with
-    //     member __.TT = job { return TT(getBaseTriaGraph().NumSimplexes) }
-    //     member __.FF = job { return FF(getBaseTriaGraph().NumSimplexes) }
-    //     member __.BConst v = lift (BConst (getBaseTriaGraph().NumSimplexes)) v  
-    //     member __.And v1 v2 = lift2 And v1 v2
-    //     member __.Or v1 v2 = lift2 Or v1 v2
-    //     member __.Not v = lift Not v
- 
-    // interface ISpatialModel<Truth> with
-    //     member __.Near v = job { return (downClosure (getBaseTriaGraph()) v) } 
-    //     member __.Interior v = job { return (interior (getBaseTriaGraph()) v) }
-    //     member __.Through v1 v2 = job {return (reach (getBaseTriaGraph()) v1 v2)}           
-   
+    interface IBooleanModel<Truth> with
+        member __.TT = job { return TT(getBasePoset().points.Length) }
+        member __.FF = job { return FF(getBasePoset().points.Length) }
+        member __.BConst v = lift (BConst (getBasePoset().points.Length)) v
+        member __.And v1 v2 = lift2 And v1 v2
+        member __.Or v1 v2 = lift2 Or v1 v2
+        member __.Not v = lift Not v
+
+// interface ISpatialModel<Truth> with
+//     member __.Near v = job { return (downClosure (getBasePoset()) v) }
+//     member __.Interior v = job { return (interior (getBasePoset()) v) }
+//     member __.Through v1 v2 = job {return (reach (getBasePoset()) v1 v2)}
