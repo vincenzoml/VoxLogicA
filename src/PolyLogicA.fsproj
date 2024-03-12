@@ -22,8 +22,8 @@
     <Compile Include="Interpreter.fs" />
     <Compile Include="NativeArray.fs" />
     <Compile Include="Truth.fs" />
-    <Compile Include="TriaGraph.fs" />
-    <Compile Include="TriaGraphModel.fs" />
+    <Compile Include="Poset.fs" />
+    <Compile Include="PosetModel.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -33,22 +33,22 @@
     <PackageReference Include="FSharp.Json" Version="0.4.0" />
   </ItemGroup>
   <Target Name="SetVersion" BeforeTargets="BeforeBuild">
-  <ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
-    <Output TaskParameter="Lines" ItemName="Version" />
-  </ReadLinesFromFile>
-  <Message Text="Current version is - @(Version)" Importance="high" />
-  <PropertyGroup>
-    <Version>@(version)</Version>
-  </PropertyGroup>
-</Target>
+    <ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
+      <Output TaskParameter="Lines" ItemName="Version" />
+    </ReadLinesFromFile>
+    <Message Text="Current version is - @(Version)" Importance="high" />
+    <PropertyGroup>
+      <Version>@(version)</Version>
+    </PropertyGroup>
+  </Target>
   <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
-  <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
-  <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
-  <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />  
-</Target>
+    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
+  </Target>
   <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
-  <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
-  <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
-  <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />  
-</Target>
+    <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
+    <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
+  </Target>
 </Project>

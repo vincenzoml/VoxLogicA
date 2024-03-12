@@ -23,6 +23,8 @@ open Hopac
 exception CantSaveException of t : Type * s : string
     with override this.Message = sprintf "Saving expression of type %s to file \"%s\" is not supported" (this.t.ToString()) this.s
 
+exception CantLoadException of s : string
+    with override this.Message = sprintf "Loading %s is not supported" this.s
 
 [<AbstractClass>]
 type IModel() =

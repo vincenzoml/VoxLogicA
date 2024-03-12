@@ -37,7 +37,7 @@ open TriaGraph
 
 open Truth
 
-type SITKModel() =    
+type PosetModel() =    
     inherit IModel()
     let mutable baseTriaGraph : option<TriaGraph> = None
     let getBaseTriaGraph() = match baseTriaGraph with None -> raise NoModelLoadedException | Some triaGraph -> triaGraph

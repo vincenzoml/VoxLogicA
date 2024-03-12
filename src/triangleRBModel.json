@@ -1,0 +1,45 @@
+{
+    "numberOfPoints": 19,
+    "coordinatesOfPoints": [
+		[ 0,   0,  0],
+        [ 50,  0,  0],
+        [ 25,  35, 0]
+],
+"atomNames": [
+           "red",
+           "blue"
+],
+"simplexes": [
+           {
+                "id":  "p0",
+                "points": [0],
+                "atoms": ["blue"]
+           },
+           {
+                "id":  "p1",
+                "points": [1],
+                "atoms": ["blue"]
+           },
+           {    "id":  "p2",
+                "points": [2],
+                "atoms": ["red"]
+           },
+           {    "id": "l0",
+                "points": [0,1],
+                "atoms": ["red"]
+           },
+           {    "id": "l1",
+                "points": [0,2],
+                "atoms": ["blue"]
+           },
+           {    "id": "l2",
+                "points": [1,2],
+                "atoms": ["blue"]
+           },
+           {
+                "id": "t0",
+                "points": [0,1,2],
+                "atoms": ["blue"]
+           }
+        ]
+}
