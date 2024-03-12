@@ -47,14 +47,20 @@ type PosetModel() =
         | None -> raise NoModelLoadedException
         | Some poset -> poset
 
-    let atoms = Dictionary<_, _>()
+    let toSave = Dictionary<_, _>()
+    let props = Dictionary<_,_>()
 
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         true
 
-    override __.Save atomName v =
-        let t = v :?> Truth
-        atoms.Add(atomName, t)
+    override __.Save name v =
+        let t = v :?> Truth        
+        try 
+            toSave.Add(name, t)
+        with e -> 
+            printfn "error in adding formula %A to the save list" name
+            raise e
+
 
     override __.Load s =
         let poset = loadPoset s
@@ -69,10 +75,13 @@ type PosetModel() =
                         assert ((int point.id) = idx)
                         List.iter
                             (fun atom ->
-                                printfn "%A" atom
-                                if not (atoms.ContainsKey atom) then
-                                    atoms[atom] <- FF poset.points.Length
-                                let v = atoms[atom]
+                                if not (props.ContainsKey atom) then
+                                    try 
+                                        props.Add(atom, FF poset.points.Length)
+                                    with e -> 
+                                        printfn "error in adding atom %A to the atoms list" atom
+                                        raise e                                    
+                                let v : Truth = props[atom]
                                 v[idx] <- true)
                             point.atoms)
                     poset.points
@@ -83,14 +92,14 @@ type PosetModel() =
         res :> obj
 
     override __.OnExit() =
-        let atomsToPrint = (atoms :> seq<_>) |> Seq.map (|KeyValue|) |> Map.ofSeq
+        let atomsToPrint = (toSave :> seq<_>) |> Seq.map (|KeyValue|) |> Map.ofSeq
         System.IO.File.WriteAllText("result.json", Json.serialize atomsToPrint)
 
     interface IAtomicModel<Truth> with
         member __.Ap s =
             job {
                 // let poset = getBasePoset() TODO: this is redundant because we can only load one model (see the code of "__.Load") but when one can load more posets, the table "atoms" is part of *each* model
-                return atoms[s]
+                return props[s]
             }
 
     interface IBooleanModel<Truth> with
