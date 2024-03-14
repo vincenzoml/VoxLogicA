@@ -8,6 +8,24 @@
     true,
     true
   ],
+  "interiorBlue": [
+    false,
+    false,
+    false,
+    false,
+    true,
+    true,
+    true
+  ],
+  "nearRed": [
+    true,
+    true,
+    true,
+    true,
+    false,
+    false,
+    false
+  ],
   "or_blue_red": [
     true,
     true,

@@ -38,24 +38,62 @@ open Poset
 
 open Truth
 
+
+
+type InternalData = 
+    {
+        poset: Poset;
+        props: Dictionary<string,Truth>;
+        ups: array<list<int>>;
+        downs: array<list<int>>;
+        boths: array<Set<int>>
+    }
+
 type PosetModel() =
     inherit IModel()
-    let mutable basePoset: option<Poset> = None
+    let mutable internalData: option<InternalData> = None
 
     let getBasePoset () =
-        match basePoset with
+        match internalData with
         | None -> raise NoModelLoadedException
-        | Some poset -> poset
+        | Some x -> x.poset
 
-    let toSave = Dictionary<_, _>()
-    let props = Dictionary<_,_>()
+    let toSave: Dictionary<string, Truth>= Dictionary()
 
+    let closure v =
+        let poset = getBasePoset()
+        let mutable idxs = []
+        let rec findIndexes arr el acc =
+            if arr <> Array.empty then
+                if el = Array.head arr then
+                    //printfn "append"
+                    idxs <- List.append idxs [(acc)]
+                    findIndexes (Array.tail arr) el (acc + 1)
+                else
+                    findIndexes (Array.tail arr) el (acc + 1)
+        findIndexes v true 0
+        //printfn "idxs: %A" idxs
+        let myModel = match internalData with
+                        | None -> raise NoModelLoadedException
+                        | Some x -> x
+        let mutable localTruths = [for _ in 1..poset.points.Length -> (FF poset.points.Length)]
+        for elem in idxs do
+            //printfn "ciao"
+            //printfn "%A" elem
+            for i in myModel.downs[elem] do
+                localTruths[elem][i] <- true
+        let mutable result = FF poset.points.Length
+        for elem in localTruths do
+            result <- Or result elem
+        Or result v
+        
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         true
 
     override __.Save name v =
         let t = v :?> Truth        
         try 
+            //printfn "try to save"
             toSave.Add(name, t)
         with e -> 
             printfn "error in adding formula %A to the save list" name
@@ -65,14 +103,18 @@ type PosetModel() =
     override __.Load s =
         let poset = loadPoset s
 
-        let res =
-            match basePoset with
-            | None ->
-                basePoset <- Some poset
-
+        let res: Poset =
+            match internalData with
+            | None ->  
+                let props = Dictionary()                                                          
+                let ups = Array.create poset.points.Length []
+                let downs = Array.create poset.points.Length []
+                let boths = Array.create poset.points.Length Set.empty 
                 List.iteri
                     (fun idx (point:Point) ->
+                        //printfn "try to add props"
                         assert ((int point.id) = idx)
+                        ups[idx] <- List.map int point.up
                         List.iter
                             (fun atom ->
                                 if not (props.ContainsKey atom) then
@@ -83,9 +125,33 @@ type PosetModel() =
                                         raise e                                    
                                 let v : Truth = props[atom]
                                 v[idx] <- true)
-                            point.atoms)
+                            point.atoms
+                        List.iter
+                            (fun target_idx -> 
+                                //printfn "try to add downs"
+                                downs[target_idx] <- (idx)::downs[target_idx]
+                                //
+                            )
+                            ups[idx]
+                        //printfn "downs idx: %A %A" idx downs[idx]
+                        List.iter
+                            (fun target_idx ->
+                                if List.contains idx ups[target_idx] && List.contains target_idx ups[idx] then
+                                    boths[idx] <- Set.add target_idx boths[idx]
+                                //else
+                                //    printfn "crepa maledetto"
+                            )
+                            ups[idx]
+                        internalData <- Some {
+                            poset = poset
+                            props = props
+                            ups = ups
+                            downs = downs
+                            boths = boths
+                        }    
+                        // TODO: inizializzare boths[idx] come unione di ups e downs
+                    )
                     poset.points
-
                 poset
             | Some _ -> raise MoreThanOneModelUnsupportedException
 
@@ -97,9 +163,11 @@ type PosetModel() =
 
     interface IAtomicModel<Truth> with
         member __.Ap s =
-            job {
-                // let poset = getBasePoset() TODO: this is redundant because we can only load one model (see the code of "__.Load") but when one can load more posets, the table "atoms" is part of *each* model
-                return props[s]
+            //printfn "try to save prop"
+            job { 
+                match internalData with
+                | Some x -> return x.props[s]
+                | None -> return FF(getBasePoset().points.Length)
             }
 
     interface IBooleanModel<Truth> with
@@ -110,7 +178,13 @@ type PosetModel() =
         member __.Or v1 v2 = lift2 Or v1 v2
         member __.Not v = lift Not v
 
-// interface ISpatialModel<Truth> with
-//     member __.Near v = job { return (downClosure (getBasePoset()) v) }
-//     member __.Interior v = job { return (interior (getBasePoset()) v) }
-//     member __.Through v1 v2 = job {return (reach (getBasePoset()) v1 v2)}
+    interface ISpatialModel<Truth> with
+        member __.Near v = job {
+           return closure v
+         }
+        member __.Interior v = job { 
+           let compV = Not v
+           let closCompV = closure compV
+           return Not closCompV
+         }
+        member __.Through v1 v2 = job {return (v2)}

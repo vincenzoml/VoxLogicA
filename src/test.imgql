@@ -5,5 +5,6 @@ let red = ap("red")
 
 save "blue" blue
 save "red" red
+save "nearRed" N(red)
+save "interiorBlue" I(blue)
 save "or_blue_red" blue | red
-

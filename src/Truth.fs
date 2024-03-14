@@ -3,12 +3,15 @@ module VoxLogicA.Truth
 // TODO: use Array.Parallel (or Hapoc's equivalent)
 type Truth = array<bool>
 
+let empty = Array.empty
 let TT n = Array.create n true
 let FF n = Array.create n false
 let BConst n v = Array.create n v
 let And = Array.map2 (&&)  
 let Or = Array.map2 (||) 
 let Not = Array.map not
+
+let iterate = Array.iter
 
 // let saveTruth =
 //         let saveLock = ref ()
