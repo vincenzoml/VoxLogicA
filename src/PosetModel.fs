@@ -74,22 +74,22 @@ type PosetModel() =
                     []
             indexes
 
-    let connComponents v =
-        let idxs = findAllIndexes v true 0
-        let myModel = 
+    let rec connComponent idx =
+        let mutable currComponent = []
+        let model = 
             match internalData with
             | None -> raise NoModelLoadedException
             | Some x -> x
-        let mutable comps = []
-        let rec findComponents (idx) =
-            let mutable newBoths = Set.toList myModel.boths[idx]
-            let mutable newComps = []
-            for el in newBoths do
-                newComps <-newBoths::(findComponents el)
-            newComps
+        for neighbour in model.boths[idx] do
+            currComponent <- neighbour::(connComponent neighbour)
+        currComponent
+
+    let connComponents v =
+        let idxs = findAllIndexes v true 0
+        let mutable components = [for _ in idxs.Length -> []]
         for idx in idxs do
-            comps <- (findComponents idx)::comps
-        comps
+            components <- (connComponent idx)::components
+        components
 
     let closure v =
         let comps = connComponents v
