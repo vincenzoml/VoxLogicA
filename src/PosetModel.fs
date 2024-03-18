@@ -60,18 +60,42 @@ type PosetModel() =
 
     let toSave: Dictionary<string, Truth>= Dictionary()
 
-    let closure v =
-        let poset = getBasePoset()
-        let mutable idxs = []
-        let rec findIndexes arr el acc =
-            if arr <> Array.empty then
-                if el = Array.head arr then
-                    //printfn "append"
-                    idxs <- List.append idxs [(acc)]
-                    findIndexes (Array.tail arr) el (acc + 1)
+    let rec findAllIndexes (arr) (b) (acc) : int list =
+            //printfn "%A" arr
+            let index = 
+                match Array.tryFindIndex (fun x -> x = b) arr with
+                | None -> -1
+                | Some x -> x
+            let indexes = 
+                if index <> -1 then
+                    let newArray = Array.removeAt index arr 
+                    (index + acc)::findAllIndexes newArray b (acc + 1)
                 else
-                    findIndexes (Array.tail arr) el (acc + 1)
-        findIndexes v true 0
+                    []
+            indexes
+
+    let connComponents v =
+        let idxs = findAllIndexes v true 0
+        let myModel = 
+            match internalData with
+            | None -> raise NoModelLoadedException
+            | Some x -> x
+        let mutable comps = []
+        let rec findComponents (idx) =
+            let mutable newBoths = Set.toList myModel.boths[idx]
+            let mutable newComps = []
+            for el in newBoths do
+                newComps <-newBoths::(findComponents el)
+            newComps
+        for idx in idxs do
+            comps <- (findComponents idx)::comps
+        comps
+
+    let closure v =
+        let comps = connComponents v
+        printfn "%A" comps
+        let poset = getBasePoset()
+        let idxs = findAllIndexes v true 0
         //printfn "idxs: %A" idxs
         let myModel = match internalData with
                         | None -> raise NoModelLoadedException
@@ -135,13 +159,16 @@ type PosetModel() =
                             ups[idx]
                         //printfn "downs idx: %A %A" idx downs[idx]
                         List.iter
-                            (fun target_idx ->
-                                if List.contains idx ups[target_idx] && List.contains target_idx ups[idx] then
-                                    boths[idx] <- Set.add target_idx boths[idx]
-                                //else
-                                //    printfn "crepa maledetto"
+                            (fun up_idx ->
+                                (List.iter (fun down_idx ->
+                                    if up_idx = down_idx then
+                                        boths[idx] <- Set.add up_idx boths[idx]
+                                        boths[up_idx] <- Set.add idx boths[up_idx]
+                                )
+                                downs[idx])
                             )
                             ups[idx]
+                        printfn "boths %A" boths
                         internalData <- Some {
                             poset = poset
                             props = props
