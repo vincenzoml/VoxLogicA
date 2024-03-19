@@ -74,26 +74,33 @@ type PosetModel() =
                     []
             indexes
 
-    let rec connComponent idx =
-        let mutable currComponent = []
-        let model = 
-            match internalData with
-            | None -> raise NoModelLoadedException
-            | Some x -> x
-        for neighbour in model.boths[idx] do
-            currComponent <- neighbour::(connComponent neighbour)
-        currComponent
+    let rec connComponent (idx : int) explored =
+        if List.contains idx explored = false then
+            let newExplored = idx::explored
+            printfn "explored: %A" explored
+            let mutable currComponent = []
+            let model = 
+                match internalData with
+                | None -> raise NoModelLoadedException
+                | Some x -> x
+            for neighbour in model.boths[idx] do
+                currComponent <- neighbour::(connComponent neighbour newExplored)
+            printfn "current component: %A" currComponent
+            currComponent
+        else
+            []
 
     let connComponents v =
-        let idxs = findAllIndexes v true 0
-        let mutable components = [for _ in idxs.Length -> []]
+        let idxs =  [5] //findAllIndexes v true 0
+        printfn "idxs: %A" idxs
+        let explored = []
+        let mutable components = [for _ in 1..idxs.Length -> []]
         for idx in idxs do
-            components <- (connComponent idx)::components
+            components <- (connComponent idx explored)::components
+        printfn "components: %A" components
         components
 
     let closure v =
-        let comps = connComponents v
-        printfn "%A" comps
         let poset = getBasePoset()
         let idxs = findAllIndexes v true 0
         //printfn "idxs: %A" idxs
@@ -168,7 +175,7 @@ type PosetModel() =
                                 downs[idx])
                             )
                             ups[idx]
-                        printfn "boths %A" boths
+                        //printfn "boths %A" boths
                         internalData <- Some {
                             poset = poset
                             props = props
