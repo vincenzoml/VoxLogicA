@@ -2,9 +2,12 @@ load triangle = "example_poset.json"
 
 let blue = ap("blue")
 let red = ap("red")
+let green = ap("green")
 
 save "blue" blue
 save "red" red
-save "nearRed" N(red)
+save "nearBlue" N(blue)
 //save "interiorBlue" I(blue)
 save "or_blue_red" blue | red
+save "throughGreenBlue" through(green,blue)
+save "gammaRedGreen" gamma(red,green)

@@ -46,7 +46,6 @@ type InternalData =
         props: Dictionary<string,Truth>;
         ups: array<list<int>>;
         downs: array<list<int>>;
-        boths: array<Set<int>>
     }
 
 type PosetModel() =
@@ -74,50 +73,73 @@ type PosetModel() =
                     []
             indexes
 
-    let rec connComponent (idx : int) explored =
-        if List.contains idx explored = false then
-            let newExplored = idx::explored
-            printfn "explored: %A" explored
-            let mutable currComponent = []
-            let model = 
-                match internalData with
-                | None -> raise NoModelLoadedException
-                | Some x -> x
-            for neighbour in model.boths[idx] do
-                currComponent <- neighbour::(connComponent neighbour newExplored)
-            printfn "current component: %A" currComponent
-            currComponent
-        else
-            []
-
-    let connComponents v =
-        let idxs =  [5] //findAllIndexes v true 0
-        printfn "idxs: %A" idxs
-        let explored = []
-        let mutable components = [for _ in 1..idxs.Length -> []]
-        for idx in idxs do
-            components <- (connComponent idx explored)::components
-        printfn "components: %A" components
+    let rec connComponent explored currComponent next toVisit =
+        match toVisit with
+        | [] -> (explored,currComponent)
+        | current::rest ->
+            let newExplored = Set.add current explored
+            if not (Set.contains current explored) then
+                let newOnes = Set.difference (next current) newExplored
+                connComponent newExplored (Set.add current currComponent) next (Set.toList (Set.union newOnes (Set rest)))
+            else
+                connComponent newExplored currComponent next rest
+    
+    let connComponents (v : Truth) =
+        let mutable explored = Set.empty
+        let mutable components = Set.empty
+        let model = match internalData with
+                    | None -> raise NoModelLoadedException
+                    | Some x -> x
+        let next idx = 
+            assert v[idx]
+            Set.filter (Array.get v) (Set.ofList (List.append model.ups[idx] model.downs[idx]))
+        for idx in 0 .. model.poset.points.Length - 1 do
+            if (v[idx]) then 
+                let (newExplored,currentComponent) = connComponent explored Set.empty next [idx]
+                if not (Set.isEmpty currentComponent) 
+                then components <- Set.add currentComponent components
+                explored <- newExplored
+            
         components
 
+    let rec createComponentsTruthValues ccs acc (v : Truth) =
+            match ccs with
+            | [] -> acc
+            | current::rest -> 
+                let tmp = FF v.Length
+                for idx in current do tmp[idx] <- true
+                let newAcc = tmp::acc
+                createComponentsTruthValues rest newAcc v
     let closure v =
         let poset = getBasePoset()
         let idxs = findAllIndexes v true 0
-        //printfn "idxs: %A" idxs
         let myModel = match internalData with
                         | None -> raise NoModelLoadedException
                         | Some x -> x
         let mutable localTruths = [for _ in 1..poset.points.Length -> (FF poset.points.Length)]
         for elem in idxs do
-            //printfn "ciao"
-            //printfn "%A" elem
             for i in myModel.downs[elem] do
                 localTruths[elem][i] <- true
         let mutable result = FF poset.points.Length
         for elem in localTruths do
             result <- Or result elem
         Or result v
-        
+
+    let gamma (v1 : Truth) (v2 : Truth) =
+        let components = connComponents v1
+        let truthValues = createComponentsTruthValues (Set.toList components) [] v1
+        let rec computeTotalClosure components acc1 =
+            match components with
+            | [] -> acc1
+            | current::rest -> computeTotalClosure rest (Or (closure current) acc1)
+        let totalClosure = computeTotalClosure truthValues (FF v1.Length)
+        let zip = Array.zip [|for i in 0..totalClosure.Length-1 -> i|] totalClosure
+        let check = Array.filter (fun (i, tv) -> v2[i] = tv) zip
+        if check <> [||] then
+            totalClosure
+        else
+            FF v1.Length
+
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         true
 
@@ -132,6 +154,7 @@ type PosetModel() =
 
 
     override __.Load s =
+        ErrorMsg.Logger.DebugOnly (sprintf "Loading %A" s)
         let poset = loadPoset s
 
         let res: Poset =
@@ -140,7 +163,6 @@ type PosetModel() =
                 let props = Dictionary()                                                          
                 let ups = Array.create poset.points.Length []
                 let downs = Array.create poset.points.Length []
-                let boths = Array.create poset.points.Length Set.empty 
                 List.iteri
                     (fun idx (point:Point) ->
                         //printfn "try to add props"
@@ -165,34 +187,23 @@ type PosetModel() =
                             )
                             ups[idx]
                         //printfn "downs idx: %A %A" idx downs[idx]
-                        List.iter
-                            (fun up_idx ->
-                                (List.iter (fun down_idx ->
-                                    if up_idx = down_idx then
-                                        boths[idx] <- Set.add up_idx boths[idx]
-                                        boths[up_idx] <- Set.add idx boths[up_idx]
-                                )
-                                downs[idx])
-                            )
-                            ups[idx]
-                        //printfn "boths %A" boths
                         internalData <- Some {
                             poset = poset
                             props = props
                             ups = ups
                             downs = downs
-                            boths = boths
                         }    
-                        // TODO: inizializzare boths[idx] come unione di ups e downs
                     )
                     poset.points
+                ErrorMsg.Logger.DebugOnly (sprintf "Loaded %A" s)    
                 poset
             | Some _ -> raise MoreThanOneModelUnsupportedException
 
         res :> obj
 
     override __.OnExit() =
-        let atomsToPrint = (toSave :> seq<_>) |> Seq.map (|KeyValue|) |> Map.ofSeq
+        let ts = (toSave :> seq<_>)
+        let atomsToPrint = ts |> Seq.map (|KeyValue|) |> Map.ofSeq
         System.IO.File.WriteAllText("result.json", Json.serialize atomsToPrint)
 
     interface IAtomicModel<Truth> with
@@ -221,4 +232,25 @@ type PosetModel() =
            let closCompV = closure compV
            return Not closCompV
          }
-        member __.Through v1 v2 = job {return (v2)}
+        member __.Through v1 v2 = job {
+            let ccs = connComponents v1
+            let comps = createComponentsTruthValues (Set.toList ccs) [] v1 
+            let mutable result = FF v1.Length
+            let mutable intermediates = []
+            
+            for comp in comps do
+                for i in 0..comps.Length-1 do
+                    if v2[i] && comp[i] then
+                        intermediates <- comp::intermediates
+            for intr in intermediates do
+                result <- Or result intr
+            return result
+        }
+
+        member __.Gamma v1 v2 = job {            
+            return gamma v1 v2
+        }
+
+        member __.Eta v1 v2 = job {
+            return And v1 (gamma v1 v2)            
+        }

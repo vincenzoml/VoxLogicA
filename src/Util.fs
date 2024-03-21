@@ -15,6 +15,7 @@
 // limitations under the License.
 
 module VoxLogicA.Util
+
 open System
 
 module Concurrent =
@@ -32,7 +33,10 @@ module Concurrent =
             for i = 0 to s.Length - 1 do
                 match! IVar.read x.[i] with
                 | None -> () 
-                | Some exn -> raise exn
+                | Some exn ->
+                    ErrorMsg.Logger.DebugOnly (sprintf "exception in conIgnore, idx %A" i)
+                    raise exn
+            ErrorMsg.Logger.DebugOnly "conIgnore finished"
         }
 
     open System.Reflection

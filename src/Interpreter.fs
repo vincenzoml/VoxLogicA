@@ -17,6 +17,7 @@
 namespace VoxLogicA
 
 open VoxLogicA
+
 open Parser
 open Hopac 
 open System.Collections.Generic

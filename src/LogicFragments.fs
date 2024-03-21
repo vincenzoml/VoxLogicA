@@ -101,7 +101,10 @@ type ISpatialModel<'Value> =
     abstract member Interior : 'Value -> Job<'Value>
     [<OperatorAttribute("through",[|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","through(img1,img2) is true at voxel x if there is a path p, starting in x and ending in a voxel y, with y true in img1, and all points of p (including extremes) true in img2")>]
     abstract member Through : 'Value -> 'Value -> Job<'Value>
-
+    [<OperatorAttribute("gamma", [|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","gamma(form1,form2) is true at point x if there is an up-down path p, starting in x and ending in a point y, with y satisfying form2, and all points of p satisfying form2")>]
+    abstract member Gamma : 'Value -> 'Value -> Job<'Value>
+    [<OperatorAttribute("eta", [|"valuation(bool)";"valuation(bool)"|],"valuation(bool)","eta(form1,form2) is true at point x if x satisfies form1 and there is an up-down path p, starting in x and ending in a point y, with y satisfying form2, and all points of p satisfying form2")>]
+    abstract member Eta : 'Value -> 'Value -> Job<'Value>
 type IDirectedSpatialModel<'Value> =
     inherit ILogicModel<'Value>
     [<OperatorAttribute("bnear","valuation(bool)","valuation(bool)","Backwards spatial-logical closure (that is, backwards dilation)")>]

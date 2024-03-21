@@ -22,7 +22,7 @@ let mutable private debugFlag = false
 #if DEBUG
 do debugFlag <- true
 #endif
-let isDebug() = debugFlag
+let isDebug() = true
 
 type Logger private () =        
         static let streamWriter = new StreamWriter(System.Console.OpenStandardOutput())
