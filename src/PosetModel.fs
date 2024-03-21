@@ -237,7 +237,8 @@ type PosetModel() =
             let comps = createComponentsTruthValues (Set.toList ccs) [] v1 
             let mutable result = FF v1.Length
             let mutable intermediates = []
-            
+            printfn "Components are: %A" ccs
+            printfn "green components are: %A" comps
             for comp in comps do
                 for i in 0..comps.Length-1 do
                     if v2[i] && comp[i] then
