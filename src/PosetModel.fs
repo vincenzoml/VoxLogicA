@@ -127,18 +127,23 @@ type PosetModel() =
 
     let gamma (v1 : Truth) (v2 : Truth) =
         let components = connComponents v1
-        let truthValues = createComponentsTruthValues (Set.toList components) [] v1
-        let rec computeTotalClosure components acc1 =
+        let truthComponentValues = createComponentsTruthValues (Set.toList components) [] v1
+        let rec computeClosures components acc1 =
             match components with
             | [] -> acc1
-            | current::rest -> computeTotalClosure rest (Or (closure current) acc1)
-        let totalClosure = computeTotalClosure truthValues (FF v1.Length)
-        let zip = Array.zip [|for i in 0..totalClosure.Length-1 -> i|] totalClosure
-        let check = Array.filter (fun (i, tv) -> v2[i] = tv) zip
-        if check <> [||] then
-            totalClosure
-        else
-            FF v1.Length
+            | current::rest -> computeClosures rest ((closure current)::acc1)
+        let closures = computeClosures truthComponentValues []
+        let rec computeGamma (closures : list<Truth>) acc =
+            match closures with
+            | [] -> acc
+            | current::rest ->
+                let zip = Array.zip [|for i in 0..current.Length-1 -> i|] current
+                let check = Array.filter (fun (i, tv) -> tv = true && v2[i] = tv) zip
+                if check <> [||] then
+                    computeGamma rest (Or current acc)
+                else
+                    computeGamma rest acc
+        computeGamma closures (FF v1.Length)
 
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         true
@@ -237,8 +242,6 @@ type PosetModel() =
             let comps = createComponentsTruthValues (Set.toList ccs) [] v1 
             let mutable result = FF v1.Length
             let mutable intermediates = []
-            printfn "Components are: %A" ccs
-            printfn "green components are: %A" comps
             for comp in comps do
                 for i in 0..comps.Length-1 do
                     if v2[i] && comp[i] then
