@@ -41,10 +41,8 @@ type SITKModel() =
     inherit IModel()
     let mutable baseTriaGraph : option<TriaGraph> = None
     let getBaseTriaGraph() = match baseTriaGraph with None -> raise NoModelLoadedException | Some triaGraph -> triaGraph
-    let atoms = Dictionary<_,_>()
-        
-    let supportedExtensions = [".json"] // TODO: make this list exhaustive
-    
+    let atoms = System.Collections.Concurrent.ConcurrentDictionary<_,_>()
+            
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.        
         // TODO: changed save policy with OnExit
         true
@@ -56,7 +54,7 @@ type SITKModel() =
         let t = v :?> Truth
         // printfn "save to '%A': %A" atomName t
         // saveTriaGraph (getBaseTriaGraph ()) filename "result" t
-        atoms.Add(atomName,t)
+        atoms[atomName] <- t
             
     override __.Load s =
         let triaGraph = loadTriaGraph s
@@ -74,7 +72,10 @@ type SITKModel() =
             (atoms :> seq<_>)
             |> Seq.map (|KeyValue|)
             |> Map.ofSeq
-        System.IO.File.WriteAllText("result.json", Json.serialize atomsToPrint)
+        try
+            System.IO.File.WriteAllText("result.json", Json.serialize atomsToPrint)
+        with e -> 
+            printfn "Error while saving the result: %A" e
 
     interface IAtomicModel<Truth> with
         member __.Ap s = job { 

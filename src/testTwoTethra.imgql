@@ -6,14 +6,3 @@ let q = ap("q")
 
 save "p" p
 save "q" q
-
-save "p and q" and(p,q)
-save "p or q" or(p,q)
-save "not p" not(p)
-save "not q" not(q)
-
-save "near p" near(p)
-save "near q" near(q)
-
-save "p reach q" through(p,q)
-save "p reach not q" through(p,not(q))

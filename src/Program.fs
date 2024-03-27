@@ -63,6 +63,7 @@ let main (argv : string array) =
         let run filename =
             let interpreter = Interpreter(model,checker)
             interpreter.Batch sequential interpreter.DefaultLibDir filename
+            printfn "----- *** ------"
             model.OnExit()
         match (parsed.TryGetResult Filename,ErrorMsg.isDebug()) with 
             | None,false ->                                      
