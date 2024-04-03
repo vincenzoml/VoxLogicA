@@ -1,56 +1,29 @@
 {
-  "blue": [
-    true,
-    true,
-    false,
-    false,
+  "corridor": [
     true,
     false,
+    false,
+    true,
+    false,
+    true,
     false
   ],
-  "gammaRedGreen": [
-    true,
-    true,
-    false,
-    true,
-    false,
-    false,
-    false
-  ],
-  "nearBlue": [
-    true,
-    true,
-    true,
-    true,
-    true,
-    false,
-    false
-  ],
-  "or_blue_red": [
-    true,
-    true,
-    true,
-    true,
-    true,
-    false,
-    false
-  ],
-  "red": [
-    false,
-    false,
-    true,
-    true,
-    false,
-    false,
-    false
-  ],
-  "throughGreenBlue": [
-    true,
+  "green": [
     false,
     false,
     true,
     false,
     true,
+    false,
     true
+  ],
+  "white": [
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false
   ]
 }
