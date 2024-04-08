@@ -145,6 +145,9 @@ type PosetModel() =
                     computeGamma rest acc
         computeGamma closures (FF v1.Length)
 
+    //let transitiveClosure(ups : array<list<int>>) : array<list<int>>=
+    //    let mutable result = []
+
     override __.CanSave t f = // TODO: check also if file can be written to, and delete it afterwards.
         true
 
@@ -193,6 +196,8 @@ type PosetModel() =
                             )
                             ups[idx]
                         //printfn "downs idx: %A %A" idx downs[idx]
+                        //if true then
+                        //    let newUps = transitiveClosure ups
                         internalData <- Some {
                             poset = poset
                             props = props
