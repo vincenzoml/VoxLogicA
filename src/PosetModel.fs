@@ -171,7 +171,7 @@ type PosetModel() =
                 let props = Dictionary()                                                          
                 let ups = Array.create poset.points.Length []
                 let downs = Array.create poset.points.Length []
-                let points = List.sortBy (fun x -> x.id) poset.points
+                let points = List.sortBy (fun x -> (int x.id)) poset.points
                 List.iteri
                     (fun idx (point:Point) ->
                         //printfn "try to add props"

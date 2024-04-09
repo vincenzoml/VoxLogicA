@@ -38,7 +38,7 @@ endif
 .PHONY: build clean restore release-linux release-osx release-win publish-internal release
 
 build: *.fs $(PROJ).fsproj
-	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release -r $(CURRENTRID) 
+	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c debug -r $(CURRENTRID) 
 
 temporary:
 	@echo Check your makefile, this is a temporary target!
