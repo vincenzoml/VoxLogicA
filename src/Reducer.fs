@@ -273,7 +273,7 @@ type WorkPlan =
                 + $"{i} [label=\"[{i}] {operation.ToString()}\"];\n"
 
             for argument in operation.arguments do
-                str <- str + $"{i} -> {argument};\n"
+                str <- str + $"{argument} -> {i};\n"
 
         str + "\n}"
 
