@@ -33,7 +33,8 @@ type Operation =
             else
                 ""
 
-        $"{this.operator}{args}"
+        // $"{this.operator}{args}" // Uncomment to show the args
+        $"{this.operator}" 
 
 type Goal =
     | GoalSave of string * OperationId
@@ -270,7 +271,8 @@ type WorkPlan =
 
             str <-
                 str
-                + $"{i} [label=\"[{i}] {operation.ToString()}\"];\n"
+                // + $"{i} [label=\"[{i}] {operation.ToString()}\"];\n" // Uncomment to add [n] to each label
+                + $"{i} [label=\"{operation.ToString()}\"];\n"
 
             for argument in operation.arguments do
                 str <- str + $"{argument} -> {i};\n"
