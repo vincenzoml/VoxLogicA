@@ -1,0 +1,34 @@
+//data augmentation
+let augment (dataset,thresholdValue) =
+    merge (dataset,threshold (thresholdValue, dataset))
+let tumourCoreDatasetAugmented =
+    augment (tumourCoreTrainingDataset,tumourThreshold)
+let oedemaDatasetAugmented = 
+    augment (oedemaTrainingDataset,oedemaThreshold)
+
+//training
+let tumourCoreModel = train (tumourCoreDatasetAugmented)
+let oedemaModel = train (oedemaDatasetAugmented)
+let nnGtvModel = train(originalTrainingDataset)
+
+//prediction
+let inputTumourAugmented = 
+    augment (inputDataset,tumourThreshold)
+let inputOedemaAugmented = 
+    augment (inputDataset,oedemaThreshold)
+let mlTumourCore = 
+    predict (tumourCoreModel, inputTumourAugmented)
+let mlOedema = 
+    predict (oedemaModel, inputOedemaAugmented)
+let nnGtv = predict (nnGtvModel, inputDataset)
+
+//Logic-based pipeline, results and comparison
+let oedema = touch (mlOedema, mlTumourCore)
+let gtv = union(mlTumourCore,oedema)
+let overlap = diceScore (gtv,nnGtv)
+
+print "output" returnGTV(gtv)
+print "output" returnNNGTV(nnGtv)
+print "output" returnOverlap(overlap)
+
+
