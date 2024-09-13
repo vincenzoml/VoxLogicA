@@ -6,28 +6,20 @@ open Argu
 type LoadFlags = { fname: string; numCores: int }
 // type JSonOutput = FSharp.Data.JsonProvider<"example.json">
 type CmdLine =
-    | [<UniqueAttribute>] Ops
-    | [<UniqueAttribute>] JSon
     | [<UniqueAttribute>] Version
-    | [<UniqueAttribute>] Sequential
-    | [<UniqueAttribute>] PerformanceTest
     | [<UniqueAttribute>] SaveTaskGraphAsDot of string
     | [<UniqueAttribute>] SaveTaskGraph of option<string>
     | [<UniqueAttribute>] SaveSyntax of option<string>
+    | [<UniqueAttribute>] SaveLabelling of option<string>
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
             match s with
-            | Ops -> "display a list of all the internal operators, with their types and a brief description"
-            | JSon _ ->
-                "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
-            | Sequential -> "wait for each thread to complete before starting a new one; useful for debugging"
             | Version -> "print the voxlogica version and exit"
-            | PerformanceTest _ ->
-                "do not load or save actual images; always use the given file instead; useful to measure raw speed"
             | SaveTaskGraph _ -> "save the task graph"
             | SaveTaskGraphAsDot _ -> "save the task graph in .dot format and exit"
             | SaveSyntax _ -> "save the AST in text format and exit"
+            | SaveLabelling _ -> "save the labelling in text format and exit"       
             | Filename _ -> "VoxLogicA session file"
 
 [<EntryPoint>]
@@ -55,7 +47,7 @@ let main (argv: string array) =
 #if ! DEBUG
     ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
 #else
-    () //ErrorMsg.Logger.SetLogLevel(["thrd"])
+    () 
 #endif
 
     if version.Revision <> 0 then
@@ -100,7 +92,7 @@ let main (argv: string array) =
 
         ErrorMsg.Logger.Debug "Program reduced"
         ErrorMsg.Logger.Info $"Number of tasks: {program.operations.Length}"
-
+        
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph
 
@@ -110,10 +102,27 @@ let main (argv: string array) =
                 System.IO.File.WriteAllText(filename, $"{program}")
             | None -> ErrorMsg.Logger.Debug $"{program}"
 
+
         if parsed.Contains SaveTaskGraphAsDot then
             let filename = parsed.GetResult SaveTaskGraphAsDot
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
             System.IO.File.WriteAllText(filename, program.ToDot())
+        
+        if parsed.Contains SaveLabelling then
+            let printListWithoutEllipsis list =
+                list
+                |> List.map string     // Convert each element to a string
+                |> String.concat ", " // Concatenate them with a separator
+                |> fun x -> $"[{x}]"
+            
+            let labelling = Labelling.label(program)
+            let labellingString = printListWithoutEllipsis labelling
+            let x = parsed.GetResult SaveLabelling
+            match x with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the labelling to {filename}"            
+                System.IO.File.WriteAllText(filename, labellingString)
+            | None -> ErrorMsg.Logger.Debug labellingString
 
         ErrorMsg.Logger.Info "All done."
 

@@ -1,0 +1,4 @@
+
+let x = f(g(h(x,y),z),t)
+
+print "" x

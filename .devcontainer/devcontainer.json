@@ -2,5 +2,12 @@
     "name": "VoxLogicA",
     "build": {
         "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Ionide.Ionide-fsharp"
+            ]
+        }
     }
 }

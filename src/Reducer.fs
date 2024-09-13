@@ -40,6 +40,37 @@ type Goal =
     | GoalSave of string * OperationId
     | GoalPrint of string * OperationId
 
+type WorkPlan =
+    { operations: array<Operation>
+      goals: array<Goal> }
+
+    override this.ToString() =
+        let t =
+            String.concat "\n"
+            <| Array.mapi (fun i el -> $"{i} -> {el}") this.operations
+
+        let g =
+            String.concat ","
+            <| Array.map (fun x -> x.ToString()) this.goals
+
+        $"goals: {g}\noperations:\n{t}"
+
+    member this.ToDot() =
+        let mutable str = "digraph {"
+
+        for i = 0 to this.operations.Length - 1 do
+            let operation = this.operations[i]
+
+            str <-
+                str
+                // + $"{i} [label=\"[{i}] {operation.ToString()}\"];\n" // Uncomment to add [n] to each label
+                + $"{i} [label=\"{operation.ToString()}\"];\n"
+
+            for argument in operation.arguments do
+                str <- str + $"{argument} -> {i};\n"
+
+        str + "\n}"
+
 module private Internals =
 
     open Parser
@@ -245,39 +276,6 @@ module private Internals =
                     | None ->
                         cont
                         <| operations.Create (Identifier ide) actualArgs
-// with
-// | :? System.Collections.Generic.KeyNotFoundException ->
-//
-type WorkPlan =
-    { operations: array<Operation>
-      goals: array<Goal> }
-
-    override this.ToString() =
-        let t =
-            String.concat "\n"
-            <| Array.mapi (fun i el -> $"{i} -> {el}") this.operations
-
-        let g =
-            String.concat ","
-            <| Array.map (fun x -> x.ToString()) this.goals
-
-        $"goals: {g}\noperations:\n{t}"
-
-    member this.ToDot() =
-        let mutable str = "digraph {"
-
-        for i = 0 to this.operations.Length - 1 do
-            let operation = this.operations[i]
-
-            str <-
-                str
-                // + $"{i} [label=\"[{i}] {operation.ToString()}\"];\n" // Uncomment to add [n] to each label
-                + $"{i} [label=\"{operation.ToString()}\"];\n"
-
-            for argument in operation.arguments do
-                str <- str + $"{argument} -> {i};\n"
-
-        str + "\n}"
 
 let reduceProgram (Parser.Program prog) =
     let goals = new HashSet<_>()
@@ -291,66 +289,3 @@ let reduceProgram (Parser.Program prog) =
 
     { operations = Array.init operations.byId.Count (fun i -> operations.byId[i].operation)
       goals = Array.ofSeq goals }
-
-(* get enumerator of anything
-    let inline getEnumeratorFromArrayLike x =
-        let inline count (t: ^T) : int = (^T : (member Count : int) (t))
-        let inline item (t: ^T) (x: int) : ^a = (^T : (member get_Item: int -> ^a) (t, x))
-        (seq { for i = 0 to count x - 1 do yield item x i }).GetEnumerator()
-
-    type MyThing (length: int) =
-        member x.Count = length
-        member x.Item with get (c) =
-            if c < length then
-                c
-            else
-                failwith "boom"
-        interface System.Collections.Generic.IEnumerable<int> with
-            member x.GetEnumerator() = getEnumeratorFromArrayLike x
-            member x.GetEnumerator() : System.Collections.IEnumerator = getEnumeratorFromArrayLike x :> _
-
-    let m = MyThing(3)
-    for i in m do printfn "MyThing: %d" i
-    *)
-
-(* Another way
-
-    let inline getEnumeratorFromArrayLike x =
-        let inline count (t: ^T) : int = (^T : (member Count : int) (t))
-        let inline item (t: ^T) (x: int) : ^a = (^T : (member get_Item: int -> ^a) (t, x))
-        (seq { for i = 0 to count x - 1 do yield item x i }).GetEnumerator()
-
-    type MyThing (length: int) =
-        member x.Count = length
-        member x.Item with get (c) =
-            if c < length then
-                c
-            else
-                failwith "boom"
-        interface System.Collections.Generic.IEnumerable<int> with
-            member x.GetEnumerator() = getEnumeratorFromArrayLike x
-            member x.GetEnumerator() : System.Collections.IEnumerator = getEnumeratorFromArrayLike x :> _
-
-    let m = MyThing(3)
-    for i in m do printfn "MyThing: %d" i
-    *)
-
-(* even simpler
-
-    open System.Collections.Generic
-    module CustomList =
-        let getEnumerator<'t> count (item:int -> 't) =
-            seq {
-                for i in 0..count()-1 do
-                    yield item(i)
-            } :?> IEnumerator<'t>
-
-        type CustomList<'t>(list: ResizeArray<'t>) =
-            let count () = list.Count
-            let item index = list.[index]
-
-            member this.Count with get () = count ()
-            member this.Item with get(index:int) = item index
-            member this.GetEnumerator(): IEnumerator<'t> = getEnumerator count item
-
-    *)
