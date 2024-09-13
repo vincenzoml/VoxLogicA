@@ -1,0 +1,6 @@
+{
+    "name": "VoxLogicA",
+    "build": {
+        "dockerfile": "Dockerfile"
+    }
+}

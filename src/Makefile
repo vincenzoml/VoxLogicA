@@ -23,6 +23,7 @@ UNAME := $(shell uname)
 VERSION=$(shell cat VERSION.txt)
 RELEASENAME=$(PROJ)_$(VERSION)_$(RID)
 RELEASE=../releases/$(RELEASENAME)
+NET=net8.0
 
 ifeq ($(VERSION),"") 
 		$(error "VERSION is not set; set the release number (e.g. 0.5.1) in VERSION.txt") 
@@ -42,8 +43,8 @@ restore:
 publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
-	rm bin/release/net5.0/$(RID)/publish/*.pdb
-	cp -a bin/release/net5.0/$(RID)/publish/* $(RELEASE)
+	rm bin/release/$(NET)/$(RID)/publish/*.pdb
+	cp -a bin/release/$(NET)/$(RID)/publish/* $(RELEASE)
 	cp -a BINARY_LICENSE.txt $(RELEASE)
 	cd ../releases && rm -f $(RELEASENAME).zip && zip -r $(RELEASENAME).zip $(RELEASENAME)
 
