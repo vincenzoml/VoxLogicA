@@ -14,6 +14,5 @@ tests/*/output-gpu
 tests/*/output-cpu.config
 .vscode/
 .config
-src/test.dot
-src/test2.imgql
-src/test.pdf
+src/output
+
