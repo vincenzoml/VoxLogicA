@@ -6,7 +6,8 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "Ionide.Ionide-fsharp"
+                "Ionide.Ionide-fsharp",
+                "tintinweb.graphviz-interactive-preview"
             ]
         }
     }

@@ -10,4 +10,6 @@ RUN dpkg -i packages-microsoft-prod.deb
 RUN apt update
 RUN apt -y install dotnet-sdk-8.0
 
+RUN apt -y install graphviz
+
 USER ubuntu

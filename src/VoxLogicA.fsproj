@@ -27,13 +27,5 @@
     <PropertyGroup>
       <Version>@(version)</Version>
     </PropertyGroup>
-  </Target>
-  <Target Name="CopyLibs" AfterTargets="AfterBuild">
-    <Copy SourceFiles="imgql/RegionCalculus.imgql" DestinationFolder="$(OutDir)/imgql" />
-    <Copy SourceFiles="imgql/stdlib.imgql" DestinationFolder="$(OutDir)/imgql" />
-  </Target>
-  <Target Name="CopyLibsAfterPublish" AfterTargets="Publish">
-    <Copy SourceFiles="imgql/RegionCalculus.imgql" DestinationFolder="$(PublishDir)/imgql" />
-    <Copy SourceFiles="imgql/stdlib.imgql" DestinationFolder="$(PublishDir)/imgql" />
-  </Target>
+  </Target>  
 </Project>

@@ -108,15 +108,12 @@ let main (argv: string array) =
             ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
             System.IO.File.WriteAllText(filename, program.ToDot())
         
-        if parsed.Contains SaveLabelling then
-            let printListWithoutEllipsis list =
-                list
-                |> List.map string     // Convert each element to a string
-                |> String.concat ", " // Concatenate them with a separator
-                |> fun x -> $"[{x}]"
-            
+        if parsed.Contains SaveLabelling then            
             let labelling = Labelling.label(program)
-            let labellingString = printListWithoutEllipsis labelling
+            let labellingString = 
+                labelling
+                |> Array.mapi (fun i x -> $"{i}: {x}")
+                |> String.concat "\n"                
             let x = parsed.GetResult SaveLabelling
             match x with
             | Some filename ->
@@ -125,7 +122,6 @@ let main (argv: string array) =
             | None -> ErrorMsg.Logger.Debug labellingString
 
         ErrorMsg.Logger.Info "All done."
-
         0
     with
     | e ->

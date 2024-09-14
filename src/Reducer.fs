@@ -33,8 +33,8 @@ type Operation =
             else
                 ""
 
-        // $"{this.operator}{args}" // Uncomment to show the args
-        $"{this.operator}" 
+        $"{this.operator}{args}" // Uncomment to show the args
+        
 
 type Goal =
     | GoalSave of string * OperationId
