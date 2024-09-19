@@ -103,3 +103,9 @@ let overlayColor(boolean,img,r,g,b) =
 
 let divZ(i1,i2,i3) = 
     mask((i1 / mask(constant(1),!(i2 =. 0))),!(i2 =. 0)) + (mask(i3,i2 =. 0))
+
+let erode(a,x) = !(distleq(x,!a))//distgeq(x,!a) // == !(distleq(x,!a))
+let dilate(a,x) = distleq(x,a)
+let imopen(a,x) = dilate(erode(a,x),x) //eliminates elements <x
+let imclose(a,x) = erode(dilate(a,x),x) //close holes <x
+
