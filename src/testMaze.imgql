@@ -1,0 +1,46 @@
+load model = "mazeModel.json"
+
+// Define reach (rho) in terms of through (gamma)
+let reach(x,y) = x | through(y,x)
+
+// Surround in terms of reach (rho)
+let sur(x,y)	= x & !reach(!(x | y), !y)
+
+// Define eta in terms of gamma (through):
+//let eta(x,y) = x & gamma(x,y) 
+
+let green       = ap("G")
+let white       = ap("W")
+let corridor    = ap("corridor")
+
+let greenOrWhite		= (green | white)
+
+//let prova = eta(corridor, white)
+let oneStepToWhite   = eta((green | eta(corridor,white)),white)
+let twoStepsToWhite  = eta((green | eta(corridor,oneStepToWhite)), oneStepToWhite) & (!oneStepToWhite)
+let threeStepsToWhite = eta((green | eta(corridor,twoStepsToWhite)), twoStepsToWhite) & (!twoStepsToWhite) & (!oneStepToWhite)
+
+let phi1 = eta((green | eta(corridor,white)),white)
+let phi2 = eta((green | eta(corridor,oneStepToWhite)), oneStepToWhite)
+//
+//let greenThree = green & (!oneStepToWhite) & (!twoStepsToWhite)
+
+//save "greenOrWhite"   greenOrWhite
+
+save "green" green
+save "white" white
+save "corr" corridor
+save "phi1" phi1
+save "phi2" phi2
+//save "ostw" oneStepToWhite
+//save "prova" prova
+//save "nearCorridor" N(corridor)
+
+//save "oneStepToWhite" oneStepToWhite
+//save "twoStepsToWhite" twoStepsToWhite
+//save "threeStepsToWhite" threeStepsToWhite
+
+//save "greenOneStepToWhite" green & oneStepToWhite
+//save "greenTwoStepsToWhite" green & twoStepsToWhite
+//save "greenThreeStepsToWhite" green & threeStepsToWhite
+//save "greenThree" greenThree
