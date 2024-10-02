@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <SelfContained>true</SelfContained>
     <DebugType>embedded</DebugType>
     <PublishSingleFile>false</PublishSingleFile>
@@ -11,6 +11,7 @@
     <Compile Include="ErrorMsg.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Reducer.fs" />
+    <Compile Include="Labelling.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -26,13 +27,5 @@
     <PropertyGroup>
       <Version>@(version)</Version>
     </PropertyGroup>
-  </Target>
-  <Target Name="CopyLibs" AfterTargets="AfterBuild">
-    <Copy SourceFiles="imgql/RegionCalculus.imgql" DestinationFolder="$(OutDir)/imgql" />
-    <Copy SourceFiles="imgql/stdlib.imgql" DestinationFolder="$(OutDir)/imgql" />
-  </Target>
-  <Target Name="CopyLibsAfterPublish" AfterTargets="Publish">
-    <Copy SourceFiles="imgql/RegionCalculus.imgql" DestinationFolder="$(PublishDir)/imgql" />
-    <Copy SourceFiles="imgql/stdlib.imgql" DestinationFolder="$(PublishDir)/imgql" />
-  </Target>
+  </Target>  
 </Project>
