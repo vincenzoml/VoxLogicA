@@ -23,21 +23,16 @@ UNAME := $(shell uname)
 VERSION=$(shell cat VERSION.txt)
 RELEASENAME=$(PROJ)_$(VERSION)_$(RID)
 RELEASE=../releases/$(RELEASENAME)
+NET=net8.0
 
 ifeq ($(VERSION),"") 
 		$(error "VERSION is not set; set the release number (e.g. 0.5.1) in VERSION.txt") 
 endif
 	
-
-ifeq ($(UNAME),Linux)
-CURRENTRID=linux-x64
-else
-CURRENTRID=osx-x64
-endif
-
-.PHONY: build clean restore release-linux release-osx release-win publish-internal release
+.PHONY: build clean restore release-linux release-osx release-win publish-internal release upgrade
 
 build: *.fs $(PROJ).fsproj
+<<<<<<< HEAD
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c debug -r $(CURRENTRID) 
 
 temporary:
@@ -49,6 +44,12 @@ temporary:
 	mv TriaGraphLogicA TriaGraphLogicA-$(VERSION)-osx
 	# dotnet warp -r win-x64
 	# mv TriaGraphLogicA.exe TriaGraphLogicA-$(VERSION)-win.exe
+=======
+	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c release
+
+build-dbg: *.fs $(PROJ).fsproj
+	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c Debug
+>>>>>>> 17c31905644b20952e5086389a070bcf0ce1e558
 
 restore:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet restore
@@ -56,12 +57,20 @@ restore:
 publish-internal:
 	TERM=xterm DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet publish -c release -r $(RID)
 	mkdir -p $(RELEASE)
+<<<<<<< HEAD
 	cp -a bin/release/net8.0/$(RID)/publish/* $(RELEASE)
+=======
+	rm bin/release/$(NET)/$(RID)/publish/*.pdb
+	cp -a bin/release/$(NET)/$(RID)/publish/* $(RELEASE)
+>>>>>>> 17c31905644b20952e5086389a070bcf0ce1e558
 	cp -a BINARY_LICENSE.txt $(RELEASE)
 	cd ../releases && rm -f $(RELEASENAME).zip && zip -r $(RELEASENAME).zip $(RELEASENAME)
 
 clean:
 	rm -rf bin obj
+
+cleanlib: clean
+	rm -rf lib
 
 release-linux:
 	make publish-internal RID=linux-x64
@@ -72,8 +81,15 @@ release-osx:
 release-win:
 	make publish-internal RID=win-x64
 
-release: release-linux release-osx release-win
+release: release-linux release-osx release-win	
 
+upload-release: release
+	./upload_helper.sh
+
+	
 install-linux: release-linux
 	#TODO: this is temporary; should be made portable
 	echo sudo "cd /opt && $(PWD)/$(RELEASE)linux-x64.zip"	
+
+upgrade: restore
+	dotnet list package --outdated | grep ">"| cut -f 5 -d " " | xargs -l dotnet add package

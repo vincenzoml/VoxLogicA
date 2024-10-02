@@ -1,12 +1,27 @@
 example/output
 bin
 obj
+src/lib
 releases/
 .ionide
 High-grade-Glioblastoma_BRATS/output
+<<<<<<< HEAD
 examples/*/output
 
 .fake.vscode/settings.json
 .vscode
 
 .fake
+=======
+
+.fake
+.vscode/settings.json
+examples/*/output
+tests/*/output
+tests/*/output-gpu
+tests/*/output-cpu.config
+.vscode/
+.config
+src/output
+
+>>>>>>> 17c31905644b20952e5086389a070bcf0ce1e558

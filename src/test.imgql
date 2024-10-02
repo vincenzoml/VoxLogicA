@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 load triangle = "example_poset.json"
 
 //let blue = ap("blue")
@@ -14,3 +15,9 @@ save "nearBlue" N(blue)
 save "or_blue_red" blue | red
 //save "throughGreenBlue" through(green,blue)
 save "gammaRedGreen" gamma(red,green)
+=======
+
+let x = f(g(h(x,y),z),t)
+
+print "" x
+>>>>>>> 17c31905644b20952e5086389a070bcf0ce1e558

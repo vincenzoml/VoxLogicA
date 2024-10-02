@@ -1,56 +1,108 @@
-// Copyright 2018 Vincenzo Ciancia.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-//
-// A copy of the license is available in the file "Apache_License.txt".
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 module VoxLogicA.Main
+
 open System.Reflection
 open Argu
 
-exception CommandLineException 
-    with override __.Message = "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
-
-type LoadFlags = {
-    fname : string;
-    numCores : int
-}
-
-type CmdLine = 
-    | Ops 
-    | Sequential
-    | [<MainCommandAttribute;UniqueAttribute>] Filename of string    
-with
+type LoadFlags = { fname: string; numCores: int }
+// type JSonOutput = FSharp.Data.JsonProvider<"example.json">
+type CmdLine =
+    | [<UniqueAttribute>] Version
+    | [<UniqueAttribute>] SaveTaskGraphAsDot of string
+    | [<UniqueAttribute>] SaveTaskGraph of option<string>
+    | [<UniqueAttribute>] SaveSyntax of option<string>
+    | [<UniqueAttribute>] SaveLabelling of option<string>
+    | [<MainCommandAttribute; UniqueAttribute>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
             match s with
-            | Ops ->  "display a list of all the internal operators, with their types and a brief description"
+            | Version -> "print the voxlogica version and exit"
+            | SaveTaskGraph _ -> "save the task graph"
+            | SaveTaskGraphAsDot _ -> "save the task graph in .dot format and exit"
+            | SaveSyntax _ -> "save the AST in text format and exit"
+            | SaveLabelling _ -> "save the labelling in text format and exit"       
             | Filename _ -> "VoxLogicA session file"
-            | Sequential ->  "Run on one CPU only"
-    
+
 [<EntryPoint>]
-let main (argv : string array) =
+let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
+<<<<<<< HEAD
     let version = name.Version 
     let informationalVersion = ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
     ErrorMsg.Logger.Debug (sprintf "%s %s" name.Name informationalVersion)
     let model = PosetModel() :> IModel   
     let checker = ModelChecker(model)          
     if version.Revision <> 0 then ErrorMsg.Logger.Warning (sprintf "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d." name.Name version.Major version.Minor version.Build)                        
+=======
+    let version = name.Version
+
+    let informationalVersion =
+        ((Assembly
+            .GetEntryAssembly()
+            .GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0])
+        :?> AssemblyInformationalVersionAttribute)
+            .InformationalVersion
+
+    let cmdLineParser =
+        ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
+
+    let parsed = cmdLineParser.Parse argv
+
+    if Option.isSome (parsed.TryGetResult Version) then
+        printfn "%s" informationalVersion
+        exit 0
+
+    ErrorMsg.Logger.LogToStdout()
+#if ! DEBUG
+    ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
+#else
+    () 
+#endif
+
+    if version.Revision <> 0 then
+        ErrorMsg.Logger.Warning(
+            sprintf
+                "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d."
+                name.Name
+                version.Major
+                version.Minor
+                version.Build
+        )
+
+>>>>>>> 17c31905644b20952e5086389a070bcf0ce1e558
     try
-        let cmdLineParser = ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())     
-        let parsed = cmdLineParser.Parse argv  
+
+        let filename: string =
+            if parsed.Contains Filename then
+                parsed.GetResult Filename
+            else
+#if DEBUG
+                "test.imgql"
+#else
+                printfn "%s version: %s" name.Name informationalVersion
+                printfn "%s\n" (cmdLineParser.PrintUsage())
+                exit 0
+#endif
+
+        ErrorMsg.Logger.Info $"{name.Name} version: {informationalVersion}"
+
+        let syntax = Parser.parseProgram filename
+        ErrorMsg.Logger.Debug "Program parsed"
+
+        if parsed.Contains SaveSyntax then
+            let filenameOpt = parsed.GetResult SaveSyntax
+
+            match filenameOpt with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the abstract syntax to {filename}"
+                System.IO.File.WriteAllText(filename, $"{syntax}")
+            | None -> ErrorMsg.Logger.Debug $"{syntax}"
+
+        let program: Reducer.WorkPlan = Reducer.reduceProgram syntax
+
+        ErrorMsg.Logger.Debug "Program reduced"
+        ErrorMsg.Logger.Info $"Number of tasks: {program.operations.Length}"
         
+<<<<<<< HEAD
         if parsed.Contains Ops
         then 
             Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
@@ -78,3 +130,40 @@ let main (argv : string array) =
             ErrorMsg.Logger.DebugExn e
             ErrorMsg.Logger.Failure "exiting."
             1
+=======
+        if parsed.Contains SaveTaskGraph then
+            let filenameOpt = parsed.GetResult SaveTaskGraph
+
+            match filenameOpt with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
+                System.IO.File.WriteAllText(filename, $"{program}")
+            | None -> ErrorMsg.Logger.Debug $"{program}"
+
+
+        if parsed.Contains SaveTaskGraphAsDot then
+            let filename = parsed.GetResult SaveTaskGraphAsDot
+            ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
+            System.IO.File.WriteAllText(filename, program.ToDot())
+        
+        if parsed.Contains SaveLabelling then            
+            let labelling = Labelling.label(program)
+            let labellingString = 
+                labelling
+                |> Array.mapi (fun i x -> $"{i}: {x}")
+                |> String.concat "\n"                
+            let x = parsed.GetResult SaveLabelling
+            match x with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the labelling to {filename}"            
+                System.IO.File.WriteAllText(filename, labellingString)
+            | None -> ErrorMsg.Logger.Debug labellingString
+
+        ErrorMsg.Logger.Info "All done."
+        0
+    with
+    | e ->
+        ErrorMsg.Logger.DebugExn e
+        raise e
+        1
+>>>>>>> 17c31905644b20952e5086389a070bcf0ce1e558

@@ -18,6 +18,8 @@ namespace VoxLogicA
 
 open System.Collections.Generic
 open FSharp.Json
+open System
+open System.IO
 
 exception NoModelLoadedException with
     override __.Message = "No model loaded"
@@ -99,7 +101,12 @@ type PosetModel() =
                 if not (Set.isEmpty currentComponent) 
                 then components <- Set.add currentComponent components
                 explored <- newExplored
-            
+        
+        //let docPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments)
+        //let outputFile : StreamWriter = new StreamWriter("components.txt")
+        //printfn "len components is %A" components.Count
+        //for el in components do
+        //    System.IO.File.AppendAllText("components.txt", string el + "\n")
         components
 
     let rec createComponentsTruthValues ccs acc (v : Truth) =
@@ -113,6 +120,7 @@ type PosetModel() =
     let closure v =
         let poset = getBasePoset()
         let idxs = findAllIndexes v true 0
+        //printfn "indexes are %A" idxs
         let myModel = match internalData with
                         | None -> raise NoModelLoadedException
                         | Some x -> x
@@ -121,11 +129,14 @@ type PosetModel() =
             for i in myModel.downs[elem] do
                 localTruths[elem][i] <- true
         let mutable result = FF poset.points.Length
+        //printfn "local truths are %A" localTruths
         for elem in localTruths do
             result <- Or result elem
+        //printfn "result is %A" result
         Or result v
 
     let gamma (v1 : Truth) (v2 : Truth) =
+        //printfn "v1 and v2 %A %A" v1 v2
         let components = connComponents v1
         let truthComponentValues = createComponentsTruthValues (Set.toList components) [] v1
         let rec computeClosures components acc1 =
@@ -263,5 +274,6 @@ type PosetModel() =
         }
 
         member __.Eta v1 v2 = job {
+            //printfn "in eta"
             return And v1 (gamma v1 v2)            
         }

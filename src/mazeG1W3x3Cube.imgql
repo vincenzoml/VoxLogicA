@@ -1,4 +1,4 @@
-load model = "3DMAZE_MODELS/3DMAZE_3x5x3_G1W_LC_V2/mazeModel_Poset.json"
+load model = "3DMAZE_MODELS/3DMAZE_5x5x5_G1W_LC_V2/polyInput_Poset.json"
 
 // Define reach (rho) in terms of through (gamma)
 let reach(x,y) = x | through(y,x)
@@ -13,17 +13,17 @@ let green       = ap("G")
 let white       = ap("W")
 let corridor    = ap("corridor")
 
-
 let greenOrWhite		= (green | white)
 
+//let prova = eta(corridor, white)
 let oneStepToWhite   = eta((green | eta(corridor,white)),white)
 let twoStepsToWhite  = eta((green | eta(corridor,oneStepToWhite)), oneStepToWhite) & (!oneStepToWhite)
 let threeStepsToWhite = eta((green | eta(corridor,twoStepsToWhite)), twoStepsToWhite) & (!twoStepsToWhite) & (!oneStepToWhite)
 
 let phi1 = eta((green | eta(corridor,white)),white)
 let phi2 = eta((green | eta(corridor,oneStepToWhite)), oneStepToWhite)
-
-let greenThree = green & (!oneStepToWhite) & (!twoStepsToWhite)
+//
+//let greenThree = green & (!oneStepToWhite) & (!twoStepsToWhite)
 
 //save "greenOrWhite"   greenOrWhite
 
@@ -32,6 +32,9 @@ save "white" white
 save "corr" corridor
 save "phi1" phi1
 save "phi2" phi2
+//save "ostw" oneStepToWhite
+//save "prova" prova
+//save "nearCorridor" N(corridor)
 
 //save "oneStepToWhite" oneStepToWhite
 //save "twoStepsToWhite" twoStepsToWhite

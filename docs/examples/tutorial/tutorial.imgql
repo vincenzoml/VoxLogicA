@@ -1,0 +1,93 @@
+// A mini-quickstart tutorial for VoxLogicA
+//
+// Task: remove the background from a simple image, leaving just the coloured
+// items in there.
+
+// To run this example, cd to the directory containing this file and run
+// VoxLogicA on this file
+//
+//  /path/to/VoxLogicA example.imgql         
+
+
+
+// Load the image
+
+load image = "three_coloured_items.png"
+
+
+// Give names to the components of the image, to ease typing
+
+let r = red(image)
+let g = green(image)
+let b = blue(image)
+
+
+// The background is not very coloured; it's grayish. Let us capture it as
+// follows. Coloured items may also have high values for some components, but
+// not for all three! NOTE: we could also have used percentiles(r) (also for g
+// and b components) to avoid referencing an absolute value ("120"). Later you
+// can return here and experiment with that
+
+let tendentToGray = (r >. 120) & (g >. 120) & (b >. 120) 
+
+
+// Save the intermediate result
+
+save "output/01_tendentToGray.png" tendentToGray
+
+
+// Note that the "output" directory will be created if it does not exist Also
+// note that should you save an image valued between 0 and 1 (instead of 0 and
+// 255) in a png or jpg file, you are responsible for rescaling! png uses
+// integer values. To rescale if needed, use the smul operator (VoxLogicA --ops
+// will list all the operators, including smul and its type).
+
+
+// The background is the part tendent to gray that touches the border
+
+let background  = touch(tendentToGray,border)
+
+
+// Please, check the difference between background.png and tendentToGray.png
+// now! Can you see the "noise" that is removed?
+
+save "output/02_background.png" background
+
+
+// Check the background now. It's still noisy. We want to use its complement as
+// a mask to select only the "coloured things". So we will remove from its
+// complement the noise in two ways: first, removing the part that touches the
+// border, then smoothening a bit. Operator "\" is defined in "stdlib.imgql"; it
+// is set-theoretical subtraction. So below we are filtering, with radius 5
+// pixels, the complement of the background WITHOUT the part of it that touches
+// the border. (Indeed, prefix operator "!" is boolean complement).
+
+
+let thingsMask0 = (!background) \ touch(!background,border)
+
+save "output/03_thingsMask0.png" thingsMask0
+
+// Let us now define a simple "smoothen" filter; below, x is a number (radius of smothening), whereas
+// distlt(x,y) is the set of points at distance less than x from the points true in (boolean-valued image) y
+// (see also the paper https://arxiv.org/abs/1811.05677, Section 4, and Section 2 for theory)
+
+let distgeq(x,y) = x .<= pdt(y)
+let distleq(x,y) = x .>= pdt(y)
+let flt(x,a) = distleq(x,distgeq(x,!a))
+
+let thingsMask = flt(5,thingsMask0)
+save "output/04_thingsMask.png" thingsMask
+
+
+// Check the result now. Try removing the flt operator. Try removing also the touch operator.
+// Do you see the difference?
+
+// Finally, let us save in rgb the masked image, using the "mask" and "rgb" primitives
+
+let maskedImage = rgb(mask(r,thingsMask),mask(g,thingsMask),mask(b,thingsMask))
+save "output/05_maskedImage.png" maskedImage
+
+
+// Let us also save the original image so that you can check the difference in the image viewer.
+
+save "output/00_original_image.png" image
