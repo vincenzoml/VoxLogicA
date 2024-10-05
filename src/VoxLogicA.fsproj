@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="ErrorMsg.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="SpatioTemporal.fs" />
     <Compile Include="Reducer.fs" />
     <Compile Include="Labelling.fs" />
     <Compile Include="Program.fs" />

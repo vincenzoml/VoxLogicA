@@ -7,6 +7,7 @@ type LoadFlags = { fname: string; numCores: int }
 // type JSonOutput = FSharp.Data.JsonProvider<"example.json">
 type CmdLine =
     | [<UniqueAttribute>] Version
+    | [<UniqueAttribute>] FlattenSpatioTemporal of string
     | [<UniqueAttribute>] SaveTaskGraphAsDot of string
     | [<UniqueAttribute>] SaveTaskGraph of option<string>
     | [<UniqueAttribute>] SaveSyntax of option<string>
@@ -16,6 +17,7 @@ type CmdLine =
         member s.Usage =
             match s with
             | Version -> "print the voxlogica version and exit"
+            | FlattenSpatioTemporal _ -> "save spatial specification from spatio temporal"
             | SaveTaskGraph _ -> "save the task graph"
             | SaveTaskGraphAsDot _ -> "save the task graph in .dot format and exit"
             | SaveSyntax _ -> "save the AST in text format and exit"
@@ -92,6 +94,16 @@ let main (argv: string array) =
 
         ErrorMsg.Logger.Debug "Program reduced"
         ErrorMsg.Logger.Info $"Number of tasks: {program.operations.Length}"
+
+        if parsed.Contains FlattenSpatioTemporal then
+            let filenameOpt = parsed.GetResult FlattenSpatioTemporal
+
+            match filenameOpt with
+            | filename ->
+                ErrorMsg.Logger.Debug $"Saving spatio-temporal flattening to {filename}"
+                System.IO.File.WriteAllText(filename, SpatioTemporal.flattenSpatioTemporal syntax)
+
+
         
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph
