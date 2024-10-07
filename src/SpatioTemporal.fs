@@ -2,4 +2,13 @@ module VoxLogicA.SpatioTemporal
 
 open VoxLogicA.Parser
 
-let flattenSpatioTemporal syntax = "prova"
+
+let eval (c : Command) : Command = 
+    match c with
+    | _ -> c
+
+let rec flattenSpatioTemporal (syntax : list<Command>) =
+    match syntax with
+    | [] -> []
+    | c::cs -> ((eval c)::(flattenSpatioTemporal cs))
+    | _ -> failwith "stub"

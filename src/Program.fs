@@ -2,6 +2,7 @@ module VoxLogicA.Main
 
 open System.Reflection
 open Argu
+open VoxLogicA.Parser
 
 type LoadFlags = { fname: string; numCores: int }
 // type JSonOutput = FSharp.Data.JsonProvider<"example.json">
@@ -98,10 +99,15 @@ let main (argv: string array) =
         if parsed.Contains FlattenSpatioTemporal then
             let filenameOpt = parsed.GetResult FlattenSpatioTemporal
 
+            let commands =
+                match syntax with
+                | Program p -> p
+
             match filenameOpt with
             | filename ->
                 ErrorMsg.Logger.Debug $"Saving spatio-temporal flattening to {filename}"
-                System.IO.File.WriteAllText(filename, SpatioTemporal.flattenSpatioTemporal syntax)
+                let spatioTemporalProgram = SpatioTemporal.flattenSpatioTemporal commands
+                System.IO.File.WriteAllText(filename, (Program (SpatioTemporal.flattenSpatioTemporal commands)).ToString())
 
 
         
