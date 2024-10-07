@@ -107,7 +107,7 @@ let main (argv: string array) =
             | filename ->
                 ErrorMsg.Logger.Debug $"Saving spatio-temporal flattening to {filename}"
                 let spatioTemporalProgram = SpatioTemporal.flattenSpatioTemporal commands
-                System.IO.File.WriteAllText(filename, (Program (SpatioTemporal.flattenSpatioTemporal commands)).ToString())
+                System.IO.File.WriteAllText(filename, spatioTemporalProgram.ToString())
 
 
         

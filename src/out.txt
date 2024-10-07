@@ -1,16 +1,1 @@
-Program
-  [Declaration
-     ("x", [],
-      ECall
-        ("("test.imgql", Ln: 2, Col: 9)", "f",
-         [ECall
-            ("("test.imgql", Ln: 2, Col: 11)", "g",
-             [ECall
-                ("("test.imgql", Ln: 2, Col: 13)", "h",
-                 [ECall ("("test.imgql", Ln: 2, Col: 15)", "x", []);
-                  ECall ("("test.imgql", Ln: 2, Col: 17)", "y", [])]);
-              ECall ("("test.imgql", Ln: 2, Col: 20)", "z", [])]);
-          ECall ("("test.imgql", Ln: 2, Col: 23)", "t", [])]));
-   Print
-     ("("test.imgql", Ln: 4, Col: 1)", "",
-      ECall ("("test.imgql", Ln: 4, Col: 10)", "x", []))]
+[This is something else; This is a diamond]

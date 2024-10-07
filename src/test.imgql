@@ -1,4 +1,5 @@
 
 let x = f(g(h(x,y),z),t)
+let y = <>(x)
 
-print "" x
+//print "" x
