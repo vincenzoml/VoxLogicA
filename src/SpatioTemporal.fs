@@ -12,7 +12,7 @@ type VideoEnv = Videos of list<string*string*float> with
     member this.Lookup video = 
         let env = this.Env
         let rec lookup vid vl =
-            match env with
+            match vl with
             | [] -> failwith "Unbound video"
             | (n,v,l)::vs -> if video = n then (n,v,l) else (lookup vid vs)
         in lookup video env
