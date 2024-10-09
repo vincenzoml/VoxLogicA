@@ -3,6 +3,7 @@ module VoxLogicA.Main
 open System.Reflection
 open Argu
 open VoxLogicA.Parser
+open VoxLogicA.SpatioTemporal
 
 type LoadFlags = { fname: string; numCores: int }
 // type JSonOutput = FSharp.Data.JsonProvider<"example.json">
@@ -106,8 +107,9 @@ let main (argv: string array) =
             match filenameOpt with
             | filename ->
                 ErrorMsg.Logger.Debug $"Saving spatio-temporal flattening to {filename}"
-                let spatioTemporalProgram = SpatioTemporal.flattenSpatioTemporal commands
+                let spatioTemporalProgram, venv = SpatioTemporal.flattenSpatioTemporal commands (Videos [])
                 System.IO.File.WriteAllText(filename, $"{spatioTemporalProgram}")
+                ErrorMsg.Logger.Debug $"{venv}"
 
 
         
