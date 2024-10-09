@@ -3,32 +3,46 @@ module VoxLogicA.SpatioTemporal
 open VoxLogicA.Parser
 
 let mutable time = 0.0
-let mutable maxTime = 0.0
 
 type VideoEnv = Videos of list<string*string*float> with
     member this.Env = 
         match this with
         | Videos videos -> videos
     member this.Bind(name, video, length) = Videos ((name,video,length)::this.Env)
+    member this.Lookup video = 
+        let env = this.Env
+        let rec lookup vid vl =
+            match env with
+            | [] -> failwith "Unbound video"
+            | (n,v,l)::vs -> if video = n then (n,v,l) else (lookup vid vs)
+        in lookup video env
 
 let mutable videoEnv = Videos []
 
+let (|Prefix|_|) (p:string) (s:string) =
+    if s.StartsWith(p) then
+        Some(s.Substring(p.Length))
+    else
+        None
+
 let rec updateExpr exp =
     match exp with
-    | ECall(p, "frame", []) -> ECall(p, "frame" + (string time), [])
-    | ECall(p, ide, ex::exps) ->
-        if ide = "<>" then
-            time <- time+1.0
-            if time > maxTime then
+    | ECall(p, ide, []) ->
+        match ide with
+        | Prefix "video" _ -> 
+            let (_,_,l) = videoEnv.Lookup(ide)
+            if time >= l then
                 failwith "Exceeded trace length"
             else 
-                updateExpr ex
-            //match ex with 
-            //| ECall(pos, id, e::exs) ->
-            //    ECall(pos, id, (updateExpr e)::exs)
-            //| _ -> failwith "Not a valid syntax"
-        else
-            ECall(p, ide, (updateExpr ex)::exps)
+                ECall(p, ide + "_" + (string time), [])
+        | "<>" -> failwith "Diamond takes one argument"
+        | _ -> ECall(p, ide, [])
+    | ECall(p, ide, ex::exps) ->
+        match ide with
+        | "<>" ->
+            time <- time+1.0
+            updateExpr ex
+        | _ -> ECall(p, ide, (updateExpr ex)::exps)
     | e -> e
 
 let rec flattenSpatioTemporal (syntax : list<Command>) =
@@ -40,7 +54,6 @@ let rec flattenSpatioTemporal (syntax : list<Command>) =
             match expr with
             | ECall(_, "bind", [EString s; ENumber n]) -> 
                 videoEnv <- videoEnv.Bind(name,s,n)
-                maxTime <- n
                 c::(flattenSpatioTemporal cs)
             | _ ->   
                 let newExpr = updateExpr expr
