@@ -9,13 +9,15 @@ type Env<'T> = Env of list<string*'T> with
         match this with
         | Env env -> env
 
-    member this.Bind(name, el) = Env ((name, el)::this.Environment)
-    member this.Lookup(element : string) : 'T  = 
-        let env = this.Environment
-        let rec lookup el els =
+    member this.Bind(name : string, el) = Env ((name, el)::this.Environment)
+    member this.Lookup(element:string) : 'T  = 
+        let env : list<string*'T> = this.Environment
+        let rec lookup (el:string) (els : list<string*'T>) : 'T =
             match els with
-            | [] -> failwith "Unbound element"
-            | (n,v)::es -> if el = n then v else (lookup el es)
+            | [] -> 
+                failwith "Unbound element"
+            | (n,v)::es -> 
+                if el = n then v else (lookup el es)
         in lookup element env
 
 type Video = Vid of string*float
@@ -41,7 +43,10 @@ let (|Prefix|_|) (p:string) (s:string) =
     else
         None
 
+let mutable currentFrame = ""
+
 let rec updateExpr exp (venv : Env<Video>) (eenv : Env<list<Expression>>) (fenv : Env<FunAbstraction>)  =
+    //printfn "call to update"
     match exp with
     | ECall(p, ide, []) ->
         match ide with
@@ -54,7 +59,8 @@ let rec updateExpr exp (venv : Env<Video>) (eenv : Env<list<Expression>>) (fenv 
                 else 
                     ECall(p, ide + "_" + (string time), [])
         | "<>" -> failwith "Diamond must take one argument"
-        | _ -> ECall(p, ide, [])
+        | _ -> 
+            ECall(p, (currentFrame + "_" + string time), [])
     | ECall(p, ide, ex::exps) ->
         match ide with
         | "<>" ->
@@ -68,15 +74,15 @@ let rec updateExpr exp (venv : Env<Video>) (eenv : Env<list<Expression>>) (fenv 
         //    ex
         | _ -> 
             let funAbs = fenv.Lookup(ide)
-            let exp = eenv.Lookup(ide)
+            //let exp = eenv.Lookup(ide)
             match funAbs with
             | EFun (e, env) ->
-                let newExp = updateExpr e venv eenv fenv
+                let newExp = updateExpr e venv env fenv
                 let mutable newExpList = []
-                for e in exps do 
-                    newExpList <- (updateExpr e venv eenv fenv)::newExpList
+                for ei in exps do 
+                    newExpList <- (updateExpr ei venv env fenv)::newExpList
                 ECall(p, ide, newExp::newExpList)
-    | e -> updateExpr e venv eenv fenv
+    | e -> e
 
 let rec flattenSpatioTemporal (syntax : list<Command>) (venv : Env<Video>) (expenv : Env<list<Expression>>) (funenv : Env<FunAbstraction>)=
     match syntax, venv, expenv, funenv with
@@ -87,12 +93,13 @@ let rec flattenSpatioTemporal (syntax : list<Command>) (venv : Env<Video>) (expe
             match expr with
             | ECall(_, "bind", [EString s; ENumber n]) -> 
                 let venv1 = venv.Bind(name,(Vid(s,n)))
+                currentFrame <- name
                 let commands, venv2, eenv2, fenv2 = flattenSpatioTemporal cs venv1 eenv fenv
                 (c::(commands), venv2, eenv2, fenv2)
             | ECall(_, ide, exps) ->
-                let eenv1 = eenv.Bind(ide, exps)
+                let eenv1 = eenv.Bind(name, exps)
                 let funAbs = EFun (expr,eenv1)
-                let fenv1 = funenv.Bind(ide,funAbs)
+                let fenv1 = funenv.Bind(name,funAbs)
                 let commands, venv2, eenv2, fenv2 = flattenSpatioTemporal cs venv eenv1 fenv1
                 c::commands, venv2, eenv2, fenv2
             | _ ->   
@@ -101,10 +108,15 @@ let rec flattenSpatioTemporal (syntax : list<Command>) (venv : Env<Video>) (expe
                 let commands, venv1, eenv2, fenv2 = flattenSpatioTemporal cs venv eenv fenv
                 (c::commands), venv1, eenv2, fenv2
         | Print(p, name, exp) ->
+            time <- 0.0
             match exp with
             | ECall(_,ide,elist) ->
+                //for arg in elist do
+                //    match arg with
+                //    | ECall(_, a, []) -> currentFrame <- a //a is an actual parameter
+                //    | _ -> currentFrame <- currentFrame
                 if ide <> "<>" then
-                    let exp = eenv.Lookup(ide)
+                    //let exp = eenv.Lookup(ide)
                     let funAbs = fenv.Lookup(ide)
                     match funAbs with
                     | EFun(a,b) ->
@@ -115,6 +127,7 @@ let rec flattenSpatioTemporal (syntax : list<Command>) (venv : Env<Video>) (expe
                     let newExp = updateExpr exp venv eenv fenv
                     let commands, venv1, eenv1, fenv1 = flattenSpatioTemporal cs venv eenv fenv
                     Print(p, name, newExp)::commands, venv, eenv, fenv
+            | _ -> failwith "stub"
         | _ ->
             let commands, venv1, eenv1, fenv1 = flattenSpatioTemporal cs venv eenv fenv
             (c::(commands), venv1, eenv1, fenv1)

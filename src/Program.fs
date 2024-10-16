@@ -107,8 +107,10 @@ let main (argv: string array) =
             match filenameOpt with
             | filename ->
                 ErrorMsg.Logger.Debug $"Saving spatio-temporal flattening to {filename}"
-                let spatioTemporalProgram, venv, _, _ = SpatioTemporal.flattenSpatioTemporal commands (Env []) (Env []) (Env []) 
-                System.IO.File.WriteAllText(filename, $"{spatioTemporalProgram}")
+                let spatioTemporalProgram, venv, _, _ = SpatioTemporal.flattenSpatioTemporal commands (Env []) (Env []) (Env [">",EFun(ECall("", "x", []),Env[])]) 
+                System.IO.File.Delete(filename)
+                for command in spatioTemporalProgram do
+                    System.IO.File.AppendAllText(filename, $"{command}")
                 ErrorMsg.Logger.Debug $"{venv}"
 
 
