@@ -1,0 +1,5 @@
+let op0=n
+let op1=use(op0)
+let op2=inc(op0)
+let op3=updCtx(op1,op2)
+save "result" op3

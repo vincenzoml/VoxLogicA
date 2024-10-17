@@ -1,0 +1,6 @@
+let op0(n)=0
+let op1(n)=n
+let op2(n)=use(op1(n))
+let op3(n)=inc(op1(n))
+let op4(n)=op2(op3(n))
+save "result" op4(op1(n))

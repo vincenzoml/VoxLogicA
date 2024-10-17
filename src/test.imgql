@@ -1,5 +1,5 @@
+let diamond(phi) = updCtx(phi,inc(n))
 
-let x = f(g(h(x,y),z),t)
-let y = <>(x)
+let result = diamond(use(n))
 
-//print "" x
+save "result" result

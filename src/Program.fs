@@ -12,6 +12,8 @@ type CmdLine =
     | [<UniqueAttribute>] FlattenSpatioTemporal of string
     | [<UniqueAttribute>] SaveTaskGraphAsDot of string
     | [<UniqueAttribute>] SaveTaskGraph of option<string>
+    | [<UniqueAttribute>] SaveTaskGraphAsAST of option<string>
+    | [<UniqueAttribute>] SaveTaskGraphAsProgram of option<string>
     | [<UniqueAttribute>] SaveSyntax of option<string>
     | [<UniqueAttribute>] SaveLabelling of option<string>
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
@@ -22,6 +24,8 @@ type CmdLine =
             | FlattenSpatioTemporal _ -> "save spatial specification from spatio temporal"
             | SaveTaskGraph _ -> "save the task graph"
             | SaveTaskGraphAsDot _ -> "save the task graph in .dot format and exit"
+            | SaveTaskGraphAsAST _ -> "save the task graph in AST format and exit"
+            | SaveTaskGraphAsProgram _ -> "save the task graph in VoxLogicA format and exit"
             | SaveSyntax _ -> "save the AST in text format and exit"
             | SaveLabelling _ -> "save the labelling in text format and exit"       
             | Filename _ -> "VoxLogicA session file"
@@ -114,7 +118,27 @@ let main (argv: string array) =
                 ErrorMsg.Logger.Debug $"{venv}"
 
 
-        
+        if parsed.Contains SaveTaskGraphAsAST then
+            let filenameOpt = parsed.GetResult SaveTaskGraphAsAST
+
+            let voxlogicaProgram = program.ToProgram(None)
+            match filenameOpt with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the task graph in AST syntax to {filename}"
+                System.IO.File.WriteAllText(filename, $"{voxlogicaProgram}")
+            | None -> ErrorMsg.Logger.Debug $"{voxlogicaProgram}"
+
+        if parsed.Contains SaveTaskGraphAsProgram then
+            let filenameOpt = parsed.GetResult SaveTaskGraphAsProgram
+
+            let voxlogicaProgram = program.ToProgram(None)
+            let voxlogicaSyntax = voxlogicaProgram.ToSyntax()
+            match filenameOpt with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving the task graph in VoxLogicA syntax to {filename}"
+                System.IO.File.WriteAllText(filename, $"{voxlogicaSyntax}")
+            | None -> ErrorMsg.Logger.Debug $"{voxlogicaSyntax}"
+
         if parsed.Contains SaveTaskGraph then
             let filenameOpt = parsed.GetResult SaveTaskGraph
 
