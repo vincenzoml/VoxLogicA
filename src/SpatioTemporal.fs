@@ -84,6 +84,11 @@ let rec updateExpr exp (venv : Env<Video>) (eenv : Env<list<Expression>>) (fenv 
                 ECall(p, ide, newExp::newExpList)
     | e -> e
 
+//let rec getActualParameters (exp : Expression) =
+//    match exp with
+//    | ECall(_,arg,[]) -> arg
+//    | ECall(_,e,_) -> getActualParameters e
+
 let rec flattenSpatioTemporal (syntax : list<Command>) (venv : Env<Video>) (expenv : Env<list<Expression>>) (funenv : Env<FunAbstraction>)=
     match syntax, venv, expenv, funenv with
     | [], venv, eenv, fenv -> ([],venv, eenv, fenv)
