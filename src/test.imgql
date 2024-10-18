@@ -1,3 +1,5 @@
-let result = diamond(use(n))
+let video = load("video.avi")
 
-save "result" result
+let interesting = gt(intensity(frame(video,n)),42)
+
+save "result" and(interesting,diamond(interesting))

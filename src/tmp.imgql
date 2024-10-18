@@ -1,4 +1,10 @@
-let op0(n)=n
-let op1(n)=use(op0(n))
-let op2(n)=op1(inc(n))
-save "result" op2(0)
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=42
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=op6(inc(n))
+let op8(n)=and(op6(n),op7(n))
+save "result" op8(0)
