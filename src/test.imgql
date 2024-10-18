@@ -2,4 +2,4 @@ let video = load("video.avi")
 
 let interesting = gt(intensity(frame(video,n)),42)
 
-save "result" and(interesting,diamond(interesting))
+save "result" and(interesting,diamond(interesting),diamond(diamond(interesting)))

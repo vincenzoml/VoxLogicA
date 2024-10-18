@@ -6,5 +6,6 @@ let op4(n)=intensity(op3(n))
 let op5(n)=42
 let op6(n)=gt(op4(n),op5(n))
 let op7(n)=op6(inc(n))
-let op8(n)=and(op6(n),op7(n))
-save "result" op8(0)
+let op8(n)=op7(inc(n))
+let op9(n)=and(op6(n),op7(n),op8(n))
+save "result" op9(0)

@@ -1,4 +1,4 @@
-goals: GoalSave ("result", 11)
+goals: GoalSave ("result", 15)
 operations:
 0 -> 0
 1 -> video.avi
@@ -11,4 +11,8 @@ operations:
 8 -> frame(2,7)
 9 -> intensity(8)
 10 -> gt(9,5)
-11 -> and(6,10)
+11 -> inc(7)
+12 -> frame(2,11)
+13 -> intensity(12)
+14 -> gt(13,5)
+15 -> and(6,10,14)
