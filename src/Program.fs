@@ -121,7 +121,7 @@ let main (argv: string array) =
         if parsed.Contains SaveTaskGraphAsAST then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsAST
 
-            let voxlogicaProgram = program.ToProgram(None)
+            let voxlogicaProgram = program.ToProgram("n")
             match filenameOpt with
             | Some filename ->
                 ErrorMsg.Logger.Debug $"Saving the task graph in AST syntax to {filename}"
@@ -131,7 +131,7 @@ let main (argv: string array) =
         if parsed.Contains SaveTaskGraphAsProgram then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsProgram
 
-            let voxlogicaProgram = program.ToProgram(None)
+            let voxlogicaProgram = program.ToProgram("n")
             let voxlogicaSyntax = voxlogicaProgram.ToSyntax()
             match filenameOpt with
             | Some filename ->

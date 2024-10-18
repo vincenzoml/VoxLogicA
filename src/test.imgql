@@ -1,5 +1,3 @@
-let diamond(phi) = updCtx(phi,inc(n))
-
 let result = diamond(use(n))
 
 save "result" result
