@@ -42,6 +42,9 @@ type Goal =
     | GoalSave of string * OperationId
     | GoalPrint of string * OperationId
 
+let mutable maxLength = 0
+let mutable counter = 0
+
 type WorkPlan =
     { operations: array<Operation>
       goals: array<Goal> }
@@ -56,15 +59,38 @@ type WorkPlan =
 
 
     member this.ToProgram (context: string) : Program =
-        let operationToExpression (op: Operation) (context: string): Expression =
+        let sem (op: Operation) (context: string): seq<Command>*Expression =
             match op.operator with
+            | Identifier "frame" ->
+                match Seq.toList op.arguments with
+                | [_;_;l] -> 
+                    let op = this.operations[l]
+                    match op.operator with
+                    | Number x -> 
+                        maxLength <- int x
+                        Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",[ECall("unknown", context, [])])) op.arguments))
+                    | _ -> failwith "argument must be a number"
+                | _ -> failwith "frame must take three arguments"
             | Identifier "diamond" ->                
                 match Seq.toList op.arguments with
-                | [a] -> ECall("unknown", $"op{a}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])
+                | [a] -> Seq.empty,ECall("unknown", $"op{a}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])
                 | _ ->
                     failwith "Diamond must take one argument"
+            | Identifier "until" ->
+                match Seq.toList op.arguments with
+                | [a;b] ->
+                    counter <- counter + 1
+                    if counter < maxLength then
+                        let phi = ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
+                        let psi = ECall("unknown", $"op{b}", [ECall("unknown", context, [])])
+                        let e = ECall("unknown", "and", [phi; ECall("unknown", $"diamond", [ECall("unknown", $"until", [phi; psi])])])
+                        seq {Declaration($"op{this.operations.Length+counter}", [], e)}, e
+                    else
+                        Seq.empty, ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
+                | _ ->
+                    failwith "Until must take two arguments"
             | Identifier x ->
-                ECall(
+                Seq.empty, ECall(
                     "unknown",
                     x,
                     // let ctx = 
@@ -74,16 +100,17 @@ type WorkPlan =
                     // Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",ctx)) op.arguments)
                     Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",[ECall("unknown", context, [])])) op.arguments)
                 )
-            | Number x -> ENumber x
-            | Bool x -> EBool x
-            | String x -> EString x
+            | Number x -> Seq.empty, ENumber x
+            | Bool x -> Seq.empty, EBool x
+            | String x -> Seq.empty, EString x
 
         let declarations: seq<Command> =
             seq {
                 for i = 0 to this.operations.Length - 1 do
-                    
-                    // | None -> yield Declaration($"op{i}", [], operationToExpression this.operations[i] context)
-                    yield Declaration($"op{i}({context})", [], operationToExpression this.operations[i] context)
+                    let s, e = sem this.operations[i] context
+                    yield! s
+                    // | None -> yield Declaration($"op{i}", [], sem this.operations[i] context)
+                    yield Declaration($"op{i}({context})", [], e)
             }
 
         let goals: seq<Command> =
