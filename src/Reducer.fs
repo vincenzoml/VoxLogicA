@@ -64,8 +64,8 @@ type WorkPlan =
             | Identifier "frame" ->
                 match Seq.toList op.arguments with
                 | [_;_;l] -> 
-                    let op = this.operations[l]
-                    match op.operator with
+                    let operation = this.operations[l]
+                    match operation.operator with
                     | Number x -> 
                         maxLength <- int x
                         Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",[ECall("unknown", context, [])])) op.arguments))
@@ -80,11 +80,13 @@ type WorkPlan =
                 match Seq.toList op.arguments with
                 | [a;b] ->
                     counter <- counter + 1
+                    printfn "maxLength: %i" maxLength
+                    printfn "counter: %i" counter
                     if counter < maxLength then
                         let phi = ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
                         let psi = ECall("unknown", $"op{b}", [ECall("unknown", context, [])])
                         let e = ECall("unknown", "and", [phi; ECall("unknown", $"diamond", [ECall("unknown", $"until", [phi; psi])])])
-                        seq {Declaration($"op{this.operations.Length+counter}", [], e)}, e
+                        seq {Declaration($"op{this.operations.Length+counter-1}", [], e)}, e
                     else
                         Seq.empty, ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
                 | _ ->
