@@ -43,7 +43,9 @@ type Goal =
     | GoalPrint of string * OperationId
 
 let mutable maxLength = 0
-let mutable counter = 0
+let mutable counter = -1
+
+let mutable until = false
 
 type WorkPlan =
     { operations: array<Operation>
@@ -77,20 +79,19 @@ type WorkPlan =
                 | _ ->
                     failwith "Diamond must take one argument"
             | Identifier "until" ->
-                match Seq.toList op.arguments with
-                | [a;b] ->
-                    counter <- counter + 1
-                    printfn "maxLength: %i" maxLength
-                    printfn "counter: %i" counter
-                    if counter < maxLength then
+                 match Seq.toList op.arguments with
+                    | [a;b] -> 
+                        until <- true
+                        let mutable declarationSeq : Command seq = Seq.empty
                         let phi = ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
                         let psi = ECall("unknown", $"op{b}", [ECall("unknown", context, [])])
-                        let e = ECall("unknown", "and", [phi; ECall("unknown", $"diamond", [ECall("unknown", $"until", [phi; psi])])])
-                        seq {Declaration($"op{this.operations.Length+counter-1}", [], e)}, e
-                    else
-                        Seq.empty, ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
-                | _ ->
-                    failwith "Until must take two arguments"
+                        for i in this.operations.Length .. +2 .. this.operations.Length + maxLength + 1 do
+                            let orOp = Declaration($"op{i}({context})",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{i-1}", [ECall("unknown", context, [])])]))
+                            let andOp = Declaration($"op{i-1}({context})",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{i-2}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])]))
+                            declarationSeq <- Seq.append declarationSeq (Seq.singleton orOp)
+                            declarationSeq <- Seq.append declarationSeq (Seq.singleton andOp)
+                        declarationSeq, ECall("unknown", $"op{this.operations.Length + maxLength + 1}", [ECall("unknown", context, [])])
+                    | _ -> failwith "Until must take two arguments"
             | Identifier x ->
                 Seq.empty, ECall(
                     "unknown",
@@ -118,7 +119,7 @@ type WorkPlan =
         let goals: seq<Command> =
             seq {
                 for i = 0 to this.goals.Length - 1 do
-                    let initContext goalName goalOperationId = ("unknown", goalName, ECall("unknown", $"op{goalOperationId}", [ENumber 0.0]))
+                    let initContext goalName goalOperationId = ("unknown", goalName, ECall("unknown", $"op{if until then goalOperationId + maxLength + 1 else goalOperationId}", [ENumber 0.0]))
                     match this.goals[i] with
                     | GoalSave(x, y) -> yield Save (initContext x y)
                     | GoalPrint(x, y) -> yield Print (initContext x y)
