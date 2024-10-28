@@ -43,9 +43,7 @@ type Goal =
     | GoalPrint of string * OperationId
 
 let mutable maxLength = 0
-let mutable operationsLength = 0
 let mutable until = false
-let mutable untils = 0
 let mutable counter = 0
 
 type WorkPlan =
@@ -62,15 +60,9 @@ type WorkPlan =
 
 
     member this.ToProgram (context: string) : Program =
-        operationsLength <- this.operations.Length
-        //for i in 0 .. operationsLength - 1 do
-        //    operationsArray <- Array.append operationsArray [|i|]
-        //    printfn $"operationsArray[{i}]: {operationsArray[i]}"
-        printfn $"operationsLength at the beginning: {operationsLength}"
         let sem (op: Operation) (context: string): seq<Command>*Expression =
             match op.operator with
             | Identifier "frame" ->
-                //counter <- counter + 1
                 match Seq.toList op.arguments with
                 | [_;_;l] -> 
                     let operation = this.operations[l]
@@ -80,44 +72,28 @@ type WorkPlan =
                         Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",[ECall("unknown", context, [])])) op.arguments))
                     | _ -> failwith "argument must be a number"
                 | _ -> failwith "frame must take three arguments"
-            | Identifier "diamond" ->  
-                //counter <- counter + 1              
+            | Identifier "diamond" ->               
                 match Seq.toList op.arguments with
                 | [a] -> Seq.empty,ECall("unknown", $"op{a}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])
                 | _ ->
                     failwith "Diamond must take one argument"
             | Identifier "until" ->
                 counter <- counter + 2
-                //untils <- untils + 1
                 match Seq.toList op.arguments with
                     | [a;b] -> 
                         let mutable declarationSeq : Command seq = Seq.empty
                         let phi = ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
                         let psi = ECall("unknown", $"op{b}", [ECall("unknown", context, [])])
-                        //if until then operationsArray <- Array.removeAt (operationsArray.Length-1) operationsArray
-                        //for i in 0 .. operationsLength - 1 do
-                        //    //operationsArray <- Array.append operationsArray [|i|]
-                        //    printfn $"operationsArray[{i}]: {operationsArray[i]}"
                         for i in counter .. +2 .. counter + maxLength do
-                            //printfn $"operation in until is: {i}"
                             let andOp = Declaration($"op{i-1}({context})",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{i-2}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])]))
                             let orOp = Declaration($"op{i}({context})",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{i-1}", [ECall("unknown", context, [])])]))
-                            //operationsArray <- Array.append operationsArray [|i|]
                             declarationSeq <- Seq.append declarationSeq (Seq.singleton andOp)
                             declarationSeq <- Seq.append declarationSeq (Seq.singleton orOp)
                         counter <- counter + maxLength
-                        operationsLength <- operationsLength + maxLength
                         until <- true
-                        //for i in 0 .. operationsArray.Length - 1 do
-                        //    printfn $"operationsArray[{i}]: {operationsArray[i]}"
-                        //printfn "ciao"
-                        //untils <- 0
-                        //printfn $"operationsLength in until: {operationsLength}"
-                        //operationsArray <- Array.append operationsArray [|operationsLength - 2|]
                         declarationSeq, ECall("unknown", $"op{counter-1}", [ECall("unknown", context, [])])
                     | _ -> failwith "Until must take two arguments"
             | Identifier x ->
-                //counter <- counter + 1
                 Seq.empty, ECall(
                     "unknown",
                     x,
@@ -128,15 +104,9 @@ type WorkPlan =
                     // Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",ctx)) op.arguments)
                     Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",[ECall("unknown", context, [])])) op.arguments)
                 )
-            | Number x -> 
-                //counter <- counter + 1 
-                Seq.empty, ENumber x
-            | Bool x -> 
-                //counter <- counter + 1
-                Seq.empty, EBool x
-            | String x -> 
-                //counter <- counter + 1
-                Seq.empty, EString x
+            | Number x -> Seq.empty, ENumber x
+            | Bool x -> Seq.empty, EBool x
+            | String x -> Seq.empty, EString x
 
         let declarations: seq<Command> =
             seq {
@@ -145,22 +115,17 @@ type WorkPlan =
                     yield! s
                     if not until then 
                         counter <- i
-                        //operationsLength <- operationsLength + 1 
-                        //printfn $"operationsLength in decl: {operationsLength}"
                     // | None -> yield Declaration($"op{i}", [], sem this.operations[i] context)
                     yield Declaration($"op{counter}({context})", [], e)
-                    //untils <- 0
             }
 
         let goals: seq<Command> =
             seq {
                 for i = 0 to this.goals.Length - 1 do
-                    //printfn $"operationLength: {operationsLength}"
                     let initContext goalName goalOperationId = ("unknown", goalName, ECall("unknown", $"op{if until then counter else goalOperationId}", [ENumber 0.0]))
                     match this.goals[i] with
                     | GoalSave(x, y) -> yield Save (initContext x y)
                     | GoalPrint(x, y) -> yield Print (initContext x y)
-                    //untils <- 0
             }
 
         Program [ yield! declarations; yield! goals ]
