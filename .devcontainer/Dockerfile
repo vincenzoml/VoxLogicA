@@ -12,4 +12,6 @@ RUN apt -y install dotnet-sdk-8.0
 
 RUN apt -y install graphviz
 
+RUN apt -y install python3 python3-pip
+
 USER ubuntu
