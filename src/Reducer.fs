@@ -46,6 +46,8 @@ let mutable maxLength = 0
 let mutable until = false
 let mutable counter = 0
 
+//et mutable extendedOperations : array<Operation> = Array.empty
+
 type WorkPlan =
     { operations: array<Operation>
       goals: array<Goal> }
@@ -59,7 +61,8 @@ type WorkPlan =
         $"goals: {g}\noperations:\n{t}"
 
 
-    member this.ToProgram (context: string) : Program =
+    member this.ToProgram (context: string) : (Program) =
+        //extendedOperations <- this.operations
         let sem (op: Operation) (context: string): seq<Command>*Expression =
             match op.operator with
             | Identifier "frame" ->
@@ -74,27 +77,45 @@ type WorkPlan =
                 | _ -> failwith "frame must take three arguments"
             | Identifier "diamond" ->               
                 match Seq.toList op.arguments with
-                | [a] -> Seq.empty,ECall("unknown", $"op{a}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])
+                | [a] -> Seq.empty, ECall("unknown", $"op{a}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])
                 | _ ->
                     failwith "Diamond must take one argument"
             | Identifier "until" ->
-                counter <- counter + 2
+                //if maxLength = 1 then counter <- counter + 1 else counter <- counter + 2
                 match Seq.toList op.arguments with
-                    | [a;b] -> 
+                    | [a;b] ->
                         let mutable declarationSeq : Command seq = Seq.empty
                         let phi = ECall("unknown", $"op{a}", [ECall("unknown", context, [])])
                         let psi = ECall("unknown", $"op{b}", [ECall("unknown", context, [])])
-                        for i in counter .. +2 .. counter + maxLength do
-                            let andOp = Declaration($"op{i-1}({context})",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{i-2}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])]))
-                            let orOp = Declaration($"op{i}({context})",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{i-1}", [ECall("unknown", context, [])])]))
-                            declarationSeq <- Seq.append declarationSeq (Seq.singleton andOp)
-                            declarationSeq <- Seq.append declarationSeq (Seq.singleton orOp)
-                        counter <- counter + maxLength
+                        //let rec addCall (n: int) phi psi =
+                        //    if n = 2 then
+
+                        //let mutable iterations = 0
+                        //if maxLength = 1 then
+                        //    psi
+                        //else
+                        //    let andOp = ECall("unknown", "and",[phi;ECall("unknown", $"op{b}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])])
+                        //    let orOp = ECall("unknown", "or",[psi;andOp])
+                        //    orOp
+                        for i in 1 .. maxLength - 1 do
+                            //iterations <- iterations + 1
+                            if maxLength = 1 then
+                                counter <- counter + 1
+                                declarationSeq <- Seq.append declarationSeq (Seq.singleton (Declaration($"op{counter}({context})",[], psi)))
+                            else
+                                counter <- counter + 2
+                                let andOp = Declaration($"op{counter - 1}({context})",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{counter - 2}", [ECall ("unknown", "inc", [ECall("unknown", context, [])])])]))
+                                let orOp = Declaration($"op{counter}({context})",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{counter - 1}", [ECall("unknown", context, [])])]))
+                                declarationSeq <- Seq.append declarationSeq (Seq.singleton andOp)
+                                declarationSeq <- Seq.append declarationSeq (Seq.singleton orOp)
+                        //if maxLength > 1 then counter <- counter + maxLength
                         until <- true
-                        declarationSeq, ECall("unknown", $"op{counter-1}", [ECall("unknown", context, [])])
+                        counter <- counter + 1
+                        declarationSeq, ECall("unknown", $"op{counter - 1}", [ECall("unknown", context, [])])
                     | _ -> failwith "Until must take two arguments"
             | Identifier x ->
-                Seq.empty, ECall(
+                Seq.empty, 
+                ECall(
                     "unknown",
                     x,
                     // let ctx = 
@@ -104,9 +125,15 @@ type WorkPlan =
                     // Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",ctx)) op.arguments)
                     Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",[ECall("unknown", context, [])])) op.arguments)
                 )
-            | Number x -> Seq.empty, ENumber x
-            | Bool x -> Seq.empty, EBool x
-            | String x -> Seq.empty, EString x
+            | Number x ->  
+                Seq.empty, 
+                ENumber x
+            | Bool x -> 
+                Seq.empty, 
+                EBool x
+            | String x -> 
+                Seq.empty, 
+                EString x
 
         let declarations: seq<Command> =
             seq {
