@@ -14,6 +14,7 @@ type CmdLine =
     | [<UniqueAttribute>] SaveTaskGraph of option<string>
     | [<UniqueAttribute>] SaveTaskGraphAsAST of option<string>
     | [<UniqueAttribute>] SaveTaskGraphAsProgram of option<string>
+    | [<UniqueAttribute>] ProvideContext of option<string>
     | [<UniqueAttribute>] SaveSyntax of option<string>
     | [<UniqueAttribute>] SaveLabelling of option<string>
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
@@ -26,6 +27,7 @@ type CmdLine =
             | SaveTaskGraphAsDot _ -> "save the task graph in .dot format and exit"
             | SaveTaskGraphAsAST _ -> "save the task graph in AST format and exit"
             | SaveTaskGraphAsProgram _ -> "save the task graph in VoxLogicA format and exit"
+            | ProvideContext _ -> "provide the context"
             | SaveSyntax _ -> "save the AST in text format and exit"
             | SaveLabelling _ -> "save the labelling in text format and exit"       
             | Filename _ -> "VoxLogicA session file"
@@ -130,8 +132,9 @@ let main (argv: string array) =
 
         if parsed.Contains SaveTaskGraphAsProgram then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsProgram
+            let contextOpt = if parsed.Contains ProvideContext then parsed.GetResult ProvideContext else None
 
-            let voxlogicaProgram = program.ToProgram(None)
+            let voxlogicaProgram = program.ToProgram(contextOpt)
             let voxlogicaSyntax = voxlogicaProgram.ToSyntax()
             match filenameOpt with
             | Some filename ->

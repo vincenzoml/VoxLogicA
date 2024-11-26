@@ -93,15 +93,16 @@ type WorkPlan =
                         let psi = ECall("unknown", $"op{env[b]}", ctxList)
                         let mutable oldId = opId - 1
                         let mutable idOr = env[b]
+                        let context = if ctx = None then "" else $"({ctx.Value})"
                         for i in 1 .. maxLength do
                             if maxLength = 1 then
                                 idOr <- newId idOr ()
                                 declarationSeq <- Seq.append declarationSeq (Seq.singleton (Declaration($"op{idOr}({context})",[], psi)))
                             else
                                 let idAnd = newId oldId ()
-                                let andOp = Declaration($"op{idAnd}({context})",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{oldId}", [ECall ("unknown", "inc", ctxList)])]))
+                                let andOp = Declaration($"op{idAnd}{context}",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{oldId}", [ECall ("unknown", "inc", ctxList)])]))
                                 idOr <- newId idAnd ()
-                                let orOp = Declaration($"op{idOr}({context})",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{idAnd}", ctxList)]))
+                                let orOp = Declaration($"op{idOr}{context}",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{idAnd}", ctxList)]))
                                 declarationSeq <- Seq.append declarationSeq (Seq.singleton andOp)
                                 declarationSeq <- Seq.append declarationSeq (Seq.singleton orOp)
                                 oldId <- idOr
