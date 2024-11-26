@@ -18,13 +18,12 @@ def main():
             dotNameNone = f"{name}-temporal-new.dot"
 
             subprocess.run(["dotnet", "run", "--", args.filename,"--savetaskgraphasprogram", outputName, "--providecontext", "n"],stderr=subprocess.STDOUT)
-            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT)     
-            subprocess.run(["dotnet", "run", "--", args.filename,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
-            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotNameNone],stderr=subprocess.STDOUT)            
+            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT) 
+            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
+            subprocess.run(["dotnet", "run", "--", outputNameNone,"--savetaskgraphasdot", dotNameNone],stderr=subprocess.STDOUT)           
        
     except FileNotFoundError:
         print("File not found")
-
 
 if __name__ == "__main__":
     main()
