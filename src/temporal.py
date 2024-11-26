@@ -13,9 +13,14 @@ def main():
             import subprocess
             name = args.filename.rsplit('.', 1)[0]
             outputName = f"{name}-temporal.imgql"
+            outputNameNone = f"{name}-temporal-new.imgql"
             dotName = f"{name}-temporal.dot"
-            subprocess.run(["dotnet", "run", "--", args.filename,"--savetaskgraphasprogram", outputName],stderr=subprocess.STDOUT)
-            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT)            
+            dotNameNone = f"{name}-temporal-new.dot"
+            subprocess.run(["dotnet", "run", "--", args.filename,"--savetaskgraphasprogram", outputName, "n"],stderr=subprocess.STDOUT)
+            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT)     
+            subprocess.run(["dotnet", "run", "--", args.filename,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
+            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotNameNone],stderr=subprocess.STDOUT)            
+       
     except FileNotFoundError:
         print("File not found")
 
