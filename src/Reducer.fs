@@ -146,7 +146,8 @@ type WorkPlan =
         let goals: seq<Command> =
             seq {
                 for i = 0 to this.goals.Length - 1 do
-                    let initContext goalName goalOperationId = ("unknown", goalName, ECall("unknown", $"op{env[goalOperationId]}", [ENumber 0.0]))
+                    let param = if ctx = None then [] else [ENumber 0.0]
+                    let initContext goalName goalOperationId = ("unknown", goalName, ECall("unknown", $"op{env[goalOperationId]}", param))
                     match this.goals[i] with
                     | GoalSave(x, y) -> yield Save (initContext x y)
                     | GoalPrint(x, y) -> yield Print (initContext x y)
