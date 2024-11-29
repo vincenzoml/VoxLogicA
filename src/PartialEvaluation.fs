@@ -31,7 +31,7 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
             | _ -> failwith "load must take one argument"
         | Identifier "frame" ->
             match Seq.toList workplan.operations[i].arguments with
-            | [vid;f;_] -> 
+            | [vid;f] -> 
                 let video = 
                     match environment.TryFind vid with
                     | Some (VString x) -> x
@@ -42,7 +42,7 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
                     | _ -> failwith "unbound value"
                 evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + video + $"${frame}"))
                 environment <- environment.Add(i, Unbound)
-            | _ -> failwith "frame must take three arguments"
+            | _ -> failwith "frame must take two arguments"
         | Identifier "inc" -> 
             match Seq.toList workplan.operations[i].arguments with
             | [a] -> 
