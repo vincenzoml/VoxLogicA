@@ -5,6 +5,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description='Process a file.')
     parser.add_argument('filename', type=str, help='The name of the file to process')
+    parser.add_argument('numFrames', type=int, help='The number of frames to process')
     
     args = parser.parse_args()
     
@@ -17,9 +18,9 @@ def main():
             outputNameNone = f"{name}-temporal-new.imgql"
             dotNameNone = f"{name}-temporal-new.dot"
 
-            subprocess.run(["dotnet", "run", "--", args.filename,"--savetaskgraphasprogram", outputName, "--providecontext", "n"],stderr=subprocess.STDOUT)
+            subprocess.run(["dotnet", "run", "--", args.filename, args.numFrames, "--numframes", args.numFrames,"--savetaskgraphasprogram", outputName, "--providecontext", "n"],stderr=subprocess.STDOUT)
             subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT) 
-            subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
+            subprocess.run(["dotnet", "run", "--", outputName, "--numframes", args.numFrames,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
             subprocess.run(["dotnet", "run", "--", outputNameNone,"--savetaskgraphasdot", dotNameNone],stderr=subprocess.STDOUT)           
        
     except FileNotFoundError:

@@ -42,7 +42,7 @@ type Goal =
     | GoalSave of string * OperationId
     | GoalPrint of string * OperationId
 
-let mutable maxLength = 0
+//let mutable maxLength = 0
 let mutable until = false
 
 let newId opId = 
@@ -62,7 +62,7 @@ type WorkPlan =
         $"goals: {g}\noperations:\n{t}"
 
 
-    member this.ToProgram (ctx : option<string>) : (Program) =
+    member this.ToProgram (ctx : option<string>, numFrames : int) : (Program) =
         let sem opId (op: Operation) (ctx: option<string>) (env : array<int>): seq<Command>*Expression*int =
             let ctxList = 
                 match ctx with
@@ -76,7 +76,7 @@ type WorkPlan =
                     let operation = this.operations[l]
                     match operation.operator with
                     | Number x -> 
-                        maxLength <- int x
+                        //maxLength <- int x
                         Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{env[arg]}",ctxList)) op.arguments)), opId
                     | _ -> failwith "argument must be a number"
                 | _ -> failwith "frame must take three arguments"
@@ -94,8 +94,8 @@ type WorkPlan =
                         let mutable oldId = opId - 1
                         let mutable idOr = env[b]
                         let context = if ctx = None then "" else $"({ctx.Value})"
-                        for i in 1 .. maxLength do
-                            if maxLength = 1 then
+                        for i in 1 .. numFrames do
+                            if numFrames = 1 then
                                 idOr <- newId idOr ()
                                 declarationSeq <- Seq.append declarationSeq (Seq.singleton (Declaration($"op{idOr}({context})",[], psi)))
                             else
@@ -154,7 +154,6 @@ type WorkPlan =
             }
 
         Program [ yield! declarations; yield! goals ]
-
 
     member this.ToDot() =
         let mutable str = "digraph {"
