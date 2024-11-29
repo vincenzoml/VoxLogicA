@@ -52,7 +52,6 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
             | _ -> failwith "inc must take one argument"
         | Identifier x -> 
             let mutable argSeq = "("
-            printf "%s\n" argSeq
             match Seq.toList workplan.operations[i].arguments with
             | args -> 
                 for a in args do
