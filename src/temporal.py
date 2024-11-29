@@ -13,15 +13,19 @@ def main():
         with open(args.filename, 'r') as file:
             import subprocess
             name = args.filename.rsplit('.', 1)[0]
+            numFrames = str(args.numFrames)
             outputName = f"{name}-temporal.imgql"
             dotName = f"{name}-temporal.dot"
             outputNameNone = f"{name}-temporal-new.imgql"
             dotNameNone = f"{name}-temporal-new.dot"
+            outputNameVL1 = f"{name}-temporal-new-VL1.imgql"
+            dotNameVL1 = f"{name}-temporal-newVL1.dot"
 
-            subprocess.run(["dotnet", "run", "--", args.filename, args.numFrames, "--numframes", args.numFrames,"--savetaskgraphasprogram", outputName, "--providecontext", "n"],stderr=subprocess.STDOUT)
+            subprocess.run(["dotnet", "run", "--", args.filename, "--numframes", numFrames,"--savetaskgraphasprogram", outputName, "--providecontext", "n"],stderr=subprocess.STDOUT)
             subprocess.run(["dotnet", "run", "--", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT) 
-            subprocess.run(["dotnet", "run", "--", outputName, "--numframes", args.numFrames,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
+            subprocess.run(["dotnet", "run", "--", outputName, "--numframes", numFrames,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
             subprocess.run(["dotnet", "run", "--", outputNameNone,"--savetaskgraphasdot", dotNameNone],stderr=subprocess.STDOUT)           
+            subprocess.run(["dotnet", "run", "--", outputNameNone, "--numframes", numFrames,"--evaluatespatiotemporal", outputNameVL1],stderr=subprocess.STDOUT)        
        
     except FileNotFoundError:
         
