@@ -40,7 +40,7 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
                     match environment.TryFind f with
                     | Some (VNumber x) -> int x
                     | _ -> failwith "unbound value"
-                evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} =" + video + $"${frame}"))
+                evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + video + $"${frame}"))
                 environment <- environment.Add(i, Unbound)
             | _ -> failwith "frame must take three arguments"
         | Identifier "inc" -> 

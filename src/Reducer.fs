@@ -72,14 +72,9 @@ type WorkPlan =
             match op.operator with
             | Identifier "frame" ->
                 match Seq.toList op.arguments with
-                | [_;_;l] -> 
-                    let operation = this.operations[l]
-                    match operation.operator with
-                    | Number x -> 
-                        //maxLength <- int x
-                        Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{env[arg]}",ctxList)) op.arguments)), opId
-                    | _ -> failwith "argument must be a number"
-                | _ -> failwith "frame must take three arguments"
+                | [_;_] -> 
+                    Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{env[arg]}",ctxList)) op.arguments)), opId
+                | _ -> failwith "frame must take two arguments"
             | Identifier "diamond" ->               
                 match Seq.toList op.arguments with
                 | [a] -> Seq.empty, ECall("unknown", $"op{env[a]}", [ECall ("unknown", "inc", ctxList)]), opId
