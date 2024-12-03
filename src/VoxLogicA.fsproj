@@ -46,7 +46,7 @@
   </Target>
   
   <PropertyGroup>
-    <SimpleITKVersionString>SimpleITK-2.3.0rc2.post17</SimpleITKVersionString>
+    <SimpleITKVersionString>SimpleITK-2.5.0.dev67</SimpleITKVersionString>
     <SimpleITKRelease>latest</SimpleITKRelease>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
@@ -54,7 +54,7 @@
 
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macosx-10.9-anycpu</SimpleITKArchString>
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'win-x64'">win64-x64</SimpleITKArchString>
-    <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'linux-x64'">linux</SimpleITKArchString>
+    <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'linux-x64'">linux_x86_64</SimpleITKArchString>
 
     <SimpleITKFullName>$(SimpleITKVersionString)-CSharp-$(SimpleITKArchString)</SimpleITKFullName>
 
