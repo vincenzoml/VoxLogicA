@@ -27,7 +27,7 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
                     | _ -> failwith "unbound value"
                 environment <- environment.Add(i, VString video)
                 for j in 0 .. numFrames - 1 do
-                    evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("load " + video + $"${j} = " + "\"" + video + $"_{j}.png" + "\""))
+                    evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("load " + video + $"${j} = " + "\"frames/" + video + $"_{j}.png" + "\""))
             | _ -> failwith "load must take one argument"
         | Identifier "frame" ->
             match Seq.toList workplan.operations[i].arguments with
