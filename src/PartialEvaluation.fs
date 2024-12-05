@@ -57,7 +57,6 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
                 for a in args do
                     argSeq <-  argSeq + $"op{a},"
             argSeq <- argSeq[0..argSeq.Length - 2] + ")"
-            printfn "%s" argSeq
             environment <- environment.Add(i, Unbound)
             evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + x + argSeq))
         | Number x -> 
