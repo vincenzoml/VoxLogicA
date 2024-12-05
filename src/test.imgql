@@ -5,6 +5,13 @@ let moreInteresting = gt(intensity(frame(video,n)),52)
 let c = gt(intensity(frame(video,n,nFrames)),62)
 let d = lt(intensity(frame(video,n,nFrames)),48)
 
+<<<<<<< HEAD
 save "result" diamond(interesting)
 //save "result" until(interesting,moreInteresting)
 //save "result" until(and(a,until(b,d)),c)
+=======
+let interesting = gt(intensity(frame(video,n)),42)
+let moreInteresting = gt(intensity(frame(video,n)),52)
+
+save "result" until(interesting,moreInteresting)
+>>>>>>> 02faf8ac3a002d90668bf9e63371838d0835c622
