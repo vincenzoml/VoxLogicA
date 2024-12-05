@@ -2,7 +2,7 @@ let video = load("video.avi")
 
 let nFrames = 10
 
-let interesting = gt(intensity(frame(video,n,nFrames)),42)
-let moreInteresting = gt(intensity(frame(video,n,nFrames)),52)
+let interesting = gt(intensity(frame(video,n)),42)
+let moreInteresting = gt(intensity(frame(video,n)),52)
 
 save "result" until(interesting,moreInteresting)
