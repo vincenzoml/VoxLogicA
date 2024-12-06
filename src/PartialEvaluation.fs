@@ -74,7 +74,7 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
         match goal with
         | GoalSave(x, y) -> 
             evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("save \"" + x + "\" op" + $"{y}"))
-        | GoalPrint(x, y) -> evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("print \"" + x + "\" op" + $"{y}"))
+        | GoalPrint(x, y) -> evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("print \"" + x + ".png\" op" + $"{y}"))
     {
         program = evaluatedProgram
         env = environment
