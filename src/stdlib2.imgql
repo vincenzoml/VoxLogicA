@@ -46,7 +46,7 @@ let S(a,b) = surrounded(a,b)
 let geq (i,n) =  (n .<= i)
 let leq (i,n) = (n .>= i)
 let lt (i,n) = (n .>= i) & (!(n .= i))
-let gt (i,n) = (n .>= i) & (!(n .= i))
+let gt (i,n) = (n .<= i) & (!(n .= i))
 let eq (i,n) = (n .= i)
 //let <. (i,n) = n .> i
 //let <=. (i,n) = n .>= i
