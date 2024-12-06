@@ -16,7 +16,7 @@ type PartialEvaluation =
 let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation =
     let mutable environment = Map.empty
     let mutable evaluatedProgram : seq<string> = Seq.empty
-    evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("import \"stdlib.imgql\"\n"))
+    evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("import \"stdlib2.imgql\"\n"))
     for i in 0 .. workplan.operations.Length - 1 do
         match workplan.operations[i].operator with
         | Identifier "load" ->
