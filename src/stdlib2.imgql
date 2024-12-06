@@ -43,11 +43,11 @@ let surrounded(a,b) = a \ mayReach(not(a | b),not(b))
 let S(a,b) = surrounded(a,b)
 
 // Some shorthands
-let geq (n,i) =  (n .>= i)
-let leq (n,i) = (n .<= i)
-let lt (n,i) = (n .<= i) & (!(n .= i))
-let gt (n,i) = (n .>= i) & (!(n .= i))
-let eq (n,i) = (n .= i)
+let geq (i,n) =  (n .<= i)
+let leq (i,n) = (n .>= i)
+let lt (i,n) = (n .>= i) & (!(n .= i))
+let gt (i,n) = (n .>= i) & (!(n .= i))
+let eq (i,n) = (n .= i)
 //let <. (i,n) = n .> i
 //let <=. (i,n) = n .>= i
 //let >. (i,n) = n .< i
