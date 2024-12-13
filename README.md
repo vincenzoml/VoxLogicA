@@ -25,3 +25,7 @@ source code for **PolyLogicA**, the implementation operating on polyhedra: https
 ESMRM-B 2019 poster: 
 
 ![VoxLogicA poster](https://github.com/vincenzoml/VoxLogicA/raw/master/docs/poster-ciancia.jpg "Poster")
+
+## 
+
+[Click here to download the slides](./slides.pdf) of a recent [GReTA](https://www.irif.fr/~greta/event/2024-dec-06/) talk
