@@ -28,4 +28,5 @@ ESMRM-B 2019 poster:
 
 ## 
 
-[Click here to download the slides](./slides.pdf) of a recent [GReTA](https://www.irif.fr/~greta/event/2024-dec-06/) talk
+[Click here to download the slides](./Greta.pdf) of a recent [GReTA](https://www.irif.fr/~greta/event/2024-dec-06/) talk
+
