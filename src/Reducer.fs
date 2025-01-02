@@ -332,7 +332,7 @@ module private Internals =
                 match args with
                 | [] -> cont (List.rev accum)
                 | arg :: args' ->
-                    reduceExpr (ide, pos)::[] (env, operations) arg
+                    reduceExpr stack (env, operations) arg
                     <| fun operationId -> reduceArgs args' (operationId :: accum) cont
 
             reduceArgs args []
