@@ -262,9 +262,9 @@ module private Internals =
         match pRef.Value with
         | [] -> operations
         | command :: commands ->
-            //pRef.Value <- commands
+            pRef.Value <- commands
             let env', imports = reduceCommand (env, operations, goals, parsedImports) command id
-            let newProgram = List.concat [ imports; commands ]
+            let newProgram = List.concat [ imports; pRef.Value ]
             pRef.Value <- newProgram
             reduceProgramRec (env', operations, goals, parsedImports) pRef
 
