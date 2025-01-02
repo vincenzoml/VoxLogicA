@@ -1,0 +1,24 @@
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=10
+let op4(n)=frame(op1(n),op2(n),op3(n))
+let op5(n)=intensity(op4(n))
+let op6(n)=42
+let op7(n)=gt(op5(n),op6(n))
+let op8(n)=52
+let op9(n)=gt(op5(n),op8(n))
+let op10(n)=and(op7(n),op9(inc(n)))
+let op11(n)=or(op9(n),op10(n))
+let op12(n)=and(op7(n),op11(inc(n)))
+let op13(n)=or(op9(n),op12(n))
+let op14(n)=and(op7(n),op13(inc(n)))
+let op15(n)=or(op9(n),op14(n))
+let op16(n)=and(op7(n),op15(inc(n)))
+let op17(n)=or(op9(n),op16(n))
+let op18(n)=and(op7(n),op17(inc(n)))
+let op19(n)=or(op9(n),op18(n))
+let op20(n)=and(op7(n),op19(inc(n)))
+let op21(n)=or(op9(n),op20(n))
+let op21(n)=op20(n)
+save "result" op21(0)

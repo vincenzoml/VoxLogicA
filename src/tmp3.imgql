@@ -1,0 +1,4 @@
+let op0=n
+let op1=inc(op0)
+let op2=use(op0)
+save "result" op2

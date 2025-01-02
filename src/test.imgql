@@ -1,4 +1,7 @@
+let video = load("video.avi")
 
-let x = f(g(h(x,y),z),t)
+let interesting = gt(intensity(frame(video,n)),42)
+let moreInteresting = gt(intensity(frame(video,n)),52)
 
-print "" x
+//save "result" diamond(interesting)
+save "result" until(interesting,moreInteresting)

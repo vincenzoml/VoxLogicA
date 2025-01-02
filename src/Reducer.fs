@@ -2,6 +2,7 @@ module VoxLogicA.Reducer
 
 
 open System.Collections.Generic
+open Parser
 
 type identifier = string
 type OperationId = int
@@ -11,6 +12,7 @@ type Operator =
     | Number of float
     | Bool of bool
     | String of string
+
     override this.ToString() =
         match this with
         | Identifier x -> x
@@ -34,11 +36,18 @@ type Operation =
                 ""
 
         $"{this.operator}{args}" // Uncomment to show the args
-        
+
 
 type Goal =
     | GoalSave of string * OperationId
     | GoalPrint of string * OperationId
+
+//let mutable maxLength = 0
+let mutable until = false
+
+let newId opId = 
+    let mutable id = 0
+    fun () -> id <- opId + 1; id
 
 type WorkPlan =
     { operations: array<Operation>
@@ -46,14 +55,100 @@ type WorkPlan =
 
     override this.ToString() =
         let t =
-            String.concat "\n"
-            <| Array.mapi (fun i el -> $"{i} -> {el}") this.operations
+            String.concat "\n" <| Array.mapi (fun i el -> $"{i} -> {el}") this.operations
 
-        let g =
-            String.concat ","
-            <| Array.map (fun x -> x.ToString()) this.goals
+        let g = String.concat "," <| Array.map (fun x -> x.ToString()) this.goals
 
         $"goals: {g}\noperations:\n{t}"
+
+
+    member this.ToProgram (ctx : option<string>, numFrames : int) : (Program) =
+        let sem opId (op: Operation) (ctx: option<string>) (env : array<int>): seq<Command>*Expression*int =
+            let ctxList = 
+                match ctx with
+                | None -> []
+                | _ -> [ECall("unknown", ctx.Value, [])]
+            let context = if ctx = None then "" else ctx.Value
+            match op.operator with
+            | Identifier "frame" ->
+                match Seq.toList op.arguments with
+                | [_;_] -> 
+                    Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{env[arg]}",ctxList)) op.arguments)), opId
+                | _ -> failwith "frame must take two arguments"
+            | Identifier "diamond" ->               
+                match Seq.toList op.arguments with
+                | [a] -> Seq.empty, ECall("unknown", $"op{env[a]}", [ECall ("unknown", "inc", ctxList)]), opId
+                | _ ->
+                    failwith "Diamond must take one argument"
+            | Identifier "until" ->
+                match Seq.toList op.arguments with
+                    | [a;b] ->
+                        let mutable declarationSeq : Command seq = Seq.empty
+                        let phi = ECall("unknown", $"op{env[a]}", ctxList)
+                        let psi = ECall("unknown", $"op{env[b]}", ctxList)
+                        let mutable oldId = opId - 1
+                        let mutable idOr = env[b]
+                        let context = if ctx = None then "" else $"({ctx.Value})"
+                        for i in 1 .. numFrames do
+                            if numFrames = 1 then
+                                idOr <- newId idOr ()
+                                declarationSeq <- Seq.append declarationSeq (Seq.singleton (Declaration($"op{idOr}({context})",[], psi)))
+                            else
+                                let idAnd = newId oldId ()
+                                let andOp = Declaration($"op{idAnd}{context}",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{oldId}", [ECall ("unknown", "inc", ctxList)])]))
+                                idOr <- newId idAnd ()
+                                let orOp = Declaration($"op{idOr}{context}",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{idAnd}", ctxList)]))
+                                declarationSeq <- Seq.append declarationSeq (Seq.singleton andOp)
+                                declarationSeq <- Seq.append declarationSeq (Seq.singleton orOp)
+                                oldId <- idOr
+                                //idOr <- newId idOr ()
+                        until <- true
+                        let last = newId idOr ()
+                        env[opId] <- last
+                        declarationSeq, ECall("unknown", $"op{idOr}", ctxList), last
+                    | _ -> failwith "Until must take two arguments"
+            | Identifier x ->
+                Seq.empty, 
+                ECall(
+                    "unknown",
+                    x,
+                    Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",ctxList)) op.arguments)
+                ), opId
+            | Number x ->  
+                Seq.empty, 
+                ENumber x, opId
+            | Bool x -> 
+                Seq.empty, 
+                EBool x, opId
+            | String x -> 
+                Seq.empty, 
+                EString x, opId
+
+        let env = Array.create this.operations.Length -1  // maps ids of the DAG to ids of the output list of operations
+        for i = 0 to this.operations.Length - 1 do
+            env[i] <- i
+
+        let declarations: seq<Command> =
+            seq {
+                for i = 0 to this.operations.Length - 1 do
+                    let s, e, opId = sem i this.operations[i] ctx env // id is the id of the operation in the output list
+                    yield! s
+                    //printfn "yelding operator %A, %A" i this.operations[i].operator
+                    let ctx = if ctx = None then "" else $"({ctx.Value})"
+                    yield Declaration($"op{opId}{ctx}", [], e)
+            }
+
+        let goals: seq<Command> =
+            seq {
+                for i = 0 to this.goals.Length - 1 do
+                    let param = if ctx = None then [] else [ENumber 0.0]
+                    let initContext goalName goalOperationId = ("unknown", goalName, ECall("unknown", $"op{env[goalOperationId]}", param))
+                    match this.goals[i] with
+                    | GoalSave(x, y) -> yield Save (initContext x y)
+                    | GoalPrint(x, y) -> yield Print (initContext x y)
+            }
+
+        Program [ yield! declarations; yield! goals ]
 
     member this.ToDot() =
         let mutable str = "digraph {"
@@ -63,8 +158,8 @@ type WorkPlan =
 
             str <-
                 str
-                // + $"{i} [label=\"[{i}] {operation.ToString()}\"];\n" // Uncomment to add [n] to each label
-                + $"{i} [label=\"{operation.ToString()}\"];\n"
+                + $"{i} [label=\"[{i}] {operation.ToString()}\"];\n" // Uncomment to add [n] to each label
+                //+ $"{i} [label=\"{operation.ToString()}\"];\n"
 
             for argument in operation.arguments do
                 str <- str + $"{argument} -> {i};\n"
@@ -115,15 +210,15 @@ module private Internals =
                       arguments = arguments } }
 
             if memoize then
-                this.byTerm[ (operator, arguments) ] <- newOperation
+                this.byTerm[(operator, arguments)] <- newOperation
 
-            this.byId[ newId ] <- newOperation
+            this.byId[newId] <- newOperation
             newId
 
 
         member this.Alias operator arguments (operationId: OperationId) =
             let operation = this.byId[operationId]
-            this.byTerm[ (operator, arguments) ] <- operation
+            this.byTerm[(operator, arguments)] <- operation
 
 
     let emptyOperations () =
@@ -136,6 +231,7 @@ module private Internals =
 
     and Environment =
         | Environment of Map<identifier, DVal>
+
         member this.TryFind ide =
             Map.tryFind
                 ide
@@ -174,29 +270,21 @@ module private Internals =
 
     and reduceCommand (env, operations, (goals: HashSet<Goal>), parsedImports) command (cont) =
         match command with
-        | Save (pos, filename, expr) -> // TODO: use pos
+        | Save(pos, filename, expr) -> // TODO: use pos
             reduceExpr [ ($"save {filename}", pos) ] (env, operations) expr
             <| fun operationId ->
-                ignore
-                <| goals.Add(GoalSave(filename, operationId))
+                ignore <| goals.Add(GoalSave(filename, operationId))
 
                 cont (env, [])
-        | Declaration (ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), [])
-        | Print (pos, str, expr) -> // TODO: use pos
+        | Declaration(ide, formalArgs, body) -> cont (env.Bind ide (Fun(env, formalArgs, body)), [])
+        | Print(pos, str, expr) -> // TODO: use pos
             reduceExpr [ ($"print {str}", pos) ] (env, operations) expr
             <| fun operationId ->
                 ignore <| goals.Add(GoalPrint(str, operationId))
                 cont (env, [])
         | Import filename ->
             let libdir =
-                $"{System.IO.Path.GetDirectoryName(
-                       System
-                           .Diagnostics
-                           .Process
-                           .GetCurrentProcess()
-                           .MainModule
-                           .FileName
-                   )}/imgql"
+                $"{System.IO.Path.GetDirectoryName(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName)}/imgql"
 
             let find filename =
                 if System.IO.File.Exists filename then
@@ -225,8 +313,7 @@ module private Internals =
                         raise <| fail $"Import '{filename}' not found"
 
             if not (parsedImports.Contains(path)) then
-                ErrorMsg.Logger.Debug
-                <| sprintf "Importing file \"%s\"" path
+                ErrorMsg.Logger.Debug <| sprintf "Importing file \"%s\"" path
 
                 let parsed = parseImport path
                 cont (env, parsed)
@@ -238,7 +325,7 @@ module private Internals =
         | ENumber f -> cont <| operations.FindOrCreate (Number f) []
         | EBool b -> cont <| operations.FindOrCreate (Bool b) []
         | EString s -> cont <| operations.FindOrCreate (String s) []
-        | ECall (pos, ide, args) -> // TODO: use pos
+        | ECall(pos, ide, args) -> // TODO: use pos
             let stack' = (ide, pos) :: stack
 
             let rec reduceArgs args accum cont =
@@ -259,7 +346,7 @@ module private Internals =
                         fail "Found operation in cache without memoization, which is impossible. Please report."
                 | None ->
                     match env.TryFind ide with
-                    | Some (Fun (denv, formalArgs, body)) ->
+                    | Some(Fun(denv, formalArgs, body)) ->
                         let callEnv =
                             if formalArgs.Length = args.Length then
                                 denv.BindList formalArgs (List.map Operation actualArgs)
@@ -272,10 +359,8 @@ module private Internals =
                         <| fun operation'' ->
                             operations.Alias (Identifier ide) actualArgs operation''
                             cont operation''
-                    | Some (Operation t) -> cont t
-                    | None ->
-                        cont
-                        <| operations.Create (Identifier ide) actualArgs
+                    | Some(Operation t) -> cont t
+                    | None -> cont <| operations.Create (Identifier ide) actualArgs
 
 let reduceProgram (Parser.Program prog) =
     let goals = new HashSet<_>()
