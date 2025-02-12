@@ -16,3 +16,12 @@ tests/*/output-cpu.config
 .config
 src/output
 
+src/test_temporal.svg
+src/test-temporal-graph.dag
+src/test-temporal-new-VL1.imgql
+src/test-temporal-new.dot
+src/test-temporal-new.imgql
+src/test.dot
+src/test.png
+src/test-temporal.dot
+src/test-temporal.imgql
