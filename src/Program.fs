@@ -19,6 +19,7 @@ type CmdLine =
     | [<UniqueAttribute>] SaveLabelling of option<string>
     | [<UniqueAttribute>] EvaluateSpatioTemporal of option<string>
     | [<MainCommandAttribute; UniqueAttribute>] Filename of string
+
     interface Argu.IArgParserTemplate with
         member s.Usage =
             match s with
@@ -31,8 +32,8 @@ type CmdLine =
             | NumFrames _ -> "number of frames to process"
             | ProvideContext _ -> "provide the context"
             | SaveSyntax _ -> "save the AST in text format and exit"
-            | SaveLabelling _ -> "save the labelling in text format and exit"  
-            | EvaluateSpatioTemporal _ -> "evaluate a flattened spatio temporal specification"     
+            | SaveLabelling _ -> "save the labelling in text format and exit"
+            | EvaluateSpatioTemporal _ -> "evaluate a flattened spatio temporal specification"
             | Filename _ -> "VoxLogicA session file"
 
 [<EntryPoint>]
@@ -43,7 +44,8 @@ let main (argv: string array) =
     let informationalVersion =
         ((Assembly
             .GetEntryAssembly()
-            .GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0])
+            .GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false)
+            .[0])
         :?> AssemblyInformationalVersionAttribute)
             .InformationalVersion
 
@@ -60,7 +62,7 @@ let main (argv: string array) =
 #if ! DEBUG
     ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
 #else
-    () 
+    ()
 #endif
 
     if version.Revision <> 0 then
@@ -116,7 +118,7 @@ let main (argv: string array) =
         //    match filenameOpt with
         //    | filename ->
         //        ErrorMsg.Logger.Debug $"Saving spatio-temporal flattening to {filename}"
-        //        let spatioTemporalProgram, venv, _, _ = SpatioTemporal.flattenSpatioTemporal commands (Env []) (Env []) (Env [">",EFun(ECall("", "x", []),Env[])]) 
+        //        let spatioTemporalProgram, venv, _, _ = SpatioTemporal.flattenSpatioTemporal commands (Env []) (Env []) (Env [">",EFun(ECall("", "x", []),Env[])])
         //        System.IO.File.Delete(filename)
         //        for command in spatioTemporalProgram do
         //            System.IO.File.AppendAllText(filename, $"{command}")
@@ -128,6 +130,7 @@ let main (argv: string array) =
             let numFrames = argv[2]
 
             let voxlogicaProgram = program.ToProgram(None, int numFrames)
+
             match filenameOpt with
             | Some filename ->
                 ErrorMsg.Logger.Debug $"Saving the task graph in AST syntax to {filename}"
@@ -136,11 +139,18 @@ let main (argv: string array) =
 
         if parsed.Contains SaveTaskGraphAsProgram then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsProgram
-            let contextOpt = if parsed.Contains ProvideContext then parsed.GetResult ProvideContext else None
+
+            let contextOpt =
+                if parsed.Contains ProvideContext then
+                    parsed.GetResult ProvideContext
+                else
+                    None
+
             let numFrames = parsed.GetResult NumFrames
 
             let voxlogicaProgram = program.ToProgram(contextOpt, int numFrames)
             let voxlogicaSyntax = voxlogicaProgram.ToSyntax()
+
             match filenameOpt with
             | Some filename ->
                 ErrorMsg.Logger.Debug $"Saving the task graph in VoxLogicA syntax to {filename}"
@@ -172,28 +182,16 @@ let main (argv: string array) =
             | Some filename ->
                 if System.IO.File.Exists(filename) then
                     System.IO.File.Delete(filename)
+
                 ErrorMsg.Logger.Debug $"Saving the partial evaluation to {filename}"
+
                 for str in evaluatedProgram do
                     System.IO.File.AppendAllText(filename, str + "\n")
             | None -> ErrorMsg.Logger.Debug $"{(evaluatedProgram).ToString()}"
-        
-        if parsed.Contains SaveLabelling then            
-            let labelling = Labelling.label(program)
-            let labellingString = 
-                labelling
-                |> Array.mapi (fun i x -> $"{i}: {x}")
-                |> String.concat "\n"                
-            let x = parsed.GetResult SaveLabelling
-            match x with
-            | Some filename ->
-                ErrorMsg.Logger.Debug $"Saving the labelling to {filename}"            
-                System.IO.File.WriteAllText(filename, labellingString)
-            | None -> ErrorMsg.Logger.Debug labellingString
 
         ErrorMsg.Logger.Info "All done."
         0
-    with
-    | e ->
+    with e ->
         ErrorMsg.Logger.DebugExn e
         raise e
         1
