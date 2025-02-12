@@ -21,11 +21,11 @@ def main():
             outputNameVL1 = f"{name}-temporal-new-VL1.imgql"
             dotNameVL1 = f"{name}-temporal-newVL1.dot"
 
-            subprocess.run(["bin/Release/net8.0/linux-x64/VoxLogicA", args.filename, "--numframes", numFrames,"--savetaskgraphasprogram", outputName, "--providecontext", "n"],stderr=subprocess.STDOUT)
-            subprocess.run(["bin/Release/net8.0/linux-x64/VoxLogicA", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT) 
-            subprocess.run(["bin/Release/net8.0/linux-x64/VoxLogicA", outputName, "--numframes", numFrames,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
-            subprocess.run(["bin/Release/net8.0/linux-x64/VoxLogicA", outputNameNone,"--savetaskgraphasdot", dotNameNone],stderr=subprocess.STDOUT)           
-            subprocess.run(["bin/Release/net8.0/linux-x64/VoxLogicA", outputNameNone, "--numframes", numFrames,"--evaluatespatiotemporal", outputNameVL1],stderr=subprocess.STDOUT)        
+            subprocess.run(["bin/release/net8.0/linux-x64/VoxLogicA", args.filename, "--numframes", numFrames,"--savetaskgraphasprogram", outputName, "--providecontext", "n"],stderr=subprocess.STDOUT)
+            subprocess.run(["bin/release/net8.0/linux-x64/VoxLogicA", outputName,"--savetaskgraphasdot", dotName],stderr=subprocess.STDOUT) 
+            subprocess.run(["bin/release/net8.0/linux-x64/VoxLogicA", outputName, "--numframes", numFrames,"--savetaskgraphasprogram", outputNameNone],stderr=subprocess.STDOUT)
+            subprocess.run(["bin/release/net8.0/linux-x64/VoxLogicA", outputNameNone,"--savetaskgraphasdot", dotNameNone],stderr=subprocess.STDOUT)           
+            subprocess.run(["bin/release/net8.0/linux-x64/VoxLogicA", outputNameNone, "--numframes", numFrames,"--evaluatespatiotemporal", outputNameVL1],stderr=subprocess.STDOUT)        
        
     except FileNotFoundError:
         
