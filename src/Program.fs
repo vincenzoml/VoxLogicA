@@ -15,67 +15,83 @@
 // limitations under the License.
 
 module VoxLogicA.Main
+
 open System.Reflection
 open Argu
 
-exception CommandLineException 
-    with override __.Message = "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
+exception CommandLineException with
+    override __.Message = "Invalid arguments. Usage:\nVoxLogicA <FILENAME>"
 
-type LoadFlags = {
-    fname : string;
-    numCores : int
-}
+type LoadFlags = { fname: string; numCores: int }
 
-type CmdLine = 
-    | Ops 
+type CmdLine =
+    | Ops
     | Sequential
-    | [<MainCommandAttribute;UniqueAttribute>] Filename of string    
-with
+    | [<MainCommandAttribute; UniqueAttribute>] Filename of string
+
     interface Argu.IArgParserTemplate with
         member s.Usage =
             match s with
-            | Ops ->  "display a list of all the internal operators, with their types and a brief description"
+            | Ops -> "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
-            | Sequential ->  "Run on one CPU only"
-    
+            | Sequential -> "Run on one CPU only"
+
 [<EntryPoint>]
-let main (argv : string array) =
+let main (argv: string array) =
     let name = Assembly.GetEntryAssembly().GetName()
-    let version = name.Version 
-    let informationalVersion = ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0]) :?> AssemblyInformationalVersionAttribute).InformationalVersion
-    ErrorMsg.Logger.Debug (sprintf "%s %s" name.Name informationalVersion)
-    let model = SITKModel() :> IModel   
-    let checker = ModelChecker(model)          
-    if version.Revision <> 0 then ErrorMsg.Logger.Warning (sprintf "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d." name.Name version.Major version.Minor version.Build)                        
+    let version = name.Version
+
+    let informationalVersion =
+        ((Assembly.GetEntryAssembly().GetCustomAttributes(typeof<AssemblyInformationalVersionAttribute>, false).[0])
+        :?> AssemblyInformationalVersionAttribute)
+            .InformationalVersion
+
+    ErrorMsg.Logger.Debug(sprintf "%s %s" name.Name informationalVersion)
+    let model = SITKModel() :> IModel
+    let checker = ModelChecker(model)
+
+    if version.Revision <> 0 then
+        ErrorMsg.Logger.Warning(
+            sprintf
+                "You are using a PRERELEASE version of %s. The most recent stable release is %d.%d.%d."
+                name.Name
+                version.Major
+                version.Minor
+                version.Build
+        )
+
     try
-        let cmdLineParser = ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())     
-        let parsed = cmdLineParser.Parse argv  
-        
-        if parsed.Contains Ops
-        then 
-            Seq.iter (fun (op : Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
+        let cmdLineParser =
+            ArgumentParser.Create<CmdLine>(programName = name.Name, errorHandler = ProcessExiter())
+
+        let parsed = cmdLineParser.Parse argv
+
+        if parsed.Contains Ops then
+            Seq.iter (fun (op: Operator) -> printfn "%s" <| op.Show()) checker.OperatorFactory.Operators
             exit 0
-        let sequential = parsed.Contains Sequential        
+
+        let sequential = parsed.Contains Sequential
         // if sequential
-        // then 
+        // then
         //     let proc = System.Diagnostics.Process.GetCurrentProcess()
-        //     proc.ProcessorAffinity <- nativeint 0x1          
+        //     proc.ProcessorAffinity <- nativeint 0x1
         let run filename =
-            let interpreter = Interpreter(model,checker)
+            let interpreter = Interpreter(model, checker)
             interpreter.Batch sequential interpreter.DefaultLibDir filename
             printfn "----- *** ------"
             model.OnExit()
-        match (parsed.TryGetResult Filename,ErrorMsg.isDebug()) with 
-            | None,false ->                                      
-                printfn "%s\n" (cmdLineParser.PrintUsage ())
-                0
-            | Some filename,_ -> 
-                run filename 
-                0
-            | None,true ->
-                run "test.imgql"
-                0
-    with e ->        
-            ErrorMsg.Logger.DebugExn e
-            ErrorMsg.Logger.Failure "exiting."
-            1
+
+        match (parsed.TryGetResult Filename, ErrorMsg.isDebug ()) with
+        | None, false ->
+            printfn "%s\n" (cmdLineParser.PrintUsage())
+            0
+        | Some filename, _ ->
+            run filename
+            0
+        | None, true ->
+            run "test.imgql"
+            0
+    with e ->
+        ErrorMsg.Logger.DebugExn e
+        ErrorMsg.Logger.Failure "exiting."
+        1

@@ -1,0 +1,16 @@
+{
+    "name": "VoxLogicA",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "Ionide.Ionide-fsharp",
+                "tintinweb.graphviz-interactive-preview",
+                "ms-python.python",
+                "Codeium.codeium"
+            ]
+        }
+    }
+}
