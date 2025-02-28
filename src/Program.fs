@@ -30,16 +30,18 @@ type LoadFlags = { fname: string; numCores: int }
 
 type CmdLine =
     | Ops
-    | Convert of string * string
+    | Framefile of string
+    | Convert of string * string        
     | FakeConversion
-    | [<MainCommandAttribute; UniqueAttribute>] Filename of string
-    interface Argu.IArgParserTemplate with
+    | [<MainCommand;UniqueAttribute>] Filename of string
+    interface IArgParserTemplate with
         member s.Usage =
             match s with
             | Ops -> "display a list of all the internal operators, with their types and a brief description"
             | Filename _ -> "VoxLogicA session file"
+            | Framefile _ -> "MCRL2 frame file"
             | FakeConversion -> "Write much less info to the destination file, used just for measurement"
-            | Convert _ -> "Convert from/to image, json, aut (mcrl2)"
+            | Convert _ -> "Convert from/to image, json, aut (mcrl2), optionally generating a mcrl2 frame"
 
 let (|Img|_|) (s: string) =
     match System.IO.Path.GetExtension s with
@@ -60,44 +62,82 @@ let (|Aut|_|) (s: string) =
     | ".aut" -> Some Aut
     | _ -> None
 
-let graphToAut (j: Graph.IntFileGraph) (full: bool) (s2: string) =
+let writeFrame (atoms: System.Collections.Generic.HashSet<string>) (mcrlFrameFileName: string) =
+    let swFrame = new System.IO.StreamWriter(mcrlFrameFileName)
+    swFrame.AutoFlush <- false
+    swFrame.Write $"act \n"
+    swFrame.Write (String.concat ",\n" atoms)
+    swFrame.Write "\n"
+    swFrame.Write "init delta\n"
+    swFrame.Close()
+
+let graphToAut (j: Graph.IntFileGraph) (full: bool) (autFileName: string) (mcrlFrameFileName: string option) =
+    ErrorMsg.Logger.Debug $"graphToAut {autFileName} {mcrlFrameFileName}" 
     let nodeOfId = new System.Collections.Generic.Dictionary<_, _>()
     List.iteri (fun i (v: Graph.IntNode) -> nodeOfId[v.id] <- {| index = i; node = v |}) j.nodes
     let n = j.nodes.Length
     let transitions = new System.Collections.Generic.HashSet<_>()
     let addTransition t = ignore <| transitions.Add t
 
+    let mutable changeFound = false
+
     for a in j.arcs do
         let src = nodeOfId[a.source]
         let tgt = nodeOfId[a.target]
-        let condition = (List.sort (src.node.atoms)) = List.sort tgt.node.atoms
-        addTransition (src.index, (if condition then "tau" else "change"), tgt.index)
+        let condition = List.sort src.node.atoms = List.sort tgt.node.atoms // Comparison
+        addTransition (src.index, 
+            (if condition 
+                then "tau" 
+                else 
+                    changeFound <- true 
+                    "change"), 
+            tgt.index)
 
         if full then
-            addTransition (tgt.index + n, (if condition then "tau" else "change"), src.index + n)
+            addTransition (tgt.index + n, 
+                (if condition 
+                    then "tau" 
+                    else 
+                        changeFound <- true 
+                        "change"), src.index + n)
+
+    let atoms = new System.Collections.Generic.HashSet<string>()
 
     for kv in nodeOfId do
         let idx = kv.Value.index
 
         for atom in kv.Value.node.atoms do
+            let _ = atoms.Add atom 
             addTransition (idx, atom, idx)
 
         if full then
             addTransition (idx, "l1", idx + n)
             addTransition (idx + n, "l2", idx)
 
+    match mcrlFrameFileName with
+    | Some mcrlFrameFileName ->
+        if full then 
+            let _ = atoms.Add "l1"
+            let _ = atoms.Add "l2"
+            let _ = atoms.Add "change"
+            ()            
+        if changeFound then
+            let _ = atoms.Add "change"
+            ()
+        writeFrame atoms mcrlFrameFileName
+    | None -> ()
 
-    let sw = new System.IO.StreamWriter(s2)
-    sw.AutoFlush <- false
-    sw.Write $"des (0,{transitions.Count},{if full then 2 * n else n})\n"
+    let swAut = new System.IO.StreamWriter(autFileName)
+    swAut.AutoFlush <- false
+    swAut.Write $"des (0,{transitions.Count},{if full then 2 * n else n})\n"
 
     for t in transitions do
-        sw.WriteLine(t.ToString())
+        swAut.WriteLine(t.ToString())
 
-    sw.Close()
+    swAut.Close()
 
 
-let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
+let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (autFileName: string) (mcrlFrameFileName: string option) =
     assert (img.BufferType = SITKUtil.PixelType.UInt8)
     assert (img.Dimension = 2)
     let size = [| img.Size[0]; img.Size[1] |]
@@ -148,7 +188,7 @@ let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
 
     let fname =
         if not fakeConversion then
-            s2
+            autFileName
         else
             System.IO.Path.GetTempFileName()
 
@@ -158,6 +198,9 @@ let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
     sw.WriteLine $"des (0,{arcs},{nodes})"
     let mutable fakeConversionUtilizer = 0
 
+    let atoms = new System.Collections.Generic.HashSet<string>()
+    let mutable changeFound = false
+
     img.GetBufferAsUInt8 (fun buf ->
         for i = 0 to nodes - 1 do
             let baseidx = i * ncomps
@@ -166,15 +209,16 @@ let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
             let b = buf.UGet <| baseidx + 2
 
             if not fakeConversion then
-                let fmt x : string =
-                    System.String.Format("{0:X2}", (x: uint8))
+                // let fmt x : string =
+                //     System.String.Format("{0:X2}", (x: uint8))
+
+                let atom = $"c{r:X2}{g:X2}{b:X2}"
+                let _ = atoms.Add atom
 
                 sw.Write "("
                 sw.Write i
-                sw.Write ", c"
-                sw.Write(fmt r)
-                sw.Write(fmt g)
-                sw.Write(fmt b)
+                sw.Write ", "
+                sw.Write atom
                 sw.Write ","
                 sw.Write i
                 sw.WriteLine ")"
@@ -190,6 +234,7 @@ let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
                     if r = tr && g = tg && b = tb then
                         "tau"
                     else
+                        changeFound <- true
                         "change"
 
                 if not fakeConversion then
@@ -202,6 +247,15 @@ let img2DUInt8ToGraph fakeConversion (img: SITKUtil.VoxImage) (s2: string) =
                     sw.WriteLine ")"
                 else
                     fakeConversionUtilizer <- label.Length)
+
+    if changeFound then
+        let _ = atoms.Add "change"
+        ()
+
+    match mcrlFrameFileName with
+    | Some mcrlFrameFileName ->
+        writeFrame atoms mcrlFrameFileName
+    | None -> ()
 
     if fakeConversion then
         ErrorMsg.Logger.Debug $"Fake conversion done (unuseful integer: {fakeConversionUtilizer})"
@@ -384,8 +438,8 @@ let autToGraph s =
                 Graph.target = t
             }
 
-    let unChoice1 x = match x with Choice1Of2 x -> x
-    let unChoice2 x = match x with Choice2Of2 x -> x
+    let unChoice1 x = match x with Choice1Of2 x -> x | _ -> failwith "Invalid transition"
+    let unChoice2 x = match x with Choice2Of2 x -> x | _ -> failwith "Invalid transition"
     
     let (nodes,arcs) = 
         Seq.map parseTransition (Seq.tail lines) |>
@@ -424,12 +478,19 @@ let main (argv: string array) =
 
         let parsed = cmdLineParser.Parse argv
 
-
         if parsed.Contains Convert then
             let fakeConversion = parsed.Contains FakeConversion
             let s1, s2 = parsed.GetResult Convert
 
-            match s1, s2 with
+            match s1, s2 with            
+            | JSon, Aut ->
+                let j = Graph.loadFileGraph (s1)
+                if parsed.Contains Framefile then
+                    let framefile = parsed.GetResult Framefile
+                    graphToAut j false s2 (Some framefile)
+                else
+                    graphToAut j false s2 None
+                exit 0
             | Img, Aut ->
                 let (imgf, autf) = (s1, s2)
                 ErrorMsg.Logger.Debug $"Loading {imgf}"
@@ -439,15 +500,24 @@ let main (argv: string array) =
                    && img.Dimension = 2
                    && img.NComponents >= 3 then
                     ErrorMsg.Logger.Debug "Using optimized 2D Uint8 transform"
-                    img2DUInt8ToGraph fakeConversion img s2
+                    if parsed.Contains Framefile then
+                        let framefile = parsed.GetResult Framefile
+                        img2DUInt8ToGraph fakeConversion img s2 (Some framefile)
+                    else
+                        img2DUInt8ToGraph fakeConversion img s2 None
                 else
                     ErrorMsg.Logger.Debug
                         $"Using non-optimized transform (dimension: {img.Dimension}, type: {img.BufferType})"
 
                     let j = imgToGraph img
-                    graphToAut j false autf
+                    if parsed.Contains Framefile then
+                        let framefile = parsed.GetResult Framefile
+                        graphToAut j false autf (Some framefile)
+                    else
+                        graphToAut j false autf None
+                    exit 0
 
-            | JSon, Img ->
+            | JSon, Img->
                 let j = Graph.loadFileGraph (s1)
 
                 let parseTriple s =
@@ -522,11 +592,7 @@ let main (argv: string array) =
 
                         buf.Set (linearCoord + 3) 255uy)
 
-                img.Save s2
-            | JSon, Aut ->
-                let j = Graph.loadFileGraph (s1)
-                graphToAut j true s2
-                exit 0
+                img.Save s2         
 
             | Img, JSon ->
                 let (imgf, jsonf) = (s1, s2)
@@ -542,7 +608,9 @@ let main (argv: string array) =
                 use sw = new System.IO.StreamWriter(s2)
                 sw.Write(str)
                 sw.Close()
-
+            | _ -> 
+                ErrorMsg.Logger.Failure "Invalid conversion arguments, see --help"
+                exit 1
             ErrorMsg.Logger.Debug "Conversion done."
             exit 0
 
@@ -557,7 +625,7 @@ let main (argv: string array) =
             let interpreter = Interpreter(model, checker)
             interpreter.Batch false interpreter.DefaultLibDir filename
 
-        match (parsed.TryGetResult Filename, ErrorMsg.isDebug ()) with
+        match parsed.TryGetResult Filename, ErrorMsg.isDebug () with
         | None, false ->
             printfn "%s\n" (cmdLineParser.PrintUsage())
             0
@@ -571,8 +639,6 @@ let main (argv: string array) =
     | e ->
         ErrorMsg.Logger.DebugExn e
         ErrorMsg.Logger.Failure "exiting."
-        1
         ErrorMsg.Logger.Failure "exiting."
-        1
         ErrorMsg.Logger.Failure "exiting."
         1
