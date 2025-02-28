@@ -67,8 +67,8 @@ let writeFrame (atoms: System.Collections.Generic.HashSet<string>) (mcrlFrameFil
     swFrame.AutoFlush <- false
     swFrame.Write $"act \n"
     swFrame.Write (String.concat ",\n" atoms)
-    swFrame.Write "\n"
-    swFrame.Write "init delta\n"
+    swFrame.Write ";\n"
+    swFrame.Write "init delta;\n"
     swFrame.Close()
 
 let graphToAut (j: Graph.IntFileGraph) (full: bool) (autFileName: string) (mcrlFrameFileName: string option) =
