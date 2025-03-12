@@ -74,8 +74,17 @@ let writeFrame (atoms: System.Collections.Generic.HashSet<string>) (mcrlFrameFil
 let graphToAut (j: Graph.IntFileGraph) (full: bool) (autFileName: string) (mcrlFrameFileName: string option) =
     ErrorMsg.Logger.Debug $"graphToAut {autFileName} {mcrlFrameFileName}" 
     let nodeOfId = new System.Collections.Generic.Dictionary<_, _>()
-    List.iteri (fun i (v: Graph.IntNode) -> nodeOfId[v.id] <- {| index = i; node = v |}) j.nodes
-    let n = j.nodes.Length
+    let ids = new System.Collections.Generic.HashSet<int>()
+    let sortedNodes = j.nodes |> List.sortBy (fun n -> 
+        let intId = int n.id
+        let _ = ids.Add intId
+        intId
+    )
+    // check that ids are consecutive and start from 0
+    assert (Seq.forall (fun i -> ids.Contains i) { 0 .. sortedNodes.Length - 1 })
+    
+    List.iteri (fun i (v: Graph.IntNode) -> nodeOfId[v.id] <- {| index = i; node = v |}) sortedNodes
+    let n = sortedNodes.Length
     let transitions = new System.Collections.Generic.HashSet<_>()
     let addTransition t = ignore <| transitions.Add t
 
