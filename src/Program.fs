@@ -29,7 +29,7 @@ type CmdLine =
         member s.Usage =
             match s with
             | Ops -> "display a list of all the internal operators, with their types and a brief description"
-            | JSon _ ->
+            | JSon ->
                 "saves auxiliary information on saved layers, printed values, and the log file to a structured json format instead than on standard output"
             | Filename _ -> "VoxLogicA session file"
 

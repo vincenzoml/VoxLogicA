@@ -8,3 +8,4 @@ High-grade-Glioblastoma_BRATS/output
 .fake
 .vscode/settings.json
 lib
+.config/dotnet-tools.json
