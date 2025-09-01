@@ -32,9 +32,6 @@
     <PackageReference Include="FParsec" Version="1.1.1" />
     <PackageReference Include="FSharp.Data" Version="5.0.2" />
     <PackageReference Include="hopac" Version="0.5.1" />
-    <Reference Include="SimpleITKCSharpManaged">
-      <HintPath>lib/${SimpleITKFullName}-CSharp-linux_x86_64/SimpleITKCSharpManaged.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <Target Name="SetVersion" BeforeTargets="BeforeBuild">
     <ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
@@ -65,8 +62,7 @@
       lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'win-x64'">
       lib/$(SimpleITKFullName)/SimpleITKCSharpNative.dll</SimpleITKNative>
-    <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
-  lib/$(SimpleITKFullName)-CSharp-linux_x86_64/libSimpleITKCSharpNative.so</SimpleITKNative>
+    <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.so</SimpleITKNative>
 
     <DownloadPath>
       https://github.com/SimpleITK/SimpleITK/releases/download/$(SimpleITKRelease)/$(SimpleITKFullName).zip</DownloadPath>
@@ -76,6 +72,7 @@
   <ItemGroup>
     <Reference Include="SimpleITKCSharpManaged">
       <HintPath>$(SimpleITKManaged)</HintPath>
+      <Private>True</Private>
     </Reference>
   </ItemGroup>
 
