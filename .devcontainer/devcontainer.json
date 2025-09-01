@@ -1,0 +1,38 @@
+{
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "mounts": [
+        {
+            "type": "bind",
+            "source": "${env:HOME}",
+            "target": "${env:HOME}"
+        }
+    ],
+    "runArgs": [
+        "-w",
+        "${env:HOME}",
+        "--userns=keep-id",
+        "--ulimit",
+        "stack=-1:-1"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "Tyriar.luna-paint",
+                "ms-toolsai.jupyter",
+                "ms-azuretools.vscode-docker",
+                "eamodio.gitlens",
+                "ms-python.autopep8",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.live-server",
+                "Stephanvs.dot",
+                "tintinweb.graphviz-interactive-preview",
+                "tomoki1207.pdf",
+                "Ionide.Ionide-fsharp",
+                "James-Yu.latex-workshop"
+            ]
+        }
+    }
+}

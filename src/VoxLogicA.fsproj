@@ -33,7 +33,7 @@
     <PackageReference Include="FSharp.Data" Version="5.0.2" />
     <PackageReference Include="hopac" Version="0.5.1" />
     <Reference Include="SimpleITKCSharpManaged">
-      <HintPath>lib/SimpleITK-3.0.0..dev188-CSharp-linux_x86_64/SimpleITKCSharpManaged.dll</HintPath>
+      <HintPath>lib/${SimpleITKFullName}-CSharp-linux_x86_64/SimpleITKCSharpManaged.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Target Name="SetVersion" BeforeTargets="BeforeBuild">
@@ -47,8 +47,8 @@
   </Target>
   
   <PropertyGroup>
-    <SimpleITKVersionString>SimpleITK-3.0.0.dev188</SimpleITKVersionString>
-    <SimpleITKRelease>latest</SimpleITKRelease>
+    <SimpleITKVersionString>SimpleITK-2.5.2</SimpleITKVersionString>
+    <SimpleITKRelease>v2.5.2</SimpleITKRelease>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>
@@ -66,7 +66,7 @@
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'win-x64'">
       lib/$(SimpleITKFullName)/SimpleITKCSharpNative.dll</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
-  lib/SimpleITK-3.0.0..dev188-CSharp-linux_x86_64/libSimpleITKCSharpNative.so</SimpleITKNative>
+  lib/$(SimpleITKFullName)-CSharp-linux_x86_64/libSimpleITKCSharpNative.so</SimpleITKNative>
 
     <DownloadPath>
       https://github.com/SimpleITK/SimpleITK/releases/download/$(SimpleITKRelease)/$(SimpleITKFullName).zip</DownloadPath>
@@ -75,7 +75,7 @@
 
   <ItemGroup>
     <Reference Include="SimpleITKCSharpManaged">
-      <HintPath>lib/SimpleITK-3.0.0..dev188-CSharp-linux_x86_64/SimpleITKCSharpManaged.dll</HintPath>
+      <HintPath>$(SimpleITKManaged)</HintPath>
     </Reference>
   </ItemGroup>
 
