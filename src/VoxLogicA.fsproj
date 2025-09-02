@@ -61,6 +61,7 @@
 
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'osx-x64'">
       lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib</SimpleITKNative>
+  <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'win-x64'">
       lib/$(SimpleITKFullName)/SimpleITKCSharpNative.dll</SimpleITKNative>
     <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.so</SimpleITKNative>
