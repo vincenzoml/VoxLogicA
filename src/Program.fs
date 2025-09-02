@@ -22,9 +22,9 @@ open Argu
 type LoadFlags = { fname: string; numCores: int }
 
 type CmdLine =
-    | [<UniqueAttribute>] Ops
-    | [<UniqueAttribute>] JSon
-    | [<MainCommandAttribute; UniqueAttribute>] Filename of string
+    | [<Unique>] Ops
+    | [<Unique>] JSon
+    | [<MainCommand; Unique>] Filename of string
     interface Argu.IArgParserTemplate with
         member s.Usage =
             match s with
