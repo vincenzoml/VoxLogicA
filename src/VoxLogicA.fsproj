@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <PublishSingleFile>false</PublishSingleFile>
-    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishReadyToRun>true</PublishReadyToRun>
     <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
     <PublishTrimmed>false</PublishTrimmed>
     <SelfContained>true</SelfContained>
@@ -51,6 +51,7 @@
     <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RuntimeIdentifier>
 
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macosx-10.9-anycpu</SimpleITKArchString>
+  <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">macosx-11.0-anycpu</SimpleITKArchString>
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'win-x64'">win64-x64</SimpleITKArchString>
     <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'linux-x64'">linux_x86_64</SimpleITKArchString>
 

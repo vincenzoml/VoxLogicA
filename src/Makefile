@@ -54,8 +54,15 @@ clean:
 release-linux:
 	make publish-internal RID=linux-x64
 
-release-osx:
+release-osx-x64:
 	make publish-internal RID=osx-x64
+
+release-linux-arm64:
+	make publish-internal RID=linux-arm64
+
+release-osx:
+	make publish-internal RID=osx-arm64
+
 
 release-win:
 	make publish-internal RID=win-x64
