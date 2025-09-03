@@ -92,6 +92,20 @@
   <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
   <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
 </Target>
+  <!-- Copy SimpleITK managed/native files if available in repo lib layout -->
+  <Target Name="CopySimpleITKLibs" AfterTargets="CopyCustomContent">
+    <!-- Prefer the experimental-style folder layout -->
+    <Copy Condition="Exists('$(SimpleITKManaged)')" SourceFiles="$(SimpleITKManaged)" DestinationFolder="$(OutDir)" />
+    <Copy Condition="Exists('$(SimpleITKNative)')" SourceFiles="$(SimpleITKNative)" DestinationFolder="$(OutDir)" />
+    <!-- Fallback: single managed DLL at lib/ and unzipped arch folder -->
+    <Copy Condition="Exists('lib/SimpleITKCSharpManaged.dll')" SourceFiles="lib/SimpleITKCSharpManaged.dll" DestinationFolder="$(OutDir)" />
+    <Copy Condition="Exists('lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib')" SourceFiles="lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib" DestinationFolder="$(OutDir)" />
+    <!-- Also support legacy per-arch zips already unzipped under lib/<arch>/ -->
+    <Copy Condition="Exists('lib/osx-x64/libSimpleITKCSharpNative.dylib')" SourceFiles="lib/osx-x64/libSimpleITKCSharpNative.dylib" DestinationFolder="$(OutDir)" />
+    <Copy Condition="Exists('lib/osx-arm64/libSimpleITKCSharpNative.dylib')" SourceFiles="lib/osx-arm64/libSimpleITKCSharpNative.dylib" DestinationFolder="$(OutDir)" />
+    <Copy Condition="Exists('lib/linux-x64/libSimpleITKCSharpNative.so')" SourceFiles="lib/linux-x64/libSimpleITKCSharpNative.so" DestinationFolder="$(OutDir)" />
+    <Copy Condition="Exists('lib/win-x64/libSimpleITKCSharpNative.dll')" SourceFiles="lib/win-x64/libSimpleITKCSharpNative.dll" DestinationFolder="$(OutDir)" />
+  </Target>
   <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
   <Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high"></Message>
   <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-arm64|osx-x64|win-x64" />
@@ -99,4 +113,14 @@
   <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
   <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
 </Target>
+  <Target Name="CopySimpleITKLibsOnPublish" AfterTargets="CopyCustomContentOnPublish">
+    <Copy Condition="Exists('$(SimpleITKManaged)')" SourceFiles="$(SimpleITKManaged)" DestinationFolder="$(PublishDir)" />
+    <Copy Condition="Exists('$(SimpleITKNative)')" SourceFiles="$(SimpleITKNative)" DestinationFolder="$(PublishDir)" />
+    <Copy Condition="Exists('lib/SimpleITKCSharpManaged.dll')" SourceFiles="lib/SimpleITKCSharpManaged.dll" DestinationFolder="$(PublishDir)" />
+    <Copy Condition="Exists('lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib')" SourceFiles="lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib" DestinationFolder="$(PublishDir)" />
+    <Copy Condition="Exists('lib/osx-x64/libSimpleITKCSharpNative.dylib')" SourceFiles="lib/osx-x64/libSimpleITKCSharpNative.dylib" DestinationFolder="$(PublishDir)" />
+    <Copy Condition="Exists('lib/osx-arm64/libSimpleITKCSharpNative.dylib')" SourceFiles="lib/osx-arm64/libSimpleITKCSharpNative.dylib" DestinationFolder="$(PublishDir)" />
+    <Copy Condition="Exists('lib/linux-x64/libSimpleITKCSharpNative.so')" SourceFiles="lib/linux-x64/libSimpleITKCSharpNative.so" DestinationFolder="$(PublishDir)" />
+    <Copy Condition="Exists('lib/win-x64/libSimpleITKCSharpNative.dll')" SourceFiles="lib/win-x64/libSimpleITKCSharpNative.dll" DestinationFolder="$(PublishDir)" />
+  </Target>
 </Project>
