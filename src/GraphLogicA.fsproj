@@ -18,20 +18,18 @@
     <Compile Include="Parser.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="NativeArray.fs" />
-    <Compile Include="Truth.fs" />
-    <Compile Include="SITKUtil.fs" />
+  <Compile Include="Truth.fs" />
+  <Compile Include="SITKUtil.fs" />
+  <Compile Include="SITKModel.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="GraphModel.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Argu" Version="6.0.0" />
+  <PackageReference Include="Argu" Version="6.2.5" />
     <PackageReference Include="FParsec" Version="1.0.3" />
     <PackageReference Include="hopac" Version="0.3.23" />
     <PackageReference Include="FSharp.Json" Version="0.4.0" />
-    <Reference Include="SimpleITKCSharpManaged">
-      <HintPath>../lib/SimpleITKCSharpManaged.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <Target Name="SetVersion" BeforeTargets="BeforeBuild">
     <ReadLinesFromFile File="$(MSBuildProjectDirectory)/VERSION.txt">
@@ -42,23 +40,63 @@
       <Version>@(version)</Version>
     </PropertyGroup>
   </Target>
-   <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
+  
+  <PropertyGroup>
+    <SimpleITKVersionString>SimpleITK-2.5.2</SimpleITKVersionString>
+    <SimpleITKRelease>v2.5.2</SimpleITKRelease>
+    <!-- Set a sensible RID default depending on OS when building locally -->
+    <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Windows'))">win-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="$([MSBuild]::IsOSPlatform('OSX'))">osx-arm64</RuntimeIdentifier>
+
+    <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'osx-x64'">macosx-10.9-anycpu</SimpleITKArchString>
+    <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">macosx-11.0-anycpu</SimpleITKArchString>
+    <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'win-x64'">win64-x64</SimpleITKArchString>
+    <SimpleITKArchString Condition="'$(RuntimeIdentifier)' == 'linux-x64'">linux_x86_64</SimpleITKArchString>
+
+    <SimpleITKFullName>$(SimpleITKVersionString)-CSharp-$(SimpleITKArchString)</SimpleITKFullName>
+
+    <SimpleITKManaged>lib/$(SimpleITKFullName)/SimpleITKCSharpManaged.dll</SimpleITKManaged>
+
+    <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'osx-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib</SimpleITKNative>
+    <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.dylib</SimpleITKNative>
+    <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'win-x64'">lib/$(SimpleITKFullName)/SimpleITKCSharpNative.dll</SimpleITKNative>
+    <SimpleITKNative Condition="'$(RuntimeIdentifier)' == 'linux-x64'">lib/$(SimpleITKFullName)/libSimpleITKCSharpNative.so</SimpleITKNative>
+
+    <DownloadPath>https://github.com/SimpleITK/SimpleITK/releases/download/$(SimpleITKRelease)/$(SimpleITKFullName).zip</DownloadPath>
+    <ZipName>lib/$(SimpleITKFullName).zip</ZipName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="SimpleITKCSharpManaged">
+      <HintPath>$(SimpleITKManaged)</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="SimpleITKCSharpManaged" Condition="Exists('lib/SimpleITKCSharpManaged.dll')">
+      <HintPath>lib/SimpleITKCSharpManaged.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="DownloadContentFiles" BeforeTargets="UnzipLibs" Condition="!Exists($(ZipName))">
+    <Message Importance="high" Text="Downloading file $(DownloadPath) to ./lib" />
+    <DownloadFile SourceUrl="$(DownloadPath)" DestinationFolder="./lib" />
+  </Target>
+
+  <Target Name="UnzipLibs" BeforeTargets="BeforeBuild">
+    <Unzip SourceFiles="$(ZipName)" DestinationFolder="lib" />
+  </Target>
+  <Target Name="CopyCustomContent" AfterTargets="AfterBuild">
   <Message Text="Copying files after build with RID=$(RuntimeIdentifier)" Importance="high"></Message>
-  <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
+  <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-arm64|osx-x64|win-x64" />
   <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(OutDir)" />
   <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(OutDir)" />
-  <Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(OutDir)" />
-  <Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(OutDir)" />
-  <Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(OutDir)" />
 </Target>
   <Target Name="CopyCustomContentOnPublish" AfterTargets="Publish">
   <Message Text="Copying files after publish with RID=$(RuntimeIdentifier)" Importance="high"></Message>
-  <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-x64|win-x64" />
+  <Error Condition="'$(RuntimeIdentifier)' == ''" Text="RID is not set. Please set a RID with -r linux-x64|osx-arm64|osx-x64|win-x64" />
   <Copy SourceFiles="stdlib.imgql" DestinationFolder="$(PublishDir)" />
   <Copy SourceFiles="RegionCalculus.imgql" DestinationFolder="$(PublishDir)" />
   <Copy SourceFiles="BINARY_LICENSE.txt" DestinationFolder="$(PublishDir)" />
-  <Unzip SourceFiles="../lib/linux-x64/libSimpleITKCSharpNative.so.zip" Condition="'$(RuntimeIdentifier)' == 'linux-x64'" DestinationFolder="$(PublishDir)" />
-  <Unzip SourceFiles="../lib/win-x64/libSimpleITKCSharpNative.dll.zip" Condition="'$(RuntimeIdentifier)' == 'win-x64'" DestinationFolder="$(PublishDir)" />
-  <Unzip SourceFiles="../lib/osx-x64/libSimpleITKCSharpNative.dylib.zip" Condition="'$(RuntimeIdentifier)' == 'osx-x64'" DestinationFolder="$(PublishDir)" />
 </Target>
 </Project>

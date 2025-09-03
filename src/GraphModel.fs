@@ -16,8 +16,8 @@
 
 namespace VoxLogicA
 
-exception NoModelLoadedException 
-    with override __.Message = "No model loaded"
+exception NoGraphLoadedException 
+    with override __.Message = "No graph loaded"
 
 
 exception MoreThanOneModelUnsupportedException
@@ -25,20 +25,16 @@ exception MoreThanOneModelUnsupportedException
 
 open Hopac
 
-module Lifts =
-    let lift = Job.lift
-    let lift2 = fun fn x y  -> job { return fn x y }
-
 open Lifts
 
 open Graph
 
 open Truth
 
-type SITKModel() =    
+type GraphModel() =    
     inherit IModel()
     let mutable baseGraph : option<Graph> = None
-    let getBaseGraph() = match baseGraph with None -> raise NoModelLoadedException | Some graph -> graph
+    let getBaseGraph() = match baseGraph with None -> raise NoGraphLoadedException | Some graph -> graph
         
     let supportedExtensions = [".json"] // TODO: make this list exhaustive
     

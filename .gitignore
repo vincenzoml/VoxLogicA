@@ -1,6 +1,7 @@
 example/output
 bin
 obj
+lib
 releases/
 .ionide
 High-grade-Glioblastoma_BRATS/output

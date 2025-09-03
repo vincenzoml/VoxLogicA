@@ -315,7 +315,10 @@ type VoxImage private (img : Image,uniqueName : string) =
             let g = new VoxImage(img,pixeltype)
             let b = new VoxImage(img,pixeltype)
             let flt = new ComposeImageFilter()
-            let res = flt.Execute(r.Image,g.Image,b.Image)
+            let comps = [| r.Image; g.Image; b.Image |]
+            let v = new VectorOfImage(comps)
+            let res = flt.Execute(v)
+            v.Dispose()
             new VoxImage(res,sprintf "allocate:(%s)[%s][%s]" (ncomponents.ToString()) (img.ToString()) (pixeltype.ToString()))
         | 4 -> 
             let r = new VoxImage(img,pixeltype)
@@ -323,11 +326,14 @@ type VoxImage private (img : Image,uniqueName : string) =
             let b = new VoxImage(img,pixeltype)
             let a = new VoxImage(img,pixeltype)
             let flt = new ComposeImageFilter()
-            let res = flt.Execute(r.Image,g.Image,b.Image,a.Image)
+            let comps = [| r.Image; g.Image; b.Image; a.Image |]
+            let v = new VectorOfImage(comps)
+            let res = flt.Execute(v)
+            v.Dispose()
             new VoxImage(res,sprintf "allocate:(%s)[%s][%s]" (ncomponents.ToString()) (img.ToString()) (pixeltype.ToString()))
         | x -> 
             let _ = raise <| UnsupportedNumberOfComponentsPerPixelException(x)
-            new VoxImage(img.Image,"")
+            new VoxImage(img.Image)
 
     new (img : VoxImage) = new VoxImage(new Image(img.Image),sprintf "copy:[%s]" (img.ToString()))   
     
@@ -464,11 +470,17 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member RGB (img1 : VoxImage) (img2 : VoxImage) (img3 : VoxImage) = 
         use flt = new ComposeImageFilter()
-        new VoxImage(flt.Execute(img1.Image,img2.Image,img3.Image))
+        let v = new VectorOfImage([| img1.Image; img2.Image; img3.Image |])
+        let res = flt.Execute(v)
+        v.Dispose()
+        new VoxImage(res)
 
     static member RGBA (img1 : VoxImage) (img2 : VoxImage) (img3 : VoxImage) (img4 : VoxImage) =
         use flt = new ComposeImageFilter()
-        new VoxImage(flt.Execute(img1.Image,img2.Image,img3.Image,img4.Image))
+        let v = new VectorOfImage([| img1.Image; img2.Image; img3.Image; img4.Image |])
+        let res = flt.Execute(v)
+        v.Dispose()
+        new VoxImage(res)
 
     static member Avg (img : VoxImage) (mask : VoxImage) = // TODO: type check that there is one component only
         let mutable (l : list<float32>) = [] 
@@ -477,8 +489,8 @@ type VoxImage private (img : Image,uniqueName : string) =
                 mask.GetBufferAsUInt8(
                     fun maskv ->
                         for i = 0 to imgv.Length - 1 do
-                        if maskv.UGet i > 0uy then
-                            l <- (imgv.UGet i)::l    // TODO: URGENT: BUG: check why results are slightly different from the master branch (commmit: e24602f1c54348a0c6f8188b3bf44573bd393703)
+                            if maskv.UGet i > 0uy then
+                                l <- (imgv.UGet i)::l    // TODO: URGENT: BUG: check why results are slightly different from the master branch (commmit: e24602f1c54348a0c6f8188b3bf44573bd393703)
                 ))
         List.averageBy float l
     
@@ -506,7 +518,9 @@ type VoxImage private (img : Image,uniqueName : string) =
     static member Logor (img1 : VoxImage) (img2 : VoxImage) = new VoxImage(SimpleITK.Or(img1.Image,img2.Image))
     static member Lognot (img : VoxImage) = new VoxImage(SimpleITK.Not(img.Image))
 
-    static member Near (img : VoxImage) = new VoxImage(SimpleITK.DilateObjectMorphology(img.Image,1ul,KernelEnum.sitkBox,1.0))
+    static member Near (img : VoxImage) = 
+        use vr = new itk.simple.VectorUInt32([| 1u |])
+        new VoxImage(SimpleITK.DilateObjectMorphology(img.Image,vr,KernelEnum.sitkBox,1.0))
     static member Interior (img : VoxImage) = new VoxImage(SimpleITK.BinaryErode img.Image)
 
     static member Subtract (img1 : VoxImage,img2 : VoxImage) = new VoxImage(SimpleITK.Subtract(img1.Image,img2.Image))
@@ -521,11 +535,15 @@ type VoxImage private (img : Image,uniqueName : string) =
 
     static member Dt (img : VoxImage) =
         use flt = new SignedMaurerDistanceMapImageFilter()
-        new VoxImage(flt.Execute(img.Image, false, false, true, 0.0))
+        new VoxImage(flt.Execute(img.Image))
 
     static member Eq (value : float) (img : VoxImage) =        
         use flt = new BinaryThresholdImageFilter() 
-        new VoxImage(flt.Execute(img.Image,value,value,1uy,0uy))
+        flt.SetLowerThreshold(value)
+        flt.SetUpperThreshold(value)
+        flt.SetInsideValue(1uy)
+        flt.SetOutsideValue(0uy)
+        new VoxImage(flt.Execute(img.Image))
 
     static member Geq (value : float) (img : VoxImage) =
         use flt = new GreaterEqualImageFilter()
@@ -658,7 +676,8 @@ type VoxImage private (img : Image,uniqueName : string) =
                     if ballRadius.[i] = 0 then
                         Logger.Debug (sprintf "Computing cross correlation with radius %A but the pixdim number %A (starting from 0) is %A; approximated to 1 voxel in this dimension" rad i dims.[i])
                         ballRadius.[i] <- 1
-                use vradius = new VectorUInt32(Array.map uint32 ballRadius)
+                let vradiusArr = Array.map uint32 ballRadius
+                use vradius = new itk.simple.VectorUInt32(vradiusArr)
                 use outerImage = new VoxImage(SimpleITK.ConstantPad(a.Image,vradius,vradius,infinity))                 
                 let size = Array.ofSeq (Seq.map int (a.Image.GetSize()))  
                 let outerSize = Array.ofSeq (Seq.map int (outerImage.Image.GetSize()))
