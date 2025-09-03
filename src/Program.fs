@@ -623,7 +623,7 @@ let main (argv: string array) =
             ErrorMsg.Logger.Debug "Conversion done."
             exit 0
 
-        let model = SITKModel() :> IModel
+        let model = GraphModel() :> IModel
         let checker = ModelChecker(model)
 
         if parsed.Contains Ops then
