@@ -9,3 +9,4 @@ output
 .fake
 src/VoxLogicA_*
 src/test/min/output-2022-08-26.zip
+.vscode/settings.json

@@ -33,7 +33,7 @@ type CmdLine =
     | Framefile of string
     | Convert of string * string        
     | FakeConversion
-    | [<MainCommand;UniqueAttribute>] Filename of string
+    | [<MainCommand>] Filename of string
     interface IArgParserTemplate with
         member s.Usage =
             match s with

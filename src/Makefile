@@ -31,7 +31,9 @@ endif
 ifeq ($(UNAME),Linux)
 CURRENTRID=linux-x64
 else
-CURRENTRID=win-x64
+	# On macOS prefer arm64 by default (osx-arm64). Keep osx-x64 as an explicit option.
+	# If running on mac, default to osx-arm64; users can still request osx-x64 via RID.
+	CURRENTRID=osx-arm64
 endif
 
 .PHONY: build clean restore release-linux release-osx release-win publish-internal release
@@ -65,8 +67,14 @@ clean:
 release-linux:
 	make publish-internal RID=linux-x64
 
-release-osx:
+
+release-osx-arm64:
+	make publish-internal RID=osx-arm64
+
+release-osx-x64:
 	make publish-internal RID=osx-x64
+
+release-osx: release-osx-arm64
 
 release-win:
 	make publish-internal RID=win-x64
