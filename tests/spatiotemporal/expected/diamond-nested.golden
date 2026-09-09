@@ -1,0 +1,38 @@
+### case diamond-nested, 3 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=42
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=op6(inc(n))
+let op8(n)=op7(inc(n))
+save "result" op8(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2=inc(op1)
+let op3="video.avi"
+let op4=load(op3)
+let op5=frame(op4,op2)
+let op6=intensity(op5)
+let op7=42
+let op8=gt(op6,op7)
+save "result" op8
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "video.avi"
+load videoAt0 = "frames/video_0.png"
+load videoAt1 = "frames/video_1.png"
+load videoAt2 = "frames/video_2.png"
+load videoAt3 = "frames/video_2.png"
+let op2 = 0
+let op5 = videoAt2
+let op6 = intensity(op5)
+let op7 = 42
+let op8 = gt(op6,op7)
+save "result.png" op8

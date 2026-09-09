@@ -1,0 +1,5 @@
+// until as the goal of the specification: the case the tool was built around
+let video = load("video.avi")
+let interesting = gt(intensity(frame(video,n)),42)
+let moreInteresting = gt(intensity(frame(video,n)),52)
+save "result" until(interesting,moreInteresting)

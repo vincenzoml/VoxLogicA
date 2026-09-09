@@ -1,0 +1,5 @@
+// KNOWN BAD (bug 6): more next operators than frames. The generated program
+// refers to a frame that is never loaded, and nothing reports it.
+let video = load("video.avi")
+let interesting = gt(intensity(frame(video,n)),42)
+save "result" diamond(diamond(diamond(diamond(interesting))))

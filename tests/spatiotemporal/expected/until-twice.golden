@@ -1,0 +1,92 @@
+### case until-twice, 2 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=42
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=52
+let op8(n)=gt(op4(n),op7(n))
+let op14(n)=and(op6(n),op8(inc(n)))
+let op15(n)=or(op8(n),op14(n))
+let op16(n)=and(op6(n),op15(inc(n)))
+let op17(n)=or(op8(n),op16(n))
+let op10(n)=62
+let op11(n)=gt(op4(n),op10(n))
+let op18(n)=and(op6(n),op11(inc(n)))
+let op19(n)=or(op11(n),op18(n))
+let op20(n)=and(op6(n),op19(inc(n)))
+let op21(n)=or(op11(n),op20(n))
+let op13(n)=or(op17(n),op21(n))
+save "result" op13(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1="video.avi"
+let op2=load(op1)
+let op3=frame(op2,op0)
+let op4=intensity(op3)
+let op5=52
+let op6=gt(op4,op5)
+let op7=42
+let op8=gt(op4,op7)
+let op9=inc(op0)
+let op10=frame(op2,op9)
+let op11=intensity(op10)
+let op12=gt(op11,op5)
+let op13=gt(op11,op7)
+let op14=inc(op9)
+let op15=frame(op2,op14)
+let op16=intensity(op15)
+let op17=gt(op16,op5)
+let op18=and(op13,op17)
+let op19=or(op12,op18)
+let op20=and(op8,op19)
+let op21=or(op6,op20)
+let op22=62
+let op23=gt(op4,op22)
+let op24=gt(op11,op22)
+let op25=gt(op16,op22)
+let op26=and(op13,op25)
+let op27=or(op24,op26)
+let op28=and(op8,op27)
+let op29=or(op23,op28)
+let op30=or(op21,op29)
+save "result" op30
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "video.avi"
+load videoAt0 = "frames/video_0.png"
+load videoAt1 = "frames/video_1.png"
+load videoAt2 = "frames/video_1.png"
+let op2 = 0
+let op3 = videoAt0
+let op4 = intensity(op3)
+let op5 = 52
+let op6 = gt(op4,op5)
+let op7 = 42
+let op8 = gt(op4,op7)
+let op10 = videoAt1
+let op11 = intensity(op10)
+let op12 = gt(op11,op5)
+let op13 = gt(op11,op7)
+let op15 = videoAt2
+let op16 = intensity(op15)
+let op17 = gt(op16,op5)
+let op18 = and(op13,op17)
+let op19 = or(op12,op18)
+let op20 = and(op8,op19)
+let op21 = or(op6,op20)
+let op22 = 62
+let op23 = gt(op4,op22)
+let op24 = gt(op11,op22)
+let op25 = gt(op16,op22)
+let op26 = and(op13,op25)
+let op27 = or(op24,op26)
+let op28 = and(op8,op27)
+let op29 = or(op23,op28)
+let op30 = or(op21,op29)
+save "result.png" op30

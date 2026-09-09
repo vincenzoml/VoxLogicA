@@ -1,0 +1,4 @@
+// KNOWN BAD (bug 4): an identifier applied to no arguments makes the partial
+// evaluator emit an unbalanced parenthesis.
+let x = foo
+save "result" bar(x)

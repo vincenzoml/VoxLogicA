@@ -42,13 +42,6 @@ type Goal =
     | GoalSave of string * OperationId
     | GoalPrint of string * OperationId
 
-//let mutable maxLength = 0
-let mutable until = false
-
-let newId opId = 
-    let mutable id = 0
-    fun () -> id <- opId + 1; id
-
 type WorkPlan =
     { operations: array<Operation>
       goals: array<Goal> }
@@ -62,91 +55,108 @@ type WorkPlan =
         $"goals: {g}\noperations:\n{t}"
 
 
-    member this.ToProgram (ctx : option<string>, numFrames : int) : (Program) =
-        let sem opId (op: Operation) (ctx: option<string>) (env : array<int>): seq<Command>*Expression*int =
-            let ctxList = 
-                match ctx with
-                | None -> []
-                | _ -> [ECall("unknown", ctx.Value, [])]
-            let context = if ctx = None then "" else ctx.Value
+    member this.ToProgram(ctx: option<string>, numFrames: int) : Program =
+        // Identifiers for the operations introduced by unrolling the temporal
+        // operators. They start past the ids of the DAG, so that they can never
+        // collide with the identifiers of the operations of the work plan.
+        let mutable nextId = this.operations.Length
+
+        let freshId () =
+            let id = nextId
+            nextId <- nextId + 1
+            id
+
+        // The frame reference, when there is one, travels as an actual argument and
+        // is declared as a formal argument; it is never part of the name of an
+        // operation.
+        let ctxList =
+            match ctx with
+            | None -> []
+            | Some c -> [ ECall("unknown", c, []) ]
+
+        let ctxArgs =
+            match ctx with
+            | None -> []
+            | Some c -> [ c ]
+
+        let atFrame id = ECall("unknown", $"op{id}", ctxList)
+
+        let atNextFrame id =
+            ECall("unknown", $"op{id}", [ ECall("unknown", "inc", ctxList) ])
+
+        // Maps the ids of the DAG to the ids of the emitted declarations. The two
+        // differ for the operators that expand to more than one declaration; since
+        // the arguments of an operation always have a smaller id than the operation
+        // itself, env[arg] is always up to date when the operation is translated.
+        let env = Array.init this.operations.Length id
+
+        let sem opId (op: Operation) : seq<Command> * Expression * int =
             match op.operator with
             | Identifier "frame" ->
                 match Seq.toList op.arguments with
-                | [_;_] -> 
-                    Seq.empty, ECall("unknown", "frame", Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{env[arg]}",ctxList)) op.arguments)), opId
+                | [ _; _ ] as args -> Seq.empty, ECall("unknown", "frame", List.map (fun arg -> atFrame env[arg]) args), opId
                 | _ -> failwith "frame must take two arguments"
-            | Identifier "diamond" ->               
+            | Identifier "diamond" ->
                 match Seq.toList op.arguments with
-                | [a] -> Seq.empty, ECall("unknown", $"op{env[a]}", [ECall ("unknown", "inc", ctxList)]), opId
-                | _ ->
-                    failwith "Diamond must take one argument"
+                | [ a ] -> Seq.empty, atNextFrame env[a], opId
+                | _ -> failwith "Diamond must take one argument"
             | Identifier "until" ->
                 match Seq.toList op.arguments with
-                    | [a;b] ->
-                        let mutable declarationSeq : Command seq = Seq.empty
-                        let phi = ECall("unknown", $"op{env[a]}", ctxList)
-                        let psi = ECall("unknown", $"op{env[b]}", ctxList)
-                        let mutable oldId = opId - 1
-                        let mutable idOr = env[b]
-                        let context = if ctx = None then "" else $"({ctx.Value})"
-                        for i in 1 .. numFrames do
-                            if numFrames = 1 then
-                                idOr <- newId idOr ()
-                                declarationSeq <- Seq.append declarationSeq (Seq.singleton (Declaration($"op{idOr}({context})",[], psi)))
-                            else
-                                let idAnd = newId oldId ()
-                                let andOp = Declaration($"op{idAnd}{context}",[], ECall("unknown", "and",[phi;ECall("unknown", $"op{oldId}", [ECall ("unknown", "inc", ctxList)])]))
-                                idOr <- newId idAnd ()
-                                let orOp = Declaration($"op{idOr}{context}",[], ECall("unknown", "or",[psi;ECall("unknown", $"op{idAnd}", ctxList)]))
-                                declarationSeq <- Seq.append declarationSeq (Seq.singleton andOp)
-                                declarationSeq <- Seq.append declarationSeq (Seq.singleton orOp)
-                                oldId <- idOr
-                                //idOr <- newId idOr ()
-                        until <- true
-                        let last = newId idOr ()
-                        env[opId] <- last
-                        declarationSeq, ECall("unknown", $"op{idOr}", ctxList), last
-                    | _ -> failwith "Until must take two arguments"
+                | [ a; b ] ->
+                    // Bounded unrolling of phi U psi, with numFrames as the horizon:
+                    //   U_numFrames = psi
+                    //   U_i         = psi | (phi & X U_(i+1))
+                    let declarations = ResizeArray<Command>()
+                    let phi () = atFrame env[a]
+                    let psi () = atFrame env[b]
+
+                    let mutable inner = env[b] // id of U_(i+1)
+                    let mutable result = psi () // U_0; just psi when there is nothing to unroll
+
+                    for i = 1 to numFrames do
+                        let idAnd = freshId ()
+
+                        declarations.Add(
+                            Declaration($"op{idAnd}", ctxArgs, ECall("unknown", "and", [ phi (); atNextFrame inner ]))
+                        )
+
+                        let orExpr = ECall("unknown", "or", [ psi (); atFrame idAnd ])
+
+                        // The outermost disjunction is the operation itself, and is
+                        // declared by the caller; the others need a declaration here.
+                        if i < numFrames then
+                            let idOr = freshId ()
+                            declarations.Add(Declaration($"op{idOr}", ctxArgs, orExpr))
+                            inner <- idOr
+                        else
+                            result <- orExpr
+
+                    declarations :> seq<Command>, result, freshId ()
+                | _ -> failwith "Until must take two arguments"
             | Identifier x ->
-                Seq.empty, 
-                ECall(
-                    "unknown",
-                    x,
-                    Seq.toList (Seq.map (fun arg -> ECall("unknown", $"op{arg}",ctxList)) op.arguments)
-                ), opId
-            | Number x ->  
-                Seq.empty, 
-                ENumber x, opId
-            | Bool x -> 
-                Seq.empty, 
-                EBool x, opId
-            | String x -> 
-                Seq.empty, 
-                EString x, opId
+                Seq.empty, ECall("unknown", x, List.map (fun arg -> atFrame env[arg]) (Seq.toList op.arguments)), opId
+            | Number x -> Seq.empty, ENumber x, opId
+            | Bool x -> Seq.empty, EBool x, opId
+            | String x -> Seq.empty, EString x, opId
 
-        let env = Array.create this.operations.Length -1  // maps ids of the DAG to ids of the output list of operations
+        let declarations = ResizeArray<Command>()
+
         for i = 0 to this.operations.Length - 1 do
-            env[i] <- i
+            let expansion, expr, outId = sem i this.operations[i]
+            declarations.AddRange expansion
+            env[i] <- outId
+            declarations.Add(Declaration($"op{outId}", ctxArgs, expr))
 
-        let declarations: seq<Command> =
-            seq {
-                for i = 0 to this.operations.Length - 1 do
-                    let s, e, opId = sem i this.operations[i] ctx env // id is the id of the operation in the output list
-                    yield! s
-                    //printfn "yelding operator %A, %A" i this.operations[i].operator
-                    let ctx = if ctx = None then "" else $"({ctx.Value})"
-                    yield Declaration($"op{opId}{ctx}", [], e)
-            }
+        let goals =
+            [ let param =
+                match ctx with
+                | None -> []
+                | Some _ -> [ ENumber 0.0 ]
 
-        let goals: seq<Command> =
-            seq {
-                for i = 0 to this.goals.Length - 1 do
-                    let param = if ctx = None then [] else [ENumber 0.0]
-                    let initContext goalName goalOperationId = ("unknown", goalName, ECall("unknown", $"op{env[goalOperationId]}", param))
-                    match this.goals[i] with
-                    | GoalSave(x, y) -> yield Save (initContext x y)
-                    | GoalPrint(x, y) -> yield Print (initContext x y)
-            }
+              for goal in this.goals do
+                  match goal with
+                  | GoalSave(x, y) -> yield Save("unknown", x, ECall("unknown", $"op{env[y]}", param))
+                  | GoalPrint(x, y) -> yield Print("unknown", x, ECall("unknown", $"op{env[y]}", param)) ]
 
         Program [ yield! declarations; yield! goals ]
 

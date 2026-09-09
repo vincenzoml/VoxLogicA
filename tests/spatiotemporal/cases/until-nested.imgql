@@ -1,0 +1,5 @@
+// until whose left argument is itself an until
+let video = load("video.avi")
+let a = gt(intensity(frame(video,n)),42)
+let b = gt(intensity(frame(video,n)),52)
+save "result" until(until(a,b),b)

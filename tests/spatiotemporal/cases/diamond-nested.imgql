@@ -1,0 +1,4 @@
+// nested next operators: the frame reference must advance by one per diamond
+let video = load("video.avi")
+let interesting = gt(intensity(frame(video,n)),42)
+save "result" diamond(diamond(interesting))

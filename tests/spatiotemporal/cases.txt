@@ -1,0 +1,15 @@
+# One line per test case: <name> <numFrames>
+# The expected output of each case is in expected/<name>.golden and is produced
+# by run.sh --update. Cases whose specification is marked KNOWN BAD pin the
+# current, wrong behaviour of an open bug: when the bug is fixed the diff is
+# expected, and the golden file has to be regenerated on purpose.
+
+until-final           10
+until-composed         3
+until-twice            2
+until-nested           2
+diamond-nested         3
+sharing                2
+horizon-overflow       2
+nullary-identifier     2
+wrong-context-name     2

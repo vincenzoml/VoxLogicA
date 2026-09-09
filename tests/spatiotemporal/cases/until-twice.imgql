@@ -1,0 +1,7 @@
+// two independent until in the same specification: their unrollings must not
+// share identifiers
+let video = load("video.avi")
+let a = gt(intensity(frame(video,n)),42)
+let b = gt(intensity(frame(video,n)),52)
+let c = gt(intensity(frame(video,n)),62)
+save "result" or(until(a,b),until(a,c))

@@ -1,0 +1,7 @@
+// until feeding another operator: regression test for the id collision and for
+// the stale reference to the operation of the DAG instead of the unrolled one
+let video = load("video.avi")
+let interesting = gt(intensity(frame(video,n)),42)
+let moreInteresting = gt(intensity(frame(video,n)),52)
+let u = until(interesting,moreInteresting)
+save "result" and(u,interesting)

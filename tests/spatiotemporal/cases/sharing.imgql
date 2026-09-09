@@ -1,0 +1,4 @@
+// the same spatial subformula reached through two paths must be computed once
+let video = load("video.avi")
+let interesting = gt(intensity(frame(video,n)),42)
+save "result" and(diamond(interesting),and(interesting,interesting))

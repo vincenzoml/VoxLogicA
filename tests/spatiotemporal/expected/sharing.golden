@@ -1,0 +1,47 @@
+### case sharing, 2 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=42
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=op6(inc(n))
+let op8(n)=and(op6(n),op6(n))
+let op9(n)=and(op7(n),op8(n))
+save "result" op9(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2="video.avi"
+let op3=load(op2)
+let op4=frame(op3,op1)
+let op5=intensity(op4)
+let op6=42
+let op7=gt(op5,op6)
+let op8=frame(op3,op0)
+let op9=intensity(op8)
+let op10=gt(op9,op6)
+let op11=and(op10,op10)
+let op12=and(op7,op11)
+save "result" op12
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "video.avi"
+load videoAt0 = "frames/video_0.png"
+load videoAt1 = "frames/video_1.png"
+load videoAt2 = "frames/video_1.png"
+let op2 = 0
+let op4 = videoAt1
+let op5 = intensity(op4)
+let op6 = 42
+let op7 = gt(op5,op6)
+let op8 = videoAt0
+let op9 = intensity(op8)
+let op10 = gt(op9,op6)
+let op11 = and(op10,op10)
+let op12 = and(op7,op11)
+save "result.png" op12

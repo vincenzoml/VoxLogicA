@@ -1,0 +1,41 @@
+### case horizon-overflow, 2 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=42
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=op6(inc(n))
+let op8(n)=op7(inc(n))
+let op9(n)=op8(inc(n))
+let op10(n)=op9(inc(n))
+save "result" op10(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2=inc(op1)
+let op3=inc(op2)
+let op4=inc(op3)
+let op5="video.avi"
+let op6=load(op5)
+let op7=frame(op6,op4)
+let op8=intensity(op7)
+let op9=42
+let op10=gt(op8,op9)
+save "result" op10
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "video.avi"
+load videoAt0 = "frames/video_0.png"
+load videoAt1 = "frames/video_1.png"
+load videoAt2 = "frames/video_1.png"
+let op2 = 0
+let op7 = videoAt4
+let op8 = intensity(op7)
+let op9 = 42
+let op10 = gt(op8,op9)
+save "result.png" op10

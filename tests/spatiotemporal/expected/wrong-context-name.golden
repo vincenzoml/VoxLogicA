@@ -1,0 +1,26 @@
+### case wrong-context-name, 2 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=m
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=42
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=op6(inc(n))
+save "result" op7(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2="video.avi"
+let op3=load(op2)
+let op4=m
+let op5=frame(op3,op4)
+let op6=intensity(op5)
+let op7=42
+let op8=gt(op6,op7)
+save "result" op8
+### pass 3: --evaluatespatiotemporal
+EXIT 134
+Unhandled exception. System.Exception: unbound value
