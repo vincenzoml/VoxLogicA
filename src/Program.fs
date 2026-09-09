@@ -125,11 +125,21 @@ let main (argv: string array) =
         //        ErrorMsg.Logger.Debug $"{venv}"
 
 
+        // The two dumps of the task graph are the same program in two formats, so
+        // they read the frame reference the same way. Reading the number of frames
+        // is left to the commands that need it: the other ones must keep working
+        // without --numframes.
+        let contextOpt =
+            if parsed.Contains ProvideContext then
+                parsed.GetResult ProvideContext
+            else
+                None
+
         if parsed.Contains SaveTaskGraphAsAST then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsAST
-            let numFrames = argv[2]
+            let numFrames = parsed.GetResult NumFrames
 
-            let voxlogicaProgram = program.ToProgram(None, int numFrames)
+            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames)
 
             match filenameOpt with
             | Some filename ->
@@ -139,16 +149,9 @@ let main (argv: string array) =
 
         if parsed.Contains SaveTaskGraphAsProgram then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsProgram
-
-            let contextOpt =
-                if parsed.Contains ProvideContext then
-                    parsed.GetResult ProvideContext
-                else
-                    None
-
             let numFrames = parsed.GetResult NumFrames
 
-            let voxlogicaProgram = program.ToProgram(contextOpt, int numFrames)
+            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames)
             let voxlogicaSyntax = voxlogicaProgram.ToSyntax()
 
             match filenameOpt with
@@ -175,7 +178,7 @@ let main (argv: string array) =
         if parsed.Contains EvaluateSpatioTemporal then
             let filenameOpt = parsed.GetResult EvaluateSpatioTemporal
             let numFrames = parsed.GetResult NumFrames
-            let partEval = PartialEvaluation.evaluateProgram program (int numFrames)
+            let partEval = PartialEvaluation.evaluateProgram program numFrames
             let evaluatedProgram = partEval.program
 
             match filenameOpt with

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Checks on the command line itself, as opposed to the translation: the golden
+# tests in run.sh always invoke the tool with the same argument order, so they
+# cannot see a command that reads argv by position instead of asking the parser.
+
+set -u
+
+cd "$(dirname "$0")" || exit 1
+root=$(cd ../.. && pwd)
+binary=$root/src/bin/Release/net8.0/linux-x64/VoxLogicA
+spec=cases/until-final.imgql
+
+if [ ! -x "$binary" ]; then
+    (cd "$root/src" && dotnet build -c Release) >/dev/null || {
+        echo "build failed" >&2
+        exit 2
+    }
+fi
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+failed=0
+
+check() {
+    local what=$1 expected=$2 got=$3
+    if [ "$expected" = "$got" ]; then
+        echo "ok        $what"
+    else
+        echo "FAILED    $what"
+        echo "    expected: $expected"
+        echo "    got:      $got"
+        failed=$((failed + 1))
+    fi
+}
+
+# Every command that unrolls the temporal operators needs the number of frames,
+# and has to take it from --numframes wherever it appears on the command line.
+"$binary" "$spec" --savetaskgraphasast "$work/a.ast" --numframes 3 >/dev/null 2>&1
+check "--savetaskgraphasast, flag last" 0 $?
+
+"$binary" --numframes 3 --savetaskgraphasast "$work/b.ast" "$spec" >/dev/null 2>&1
+check "--savetaskgraphasast, flag first" 0 $?
+
+if cmp -s "$work/a.ast" "$work/b.ast"; then
+    echo "ok        the two argument orders agree"
+else
+    echo "FAILED    the two argument orders produce different output"
+    failed=$((failed + 1))
+fi
+
+# A missing --numframes has to be reported as such, not crash on a number that
+# was never a number.
+message=$("$binary" "$spec" --savetaskgraphasast "$work/c.ast" 2>&1 | grep -c "missing argument '--numframes'")
+check "missing --numframes is reported" 1 "$message"
+
+# The commands that do not unroll anything must keep working without it.
+"$binary" "$spec" --savetaskgraphasdot "$work/d.dot" >/dev/null 2>&1
+check "--savetaskgraphasdot without --numframes" 0 $?
+
+# The frame reference is honoured by both dumps of the task graph.
+"$binary" "$spec" --numframes 2 --providecontext n --savetaskgraphasast "$work/e.ast" >/dev/null 2>&1
+found=$(grep -c 'Declaration ("op0", \["n"\]' "$work/e.ast" 2>/dev/null || echo 0)
+check "--providecontext reaches --savetaskgraphasast" 1 "$found"
+
+echo
+[ $failed -eq 0 ] && echo "all cli checks ok" || echo "$failed cli check(s) failed"
+[ $failed -eq 0 ]

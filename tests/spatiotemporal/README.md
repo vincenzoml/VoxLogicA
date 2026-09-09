@@ -19,6 +19,12 @@ result of every pass with the file recorded in `expected/`:
 
 The exit code is non-zero when any case differs from its golden file.
 
+`cli.sh` is the companion of `run.sh` and takes no arguments. The golden tests
+always invoke the tool with the same argument order, so they cannot see a
+command that reads `argv` by position instead of asking the parser; `cli.sh`
+checks that, and that a command which does not unroll anything keeps working
+without `--numframes`.
+
 ## Reading a failure
 
 The golden files contain generated identifiers (`op17`), so a change in the way
