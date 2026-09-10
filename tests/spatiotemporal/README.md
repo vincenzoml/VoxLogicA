@@ -19,6 +19,12 @@ result of every pass with the file recorded in `expected/`:
 
 The exit code is non-zero when any case differs from its golden file.
 
+`sharing.sh` is not a test but a measurement: it reports how many operations a
+specification flattens to per frame, against the same expansion with the
+memoisation switched off. It builds a second copy of the tool in a temporary
+directory to get that second figure, so it leaves the working tree alone. See
+`notes/spatio-temporal.md` for what the numbers do and do not support.
+
 `cli.sh` is the companion of `run.sh` and takes no arguments. The golden tests
 always invoke the tool with the same argument order, so they cannot see a
 command that reads `argv` by position instead of asking the parser; `cli.sh`
