@@ -20,7 +20,12 @@ type Operator =
         | Bool x -> boolToSyntax x
         | String x -> x.ToString()
 
-type Arguments = seq<OperationId>
+// A list, and not a sequence: the arguments are half of the key under which the
+// reduction memoises an operation, so they have to compare and hash by what they
+// contain. A sequence would compare by reference, every lookup would miss, and
+// the sharing of the common subformulas -- the reason the reduction exists --
+// would be gone with nothing to show for it.
+type Arguments = list<OperationId>
 
 type Operation =
     { operator: Operator
@@ -30,8 +35,8 @@ type Operation =
         let sep = ","
 
         let args =
-            if Seq.length this.arguments > 0 then
-                $"({String.concat sep (Seq.map (fun x -> x.ToString()) this.arguments)})"
+            if not (List.isEmpty this.arguments) then
+                $"({String.concat sep (List.map (fun x -> x.ToString()) this.arguments)})"
             else
                 ""
 
@@ -106,17 +111,17 @@ type WorkPlan =
         let sem opId (op: Operation) : seq<Command> * Expression * int =
             match op.operator with
             | Identifier "frame" ->
-                match Seq.toList op.arguments with
+                match op.arguments with
                 | [ _; index ] as args ->
                     checkFrameIndex index
                     Seq.empty, ECall("unknown", "frame", List.map (fun arg -> atFrame env[arg]) args), opId
                 | _ -> failwith "frame must take two arguments"
             | Identifier "diamond" ->
-                match Seq.toList op.arguments with
+                match op.arguments with
                 | [ a ] -> Seq.empty, atNextFrame env[a], opId
                 | _ -> failwith "Diamond must take one argument"
             | Identifier "until" ->
-                match Seq.toList op.arguments with
+                match op.arguments with
                 | [ a; b ] ->
                     // Bounded unrolling of phi U psi, with numFrames as the horizon:
                     //   U_numFrames = psi
@@ -149,7 +154,7 @@ type WorkPlan =
                     declarations :> seq<Command>, result, freshId ()
                 | _ -> failwith "Until must take two arguments"
             | Identifier x ->
-                Seq.empty, ECall("unknown", x, List.map (fun arg -> atFrame env[arg]) (Seq.toList op.arguments)), opId
+                Seq.empty, ECall("unknown", x, List.map (fun arg -> atFrame env[arg]) op.arguments), opId
             | Number x -> Seq.empty, ENumber x, opId
             | Bool x -> Seq.empty, EBool x, opId
             | String x -> Seq.empty, EString x, opId

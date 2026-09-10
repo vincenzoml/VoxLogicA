@@ -29,7 +29,7 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
     // names nothing the reader can look up: the diagnostics quote what an operand
     // is instead of where it sits.
     let operandOf (id: int) = workplan.operations[id].operator
-    let argumentsOf (id: int) = Seq.toList workplan.operations[id].arguments
+    let argumentsOf (id: int) = workplan.operations[id].arguments
 
     let mutable environment: Environment = Map.empty
 
