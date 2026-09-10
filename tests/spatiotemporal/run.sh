@@ -45,6 +45,12 @@ if [ ! -x "$binary" ]; then
     }
 fi
 
+# The tool used to write numbers with the decimal separator of whatever machine
+# it ran on, so "42.5" came out as "42,5" here and parsed back nowhere. The cases
+# run under a locale that has a comma, so that a return of that bug fails on
+# every machine and not only on the ones that happen to use one.
+export LC_ALL=de_DE.UTF-8
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 

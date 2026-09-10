@@ -1,0 +1,6 @@
+// A decimal threshold and a boolean constant. Both have to survive every pass:
+// a number written with the decimal separator of whatever machine the tool runs
+// on does not parse back, and neither does a boolean written in title case.
+let video = load("video.avi")
+let warm = gt(intensity(frame(video,n)),42.5)
+save "result" and(warm,true)

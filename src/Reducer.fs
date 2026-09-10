@@ -16,8 +16,8 @@ type Operator =
     override this.ToString() =
         match this with
         | Identifier x -> x
-        | Number x -> x.ToString()
-        | Bool x -> x.ToString()
+        | Number x -> numberToSyntax x
+        | Bool x -> boolToSyntax x
         | String x -> x.ToString()
 
 type Arguments = seq<OperationId>

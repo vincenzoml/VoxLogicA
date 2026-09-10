@@ -1,5 +1,6 @@
 module VoxLogicA.PartialEvaluation
 
+open VoxLogicA.Parser
 open VoxLogicA.Reducer
 
 type Val =
@@ -140,8 +141,8 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
         // The frame arithmetic is over: nothing is left of it in the program.
         | Identifier "inc" -> ()
         | Identifier x -> evaluatedProgram.Add($"let op{i} = " + x + application (argumentsOf i))
-        | Number x -> evaluatedProgram.Add($"let op{i} = " + x.ToString())
-        | Bool x -> evaluatedProgram.Add($"let op{i} = " + x.ToString())
+        | Number x -> evaluatedProgram.Add($"let op{i} = " + numberToSyntax x)
+        | Bool x -> evaluatedProgram.Add($"let op{i} = " + boolToSyntax x)
         | String x -> evaluatedProgram.Add($"let op{i} = " + "\"" + x + "\"")
 
     for goal in workplan.goals do

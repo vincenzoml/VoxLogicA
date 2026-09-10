@@ -10,6 +10,7 @@ until-twice            2
 until-nested           2
 diamond-nested         3
 sharing                2
+literals               2
 horizon-overflow       2
 nullary-identifier     2
 wrong-context-name     2

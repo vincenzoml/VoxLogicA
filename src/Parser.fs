@@ -2,6 +2,15 @@ module VoxLogicA.Parser
 
 type Position = string
 
+/// How the language writes a literal. A number goes through the invariant
+/// culture, so that the decimal separator does not depend on where the tool runs
+/// -- an Italian machine used to emit "42,5", which no longer parses -- and a
+/// boolean is written in lower case, which is the only case the parser accepts.
+let numberToSyntax (f: float) =
+    f.ToString(System.Globalization.CultureInfo.InvariantCulture)
+
+let boolToSyntax (b: bool) = if b then "true" else "false"
+
 type Expression =
     | ECall of Position * string * (Expression list)
     | ENumber of float
@@ -15,8 +24,8 @@ type Expression =
                 $"{ide}"
             else
                 $"{ide}({List.map (fun x -> x.ToString()) l})"
-        | ENumber f -> $"{f}"
-        | EBool b -> $"{b}"
+        | ENumber f -> numberToSyntax f
+        | EBool b -> boolToSyntax b
         | EString s -> s.ToString() // Includes quotes in the output
 
     member this.ToSyntax() =
@@ -27,8 +36,8 @@ type Expression =
             else
                 let argString = String.concat "," (List.map (fun (x: Expression) -> x.ToSyntax()) l)
                 $"{ide}({argString})"
-        | ENumber f -> $"{f}"
-        | EBool b -> $"{b}"
+        | ENumber f -> numberToSyntax f
+        | EBool b -> boolToSyntax b
         | EString s -> $"\"{s}\""
 
 

@@ -37,6 +37,14 @@ The goldens of `until-final` at pass 2 and pass 3 agree, modulo whitespace, with
 the reference files `src/test-temporal-new.imgql` and
 `src/test-temporal-new-VL1.imgql` that predate this suite.
 
+## The locale
+
+The cases run under `LC_ALL=de_DE.UTF-8`, a locale whose decimal separator is a
+comma. Numbers used to be written with the separator of whatever machine the tool
+ran on, so a threshold like `42.5` came out as `42,5` and parsed back nowhere;
+running the cases under such a locale is what makes a return of that bug fail
+here rather than only on the machines that happen to use one.
+
 ## Frames past the end of the video
 
 A specification may look further ahead than the video is long: an `until` does it
