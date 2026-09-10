@@ -51,9 +51,11 @@ type Logger private () =
         for ll in x do
             ignore <| logLevel.Add(ll)
 
-    static member LogToStdout() =
+    // Standard error, so that the commands which write their result to standard
+    // output can have it redirected to a file without the log landing in it.
+    static member LogToStderr() =
         lock destinations (fun () ->
-            let str = System.Console.OpenStandardOutput()
+            let str = System.Console.OpenStandardError()
             let sw = new StreamWriter(str)
             destinations <- sw :: destinations)
 

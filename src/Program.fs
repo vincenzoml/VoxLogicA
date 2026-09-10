@@ -8,7 +8,6 @@ type LoadFlags = { fname: string; numCores: int }
 // type JSonOutput = FSharp.Data.JsonProvider<"example.json">
 type CmdLine =
     | [<UniqueAttribute>] Version
-    | [<UniqueAttribute>] FlattenSpatioTemporal of string
     | [<UniqueAttribute>] SaveTaskGraphAsDot of string
     | [<UniqueAttribute>] SaveTaskGraph of option<string>
     | [<UniqueAttribute>] SaveTaskGraphAsAST of option<string>
@@ -24,7 +23,6 @@ type CmdLine =
         member s.Usage =
             match s with
             | Version -> "print the voxlogica version and exit"
-            | FlattenSpatioTemporal _ -> "save spatial specification from spatio temporal"
             | SaveTaskGraph _ -> "save the task graph"
             | SaveTaskGraphAsDot _ -> "save the task graph in .dot format and exit"
             | SaveTaskGraphAsAST _ -> "save the task graph in AST format and exit"
@@ -58,7 +56,7 @@ let main (argv: string array) =
         printfn "%s" informationalVersion
         exit 0
 
-    ErrorMsg.Logger.LogToStdout()
+    ErrorMsg.Logger.LogToStderr()
 #if ! DEBUG
     ErrorMsg.Logger.SetLogLevel([ "user"; "info"; "warn"; "fail" ])
 #else
@@ -91,39 +89,27 @@ let main (argv: string array) =
 
         ErrorMsg.Logger.Info $"{name.Name} version: {informationalVersion}"
 
+        // Each of these commands writes its result to the file it is given, and to
+        // standard output when it is given none. The second case used to go to
+        // Debug, which a release build compiles away: the command printed nothing
+        // and exited successfully.
+        let emit what (filenameOpt: option<string>) (text: string) =
+            match filenameOpt with
+            | Some filename ->
+                ErrorMsg.Logger.Debug $"Saving {what} to {filename}"
+                System.IO.File.WriteAllText(filename, text)
+            | None -> printfn "%s" (text.TrimEnd '\n')
+
         let syntax = Parser.parseProgram filename
         ErrorMsg.Logger.Debug "Program parsed"
 
         if parsed.Contains SaveSyntax then
-            let filenameOpt = parsed.GetResult SaveSyntax
-
-            match filenameOpt with
-            | Some filename ->
-                ErrorMsg.Logger.Debug $"Saving the abstract syntax to {filename}"
-                System.IO.File.WriteAllText(filename, $"{syntax}")
-            | None -> ErrorMsg.Logger.Debug $"{syntax}"
+            emit "the abstract syntax" (parsed.GetResult SaveSyntax) $"{syntax}"
 
         let program: Reducer.WorkPlan = Reducer.reduceProgram syntax
 
         ErrorMsg.Logger.Debug "Program reduced"
         ErrorMsg.Logger.Info $"Number of tasks: {program.operations.Length}"
-
-        //if parsed.Contains FlattenSpatioTemporal then
-        //    let filenameOpt = parsed.GetResult FlattenSpatioTemporal
-
-        //    let commands =
-        //        match syntax with
-        //        | Program p -> p
-
-        //    match filenameOpt with
-        //    | filename ->
-        //        ErrorMsg.Logger.Debug $"Saving spatio-temporal flattening to {filename}"
-        //        let spatioTemporalProgram, venv, _, _ = SpatioTemporal.flattenSpatioTemporal commands (Env []) (Env []) (Env [">",EFun(ECall("", "x", []),Env[])])
-        //        System.IO.File.Delete(filename)
-        //        for command in spatioTemporalProgram do
-        //            System.IO.File.AppendAllText(filename, $"{command}")
-        //        ErrorMsg.Logger.Debug $"{venv}"
-
 
         // The two dumps of the task graph are the same program in two formats, so
         // they read the frame reference the same way. Reading the number of frames
@@ -146,38 +132,20 @@ let main (argv: string array) =
             n
 
         if parsed.Contains SaveTaskGraphAsAST then
-            let filenameOpt = parsed.GetResult SaveTaskGraphAsAST
-            let numFrames = numFrames ()
+            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames ())
 
-            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames)
-
-            match filenameOpt with
-            | Some filename ->
-                ErrorMsg.Logger.Debug $"Saving the task graph in AST syntax to {filename}"
-                System.IO.File.WriteAllText(filename, $"{voxlogicaProgram}")
-            | None -> ErrorMsg.Logger.Debug $"{voxlogicaProgram}"
+            emit "the task graph in AST syntax" (parsed.GetResult SaveTaskGraphAsAST) $"{voxlogicaProgram}"
 
         if parsed.Contains SaveTaskGraphAsProgram then
-            let filenameOpt = parsed.GetResult SaveTaskGraphAsProgram
-            let numFrames = numFrames ()
+            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames ())
 
-            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames)
-            let voxlogicaSyntax = voxlogicaProgram.ToSyntax()
-
-            match filenameOpt with
-            | Some filename ->
-                ErrorMsg.Logger.Debug $"Saving the task graph in VoxLogicA syntax to {filename}"
-                System.IO.File.WriteAllText(filename, $"{voxlogicaSyntax}")
-            | None -> ErrorMsg.Logger.Debug $"{voxlogicaSyntax}"
+            emit
+                "the task graph in VoxLogicA syntax"
+                (parsed.GetResult SaveTaskGraphAsProgram)
+                (voxlogicaProgram.ToSyntax())
 
         if parsed.Contains SaveTaskGraph then
-            let filenameOpt = parsed.GetResult SaveTaskGraph
-
-            match filenameOpt with
-            | Some filename ->
-                ErrorMsg.Logger.Debug $"Saving the task graph to {filename}"
-                System.IO.File.WriteAllText(filename, $"{program}")
-            | None -> ErrorMsg.Logger.Debug $"{program}"
+            emit "the task graph" (parsed.GetResult SaveTaskGraph) $"{program}"
 
 
         if parsed.Contains SaveTaskGraphAsDot then
@@ -186,21 +154,15 @@ let main (argv: string array) =
             System.IO.File.WriteAllText(filename, program.ToDot())
 
         if parsed.Contains EvaluateSpatioTemporal then
-            let filenameOpt = parsed.GetResult EvaluateSpatioTemporal
-            let numFrames = numFrames ()
-            let partEval = PartialEvaluation.evaluateProgram program numFrames
-            let evaluatedProgram = partEval.program
+            let partEval = PartialEvaluation.evaluateProgram program (numFrames ())
 
-            match filenameOpt with
-            | Some filename ->
-                if System.IO.File.Exists(filename) then
-                    System.IO.File.Delete(filename)
-
-                ErrorMsg.Logger.Debug $"Saving the partial evaluation to {filename}"
-
-                for str in evaluatedProgram do
-                    System.IO.File.AppendAllText(filename, str + "\n")
-            | None -> ErrorMsg.Logger.Debug $"{(evaluatedProgram).ToString()}"
+            // The lines used to be appended one at a time to a file deleted
+            // beforehand, and printed by way of ToString() on the collection
+            // itself, which names its type rather than its contents.
+            emit
+                "the partial evaluation"
+                (parsed.GetResult EvaluateSpatioTemporal)
+                (String.concat "\n" partEval.program + "\n")
 
         ErrorMsg.Logger.Info "All done."
         0

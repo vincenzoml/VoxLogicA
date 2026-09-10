@@ -68,6 +68,22 @@ check "--numframes 0 is rejected" 1 "$message"
 found=$(grep -c 'Declaration ("op0", \["n"\]' "$work/e.ast" 2>/dev/null || echo 0)
 check "--providecontext reaches --savetaskgraphasast" 1 "$found"
 
+# Given no file name, a command writes its result to standard output. This used
+# to go to the debug log, which a release build compiles away: the command
+# printed nothing and exited successfully. Counting lines is not enough to see
+# that, since the log itself used to land there too, so count declarations.
+"$binary" "$spec" --numframes 2 --providecontext n --savetaskgraphasprogram >"$work/stdout.imgql" 2>/dev/null
+declarations=$(grep -c '^let op' "$work/stdout.imgql")
+[ "$declarations" -gt 1 ] && declarations=many
+check "a command with no file name writes to standard output" many "$declarations"
+
+# And the log is not there to spoil the redirection: it goes to standard error.
+check "the log stays out of standard output" 0 "$(grep -c '^\[' "$work/stdout.imgql")"
+
+# Which together mean the redirected output is a specification, and parses back.
+"$binary" "$work/stdout.imgql" --savetaskgraphasdot "$work/g.dot" >/dev/null 2>&1
+check "what it writes there parses back" 0 $?
+
 echo
 [ $failed -eq 0 ] && echo "all cli checks ok" || echo "$failed cli check(s) failed"
 [ $failed -eq 0 ]
