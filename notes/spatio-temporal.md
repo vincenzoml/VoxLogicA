@@ -129,23 +129,24 @@ angle, a MICCAI workshop if the clinical one is; the interpretability ones are
 sympathetic, since a declarative specification is by construction more readable
 than a feature map.
 
-## Not verified yet
+## Not verified here
 
-**The generated VoxLogicA 1 program has never been run.** There is no `frames/`
-directory in this repository, no VoxLogicA 1 binary, and the reference outputs
-point at a `video.avi` that does not exist. The pipeline is verified as far as
-the text it generates — reasonably well now, with the golden tests — and no step
-further.
+**The generated VoxLogicA 1 program has run, in another repository.** It is not
+reproducible from this one: there is no `frames/` directory, no VoxLogicA 1
+binary, and the reference outputs point at a `video.avi` that does not exist. The
+round of fixes recorded here also changed what the third pass emits -- comment
+lines beside the repeated frames, and as many repeated frames as the
+specification reaches rather than one -- so the run is worth repeating before
+anything is built on top of it.
 
-Before datasets, registration and formulas: take
-`src/test-temporal-new-VL1.imgql`, produce ten arbitrary PNGs, and give it to
-VoxLogicA 1. Half a day. If it turns out the output is not accepted — an operator
-that does not exist, a different `load` syntax, an `import` that does not
-resolve — it is better to know now than after training a network.
+The way to make it reproducible is a container that fetches a stable release of
+VoxLogicA 1 and runs the whole toolchain, throwaway frames included. That turns
+"it worked once, elsewhere" into something the golden tests can sit next to.
 
 ## Next, in order
 
-1. Run the generated program through VoxLogicA 1 on throwaway data.
+1. A container that fetches a stable VoxLogicA 1 and runs the toolchain end to
+   end on throwaway frames.
 2. One patient, two timepoints, a trivial formula, checked by hand end to end.
    This is what shakes out the format assumptions.
 3. Confirm the cohort is co-registered, or scope the registration work.
