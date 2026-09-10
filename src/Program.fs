@@ -60,7 +60,7 @@ let main (argv: string array) =
 
     ErrorMsg.Logger.LogToStdout()
 #if ! DEBUG
-    ErrorMsg.Logger.SetLogLevel([ "user"; "info" ])
+    ErrorMsg.Logger.SetLogLevel([ "user"; "info"; "warn"; "fail" ])
 #else
     ()
 #endif
@@ -205,6 +205,8 @@ let main (argv: string array) =
         ErrorMsg.Logger.Info "All done."
         0
     with e ->
+        // The message has already been through the logger; raising again would
+        // print it a second time, as an unhandled exception, and abort instead of
+        // returning a status. In a debug build DebugExn carries the stack trace.
         ErrorMsg.Logger.DebugExn e
-        raise e
         1

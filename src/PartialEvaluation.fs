@@ -13,14 +13,9 @@ type PartialEvaluation =
         env : Environment
     }
 
-let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation =
+let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
     if numFrames < 1 then
-        ErrorMsg.fail $"a specification cannot be unrolled over {numFrames} frames"
-
-    // Frames 0 to numFrames - 1 are the frames of the video; frame numFrames is a
-    // repetition of the last one, so that the innermost step of the unrolling of an
-    // until has a frame to look at. Nothing may refer past it.
-    let lastFrame = numFrames
+        ErrorMsg.fail $"--numframes is {numFrames}: a specification cannot be unrolled over fewer than one frame"
 
     // How an application is written in the generated program. The diagnostics go
     // through it too, so that what they name can be found in the file at hand.
@@ -33,87 +28,126 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
     // names nothing the reader can look up: the diagnostics quote what an operand
     // is instead of where it sits.
     let operandOf (id: int) = workplan.operations[id].operator
+    let argumentsOf (id: int) = Seq.toList workplan.operations[id].arguments
 
-    let mutable environment = Map.empty
-    let mutable evaluatedProgram : seq<string> = Seq.empty
-    evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("import \"stdlib2.imgql\"\n"))
+    let mutable environment: Environment = Map.empty
+
+    // The frame each "frame" operation asks for, and the highest frame each video
+    // is asked for. A video has to be loaded before the operations that use it,
+    // and how many frames it has to provide is not known until every frame index
+    // has been computed, so the frame arithmetic gets a sweep of its own.
+    let mutable frameOf: Map<int, int> = Map.empty
+    let mutable highestFrameOf: Map<int, int> = Map.empty
+
     for i in 0 .. workplan.operations.Length - 1 do
         match workplan.operations[i].operator with
         | Identifier "load" ->
-            match Seq.toList workplan.operations[i].arguments with
-            | [v] -> 
-                let video = 
+            match argumentsOf i with
+            | [ v ] ->
+                let video =
                     match environment.TryFind v with
-                    | Some (VString x) -> (x.Split [|'.'|]).[0]
+                    | Some(VString x) -> (x.Split [| '.' |]).[0]
                     | _ -> ErrorMsg.fail $"load is applied to '{operandOf v}', which is not the name of a video"
+
                 environment <- environment.Add(i, VString video)
-                for j in 0 .. numFrames - 1 do
-                    evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("load " + video + $"At{j} = " + "\"frames/" + video + $"_{j}.png" + "\""))
-                evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ($"// frame {lastFrame} repeats frame {numFrames - 1}: the unrolling can look one step past the last frame"))
-                evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("load " + video + $"At{lastFrame} = " + "\"frames/" + video + $"_{numFrames-1}.png" + "\""))
-            | _ -> failwith "load must take one argument"
+            | _ -> ErrorMsg.fail "load must take one argument"
         | Identifier "frame" ->
-            match Seq.toList workplan.operations[i].arguments with
-            | [vid;f] -> 
-                let video = 
-                    match environment.TryFind vid with
-                    | Some (VString x) -> x
-                    | _ -> ErrorMsg.fail $"frames are taken from '{operandOf vid}', which is not a video"
-                let frame = 
+            match argumentsOf i with
+            | [ vid; f ] ->
+                match environment.TryFind vid with
+                | Some(VString _) -> ()
+                | _ -> ErrorMsg.fail $"frames are taken from '{operandOf vid}', which is not a video"
+
+                let frame =
                     match environment.TryFind f with
-                    | Some (VNumber x) -> int x
+                    | Some(VNumber x) -> int x
                     | _ ->
                         ErrorMsg.fail (
                             $"'{operandOf f}' is used as a frame index, but it is not a frame number. "
                             + "It has to be a frame number, or be built from the frame reference passed to --providecontext"
                         )
-                if frame < 0 || frame > lastFrame then
-                    // No advice here: raising --numframes helps a chain of next
-                    // operators, but not a temporal operator applied to another
-                    // one, which overshoots by the same amount at every horizon.
-                    ErrorMsg.fail (
-                        $"the specification refers to frame {frame} of '{video}', but only frames 0 to {lastFrame} exist: "
-                        + $"{numFrames} frame(s), and one repetition of the last one for the step that looks past the end"
-                    )
-                evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + video + $"At{frame}"))
+
+                if frame < 0 then
+                    ErrorMsg.fail $"the specification refers to frame {frame}: there is no frame before the first one"
+
+                frameOf <- frameOf.Add(i, frame)
+
+                highestFrameOf <-
+                    highestFrameOf.Add(vid, max frame (defaultArg (Map.tryFind vid highestFrameOf) 0))
+
                 environment <- environment.Add(i, Unbound)
-            | _ -> failwith "frame must take two arguments"
-        | Identifier "inc" -> 
-            match Seq.toList workplan.operations[i].arguments with
-            | [a] -> 
+            | _ -> ErrorMsg.fail "frame must take two arguments"
+        | Identifier "inc" ->
+            match argumentsOf i with
+            | [ a ] ->
                 match environment.TryFind a with
-                | Some (VNumber x) -> environment <- environment.Add(i, VNumber (x + 1.0))
+                | Some(VNumber x) -> environment <- environment.Add(i, VNumber(x + 1.0))
                 | _ ->
                     ErrorMsg.fail (
                         $"'{operandOf a}' is advanced to the next frame, but it is not a frame number. "
                         + "It has to be built from the frame reference passed to --providecontext"
                     )
-            | _ -> failwith "inc must take one argument"
-        | Identifier x ->
-            // An identifier the partial evaluator knows nothing about goes through
-            // as it is, together with its arguments, for VoxLogicA to resolve. With
-            // no arguments it goes through on its own: "x()" is not a term of the
-            // language, and building the argument list by trimming a trailing comma
-            // used to turn that case into the unbalanced "let op0 = x)".
-            let args = Seq.toList workplan.operations[i].arguments
-            environment <- environment.Add(i, Unbound)
-            evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ($"let op{i} = " + x + application args))
-        | Number x -> 
-            environment <- environment.Add(i, VNumber x)
-            evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + x.ToString()))
-        | Bool x -> 
-            environment <- environment.Add(i, VBool x)
-            evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + x.ToString()))
-        | String x -> 
-            environment <- environment.Add(i, VString x)
-            evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + "\"" + x + "\""))
+            | _ -> ErrorMsg.fail "inc must take one argument"
+        | Identifier _ -> environment <- environment.Add(i, Unbound)
+        | Number x -> environment <- environment.Add(i, VNumber x)
+        | Bool x -> environment <- environment.Add(i, VBool x)
+        | String x -> environment <- environment.Add(i, VString x)
+
+    let videoOf (id: int) =
+        match environment.TryFind id with
+        | Some(VString x) -> x
+        | _ -> ErrorMsg.fail "Internal error in module PartialEvaluation. Please report."
+
+    let evaluatedProgram = ResizeArray<string>()
+    evaluatedProgram.Add("import \"stdlib2.imgql\"\n")
+
+    for i in 0 .. workplan.operations.Length - 1 do
+        match workplan.operations[i].operator with
+        | Identifier "load" ->
+            let video = videoOf i
+
+            for j in 0 .. numFrames - 1 do
+                evaluatedProgram.Add($"load {video}At{j} = \"frames/{video}_{j}.png\"")
+
+            // A specification may look past the last frame: an until does it at the
+            // innermost step of its unrolling, and an until applied to another one
+            // does it once more, at any horizon. Past the end the last frame
+            // persists, which is the reading the single repeated frame of the
+            // earlier pipeline already took; here it is repeated as far as the
+            // specification actually reaches.
+            let highest = defaultArg (Map.tryFind i highestFrameOf) 0
+
+            if highest > numFrames - 1 then
+                let repeated =
+                    if highest = numFrames then
+                        $"frame {numFrames}"
+                    else
+                        $"frames {numFrames} to {highest}"
+
+                ErrorMsg.Logger.Warning
+                    $"'{video}' has {numFrames} frame(s) and the specification looks as far as frame {highest}: {repeated} repeat the last one"
+
+                evaluatedProgram.Add(
+                    $"// {repeated} repeat frame {numFrames - 1}: past the end the last frame persists"
+                )
+
+                for j in numFrames..highest do
+                    evaluatedProgram.Add($"load {video}At{j} = \"frames/{video}_{numFrames - 1}.png\"")
+        | Identifier "frame" ->
+            match argumentsOf i with
+            | [ vid; _ ] -> evaluatedProgram.Add($"let op{i} = {videoOf vid}At{frameOf[i]}")
+            | _ -> ErrorMsg.fail "frame must take two arguments"
+        // The frame arithmetic is over: nothing is left of it in the program.
+        | Identifier "inc" -> ()
+        | Identifier x -> evaluatedProgram.Add($"let op{i} = " + x + application (argumentsOf i))
+        | Number x -> evaluatedProgram.Add($"let op{i} = " + x.ToString())
+        | Bool x -> evaluatedProgram.Add($"let op{i} = " + x.ToString())
+        | String x -> evaluatedProgram.Add($"let op{i} = " + "\"" + x + "\"")
 
     for goal in workplan.goals do
         match goal with
-        | GoalSave(x, y) -> 
-            evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("save \"" + x + ".png\" op" + $"{y}"))
-        | GoalPrint(x, y) -> evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("print \"" + x + "\" op" + $"{y}"))
-    {
-        program = evaluatedProgram
-        env = environment
-    }
+        | GoalSave(x, y) -> evaluatedProgram.Add($"save \"{x}.png\" op{y}")
+        | GoalPrint(x, y) -> evaluatedProgram.Add($"print \"{x}\" op{y}")
+
+    { program = evaluatedProgram
+      env = environment }

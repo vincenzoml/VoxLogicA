@@ -56,12 +56,13 @@ let op29=or(op23,op28)
 let op30=or(op21,op29)
 save "result" op30
 ### pass 3: --evaluatespatiotemporal
+[TIME] [warn] 'video' has 2 frame(s) and the specification looks as far as frame 2: frame 2 repeat the last one
 import "stdlib2.imgql"
 
 let op0 = "video.avi"
 load videoAt0 = "frames/video_0.png"
 load videoAt1 = "frames/video_1.png"
-// frame 2 repeats frame 1: the unrolling can look one step past the last frame
+// frame 2 repeat frame 1: past the end the last frame persists
 load videoAt2 = "frames/video_1.png"
 let op2 = 0
 let op3 = videoAt0

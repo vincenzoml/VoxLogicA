@@ -1,8 +1,8 @@
 ### case wrong-context-name, 2 frames
 
 ### pass 1: --savetaskgraphasprogram --providecontext n
-EXIT 134
-Unhandled exception. 'm' is used as a frame index, but the frame reference of this specification is 'n'
+[TIME] [fail] 'm' is used as a frame index, but the frame reference of this specification is 'n'
+EXIT 1
 
 ### pass 2: --savetaskgraphasprogram
 SKIPPED: pass 1 produced no output

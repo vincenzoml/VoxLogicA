@@ -1,7 +1,6 @@
-// An until whose left argument is itself an until. The translation composes
-// correctly, but the third pass cannot place it: a temporal operator applied to
-// another one looks one frame further than the single repeated frame provides,
-// at any --numframes. The golden file pins where that is reported.
+// An until whose left argument is itself an until: it looks one frame further
+// than a single until does, at any horizon, so it is the case that needs the
+// last frame to persist for more than one step.
 let video = load("video.avi")
 let a = gt(intensity(frame(video,n)),42)
 let b = gt(intensity(frame(video,n)),52)

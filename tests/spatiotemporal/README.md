@@ -37,18 +37,32 @@ The goldens of `until-final` at pass 2 and pass 3 agree, modulo whitespace, with
 the reference files `src/test-temporal-new.imgql` and
 `src/test-temporal-new-VL1.imgql` that predate this suite.
 
+## Frames past the end of the video
+
+A specification may look further ahead than the video is long: an `until` does it
+at the innermost step of its unrolling, an `until` applied to another one does it
+once more, and a chain of `diamond` does it as many times as it is long. Past the
+end the last frame persists, so the generated program loads it again under the
+names of the frames that do not exist, and the run says so:
+
+```
+[warn] 'video' has 2 frame(s) and the specification looks as far as frame 4:
+       frames 2 to 4 repeat the last one
+```
+
+`until-nested` and `horizon-overflow` are the two cases that reach past the end,
+the first because of the nesting and the second because of a horizon that is
+probably a mistake. The warning tells them apart, and it is recorded in the
+golden files together with the output: a warning that stops being emitted is as
+much a regression as a wrong translation.
+
 ## Cases that fail on purpose
 
 A pass that fails is not an error for the harness: its exit code and its message
-go into the golden file the same way its output would. Three cases use this to
-pin diagnostics, since a diagnostic that stops being helpful is as much a
-regression as a wrong translation:
-
-| case | what it pins |
-| --- | --- |
-| `horizon-overflow` | looking further ahead than there are frames: the third pass says which frame was asked for and how many exist. Raising `--numframes` makes this one pass |
-| `until-nested` | a temporal operator applied to another one: the first two passes translate it correctly, the third cannot place it at any `--numframes`, because only one frame past the end is provided |
-| `wrong-context-name` | a frame index that is not the frame reference: the *first* pass rejects it, next to the specification that contains it |
+go into the golden file the same way its output would. `wrong-context-name` uses
+this to pin a diagnostic: a frame index that is not the frame reference has to be
+rejected by the *first* pass, next to the specification that contains it, rather
+than reach the end of the pipeline.
 
 The same mechanism is how to record a bug that is still open: add the case, let
 `--update` write down whatever the tool does today, and mark the specification

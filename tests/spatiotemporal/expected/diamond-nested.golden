@@ -29,8 +29,6 @@ let op0 = "video.avi"
 load videoAt0 = "frames/video_0.png"
 load videoAt1 = "frames/video_1.png"
 load videoAt2 = "frames/video_2.png"
-// frame 3 repeats frame 2: the unrolling can look one step past the last frame
-load videoAt3 = "frames/video_2.png"
 let op2 = 0
 let op5 = videoAt2
 let op6 = intensity(op5)

@@ -58,16 +58,19 @@ normalise() {
 }
 
 # run <output file> <voxlogica arguments...>
-# Prints the output file if the run succeeds, the diagnostic if it does not.
+# Prints whatever the run has to say -- a warning is as much a part of the
+# behaviour as the translation is -- and then its output, or its exit code.
 run() {
     local out=$1
     shift
-    local log status
+    local log status diagnostics
     log=$("$binary" "$@" 2>&1)
     status=$?
+    diagnostics=$(echo "$log" | normalise | grep -v '^\[TIME\] \[info\]')
+    [ -n "$diagnostics" ] && echo "$diagnostics"
+
     if [ $status -ne 0 ]; then
         echo "EXIT $status"
-        echo "$log" | normalise | grep -v '^\[TIME\] \[info\]'
     elif [ -f "$out" ]; then
         cat "$out"
     else
