@@ -90,11 +90,26 @@ type WorkPlan =
         // itself, env[arg] is always up to date when the operation is translated.
         let env = Array.init this.operations.Length id
 
+        // A frame index that is a bare identifier can only be the frame reference
+        // itself: any other name is a mistake that would otherwise travel through
+        // the next two passes and surface at the end of the pipeline, far from the
+        // specification that caused it.
+        let checkFrameIndex index =
+            let operand = this.operations[index]
+
+            match ctx, operand.operator with
+            | Some c, Identifier other when other <> c && Seq.isEmpty operand.arguments ->
+                ErrorMsg.fail
+                    $"'{other}' is used as a frame index, but the frame reference of this specification is '{c}'"
+            | _ -> ()
+
         let sem opId (op: Operation) : seq<Command> * Expression * int =
             match op.operator with
             | Identifier "frame" ->
                 match Seq.toList op.arguments with
-                | [ _; _ ] as args -> Seq.empty, ECall("unknown", "frame", List.map (fun arg -> atFrame env[arg]) args), opId
+                | [ _; index ] as args ->
+                    checkFrameIndex index
+                    Seq.empty, ECall("unknown", "frame", List.map (fun arg -> atFrame env[arg]) args), opId
                 | _ -> failwith "frame must take two arguments"
             | Identifier "diamond" ->
                 match Seq.toList op.arguments with

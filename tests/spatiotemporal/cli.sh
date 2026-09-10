@@ -58,6 +58,11 @@ check "missing --numframes is reported" 1 "$message"
 "$binary" "$spec" --savetaskgraphasdot "$work/d.dot" >/dev/null 2>&1
 check "--savetaskgraphasdot without --numframes" 0 $?
 
+# A horizon of zero frames is meaningless, and has to be reported before any
+# command tries to unroll a specification over it.
+message=$("$binary" "$spec" --numframes 0 --savetaskgraphasprogram "$work/f.imgql" 2>&1 | grep -c 'fewer than one frame')
+check "--numframes 0 is rejected" 1 "$message"
+
 # The frame reference is honoured by both dumps of the task graph.
 "$binary" "$spec" --numframes 2 --providecontext n --savetaskgraphasast "$work/e.ast" >/dev/null 2>&1
 found=$(grep -c 'Declaration ("op0", \["n"\]' "$work/e.ast" 2>/dev/null || echo 0)

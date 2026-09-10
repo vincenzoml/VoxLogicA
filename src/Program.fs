@@ -135,9 +135,19 @@ let main (argv: string array) =
             else
                 None
 
+        // A function, not a value: the commands that unroll nothing have to keep
+        // working without --numframes.
+        let numFrames () =
+            let n = parsed.GetResult NumFrames
+
+            if n < 1 then
+                ErrorMsg.fail $"--numframes is {n}: a specification cannot be unrolled over fewer than one frame"
+
+            n
+
         if parsed.Contains SaveTaskGraphAsAST then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsAST
-            let numFrames = parsed.GetResult NumFrames
+            let numFrames = numFrames ()
 
             let voxlogicaProgram = program.ToProgram(contextOpt, numFrames)
 
@@ -149,7 +159,7 @@ let main (argv: string array) =
 
         if parsed.Contains SaveTaskGraphAsProgram then
             let filenameOpt = parsed.GetResult SaveTaskGraphAsProgram
-            let numFrames = parsed.GetResult NumFrames
+            let numFrames = numFrames ()
 
             let voxlogicaProgram = program.ToProgram(contextOpt, numFrames)
             let voxlogicaSyntax = voxlogicaProgram.ToSyntax()
@@ -177,7 +187,7 @@ let main (argv: string array) =
 
         if parsed.Contains EvaluateSpatioTemporal then
             let filenameOpt = parsed.GetResult EvaluateSpatioTemporal
-            let numFrames = parsed.GetResult NumFrames
+            let numFrames = numFrames ()
             let partEval = PartialEvaluation.evaluateProgram program numFrames
             let evaluatedProgram = partEval.program
 

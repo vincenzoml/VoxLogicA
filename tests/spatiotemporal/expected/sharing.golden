@@ -33,6 +33,7 @@ import "stdlib2.imgql"
 let op0 = "video.avi"
 load videoAt0 = "frames/video_0.png"
 load videoAt1 = "frames/video_1.png"
+// frame 2 repeats frame 1: the unrolling can look one step past the last frame
 load videoAt2 = "frames/video_1.png"
 let op2 = 0
 let op4 = videoAt1

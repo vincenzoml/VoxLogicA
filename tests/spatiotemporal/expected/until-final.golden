@@ -125,6 +125,7 @@ load videoAt6 = "frames/video_6.png"
 load videoAt7 = "frames/video_7.png"
 load videoAt8 = "frames/video_8.png"
 load videoAt9 = "frames/video_9.png"
+// frame 10 repeats frame 9: the unrolling can look one step past the last frame
 load videoAt10 = "frames/video_9.png"
 let op2 = 0
 let op3 = videoAt0

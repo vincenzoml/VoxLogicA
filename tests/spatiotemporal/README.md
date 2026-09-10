@@ -37,16 +37,20 @@ The goldens of `until-final` at pass 2 and pass 3 agree, modulo whitespace, with
 the reference files `src/test-temporal-new.imgql` and
 `src/test-temporal-new-VL1.imgql` that predate this suite.
 
-## Cases marked KNOWN BAD
+## Cases that fail on purpose
 
-A pass that fails is not an error for the harness: its exit code and message go
-into the golden file the same way its output would. Two cases therefore pin the
-current, *wrong* behaviour of bugs that are still open:
+A pass that fails is not an error for the harness: its exit code and its message
+go into the golden file the same way its output would. Three cases use this to
+pin diagnostics, since a diagnostic that stops being helpful is as much a
+regression as a wrong translation:
 
 | case | what it pins |
 | --- | --- |
-| `horizon-overflow` | more `diamond` than frames: the generated program refers to `videoAt4`, which is never loaded, and nothing reports it |
-| `wrong-context-name` | a frame reference that does not match `--providecontext` travels through two passes and surfaces at the third as `unbound value`, with no position and no identifier |
+| `horizon-overflow` | looking further ahead than there are frames: the third pass says which frame was asked for and how many exist. Raising `--numframes` makes this one pass |
+| `until-nested` | a temporal operator applied to another one: the first two passes translate it correctly, the third cannot place it at any `--numframes`, because only one frame past the end is provided |
+| `wrong-context-name` | a frame index that is not the frame reference: the *first* pass rejects it, next to the specification that contains it |
 
-When one of those bugs is fixed its golden file has to be regenerated on
-purpose, and the `KNOWN BAD` comment removed from the specification.
+The same mechanism is how to record a bug that is still open: add the case, let
+`--update` write down whatever the tool does today, and mark the specification
+`KNOWN BAD`. Fixing the bug then shows up as a diff, and the golden file is
+regenerated on purpose.

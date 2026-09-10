@@ -1,6 +1,6 @@
-// KNOWN BAD (bug 7): the frame reference is called m, but the pipeline is run
-// with --providecontext n. The mistake travels through two passes unnoticed and
-// surfaces at the third as "unbound value", with no position and no identifier.
+// The frame index is called m, but the pipeline is run with --providecontext n.
+// The mistake has to be caught in the first pass, next to the specification that
+// contains it, not two passes later.
 let video = load("video.avi")
 let interesting = gt(intensity(frame(video,m)),42)
 save "result" diamond(interesting)

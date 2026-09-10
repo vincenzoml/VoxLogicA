@@ -57,40 +57,5 @@ let op33=and(op21,op32)
 let op34=or(op6,op33)
 save "result" op34
 ### pass 3: --evaluatespatiotemporal
-import "stdlib2.imgql"
-
-let op0 = "video.avi"
-load videoAt0 = "frames/video_0.png"
-load videoAt1 = "frames/video_1.png"
-load videoAt2 = "frames/video_1.png"
-let op2 = 0
-let op3 = videoAt0
-let op4 = intensity(op3)
-let op5 = 52
-let op6 = gt(op4,op5)
-let op7 = 42
-let op8 = gt(op4,op7)
-let op10 = videoAt1
-let op11 = intensity(op10)
-let op12 = gt(op11,op5)
-let op13 = gt(op11,op7)
-let op15 = videoAt2
-let op16 = intensity(op15)
-let op17 = gt(op16,op5)
-let op18 = and(op13,op17)
-let op19 = or(op12,op18)
-let op20 = and(op8,op19)
-let op21 = or(op6,op20)
-let op22 = gt(op16,op7)
-let op24 = videoAt3
-let op25 = intensity(op24)
-let op26 = gt(op25,op5)
-let op27 = and(op22,op26)
-let op28 = or(op17,op27)
-let op29 = and(op13,op28)
-let op30 = or(op12,op29)
-let op31 = and(op30,op17)
-let op32 = or(op12,op31)
-let op33 = and(op21,op32)
-let op34 = or(op6,op33)
-save "result.png" op34
+EXIT 134
+Unhandled exception. the specification refers to frame 3 of 'video', but only frames 0 to 2 exist: 2 frame(s), and one repetition of the last one for the step that looks past the end

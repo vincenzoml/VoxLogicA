@@ -1,5 +1,6 @@
-// KNOWN BAD (bug 6): more next operators than frames. The generated program
-// refers to a frame that is never loaded, and nothing reports it.
+// More next operators than there are frames: the specification looks four frames
+// ahead but is unrolled over two. The pipeline has to say so, rather than emit a
+// program that reads a frame nobody loaded.
 let video = load("video.avi")
 let interesting = gt(intensity(frame(video,n)),42)
 save "result" diamond(diamond(diamond(diamond(interesting))))

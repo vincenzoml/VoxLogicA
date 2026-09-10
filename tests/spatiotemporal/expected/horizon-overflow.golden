@@ -27,15 +27,5 @@ let op9=42
 let op10=gt(op8,op9)
 save "result" op10
 ### pass 3: --evaluatespatiotemporal
-import "stdlib2.imgql"
-
-let op0 = "video.avi"
-load videoAt0 = "frames/video_0.png"
-load videoAt1 = "frames/video_1.png"
-load videoAt2 = "frames/video_1.png"
-let op2 = 0
-let op7 = videoAt4
-let op8 = intensity(op7)
-let op9 = 42
-let op10 = gt(op8,op9)
-save "result.png" op10
+EXIT 134
+Unhandled exception. the specification refers to frame 4 of 'video', but only frames 0 to 2 exist: 2 frame(s), and one repetition of the last one for the step that looks past the end
