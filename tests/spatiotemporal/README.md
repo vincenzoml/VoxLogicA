@@ -40,13 +40,12 @@ the reference files `src/test-temporal-new.imgql` and
 ## Cases marked KNOWN BAD
 
 A pass that fails is not an error for the harness: its exit code and message go
-into the golden file the same way its output would. Three cases therefore pin
-the current, *wrong* behaviour of bugs that are still open:
+into the golden file the same way its output would. Two cases therefore pin the
+current, *wrong* behaviour of bugs that are still open:
 
 | case | what it pins |
 | --- | --- |
 | `horizon-overflow` | more `diamond` than frames: the generated program refers to `videoAt4`, which is never loaded, and nothing reports it |
-| `nullary-identifier` | an identifier applied to no arguments makes the partial evaluator emit `let op0 = foo)` |
 | `wrong-context-name` | a frame reference that does not match `--providecontext` travels through two passes and surfaces at the third as `unbound value`, with no position and no identifier |
 
 When one of those bugs is fixed its golden file has to be regenerated on

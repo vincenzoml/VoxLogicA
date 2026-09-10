@@ -52,15 +52,21 @@ let evaluateProgram (workplan : WorkPlan) (numFrames : int) : PartialEvaluation 
                 | Some (VNumber x) -> environment <- environment.Add(i, VNumber (x + 1.0))
                 | _ -> failwith "unbound value"
             | _ -> failwith "inc must take one argument"
-        | Identifier x -> 
-            let mutable argSeq = "("
-            match Seq.toList workplan.operations[i].arguments with
-            | args -> 
-                for a in args do
-                    argSeq <-  argSeq + $"op{a},"
-            argSeq <- argSeq[0..argSeq.Length - 2] + ")"
+        | Identifier x ->
+            // An identifier the partial evaluator knows nothing about goes through
+            // as it is, together with its arguments, for VoxLogicA to resolve. With
+            // no arguments it goes through on its own: "x()" is not a term of the
+            // language, and building the argument list by trimming a trailing comma
+            // used to turn that case into the unbalanced "let op0 = x)".
+            let args = Seq.toList workplan.operations[i].arguments
+
+            let application =
+                match args with
+                | [] -> ""
+                | _ -> "(" + String.concat "," (List.map (fun a -> $"op{a}") args) + ")"
+
             environment <- environment.Add(i, Unbound)
-            evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + x + argSeq))
+            evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ($"let op{i} = " + x + application))
         | Number x -> 
             environment <- environment.Add(i, VNumber x)
             evaluatedProgram <- Seq.append evaluatedProgram (Seq.singleton ("let op" + $"{i} = " + x.ToString()))

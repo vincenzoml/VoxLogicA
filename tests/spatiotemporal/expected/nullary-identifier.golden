@@ -12,6 +12,6 @@ save "result" op2
 ### pass 3: --evaluatespatiotemporal
 import "stdlib2.imgql"
 
-let op0 = foo)
+let op0 = foo
 let op1 = bar(op0)
 save "result.png" op1
