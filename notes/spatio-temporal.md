@@ -70,7 +70,8 @@ and the collective operators of `stdlib2.imgql` (`maskCC`, `minCC`, `maxCC`,
 `collect`): "the connected component of the lesion at *t* that touches a
 component at *t+1*". What is not: a persistent label, "component #3 at *t* is
 component #7 at *t+1*". Stated this way the voxel-wise reformulation stops being
-a concession and becomes the natural formulation of the model.
+a concession and becomes the natural formulation of the model. How to get a
+persistent label anyway is the subject of *Quantifying over labels* below.
 
 **The boundary of the trace.** Past the last frame the last frame persists, and
 the generated program loads it again under the names of the frames that do not
@@ -129,6 +130,151 @@ angle, a MICCAI workshop if the clinical one is; the interpretability ones are
 sympathetic, since a declarative specification is by construction more readable
 than a feature map.
 
+## Quantifying over labels
+
+The theory extends the logic with an existential over points and atomic
+propositions: at runtime the labels of the connected components become atomic
+propositions, and a formula may quantify over them -- "the region labelled L is
+reachable from the region labelled K". This section is about whether the code
+here can carry that, and about the one problem that has to be settled first.
+
+### The compiler is already the right shape
+
+Everything the pipeline does is "parametrise on an index, unroll to a bound,
+partially evaluate". A label is a second index of that kind, and the `until`
+branch of `Reducer.ToProgram` is the template: it unrolls over `1..numFrames`
+building a chain of `or`; `exists L. psi(L)` unrolls over `1..maxLabels`
+building a chain of `or`, and it is the simpler of the two, a fold rather than a
+recursion. Concretely:
+
+- `ctxArgs` is already a `string list`; today it is `[n]`, it would become
+  `[n; l]`, and the declarations go from `let op7(n)` to `let op7(n,l)`;
+- one more branch of `sem`, beside `until` and `diamond`;
+- "the region labelled l" is `eq(lcc(phi), l)`, an application of identifiers the
+  compiler does not have to understand;
+- `PartialEvaluation` is almost untouched: a label index has no `inc` chains, no
+  table of loads, no convention at the boundary. Once the first pass has unrolled
+  the quantifier into literal constants, the memoisation of the second pass does
+  the rest, as it already does for `frame(v,0)` against `frame(v,1)`.
+
+VoxLogicA 1 needs nothing new: `lcc`, `mask`, `min`, `max` are there, and
+`stdlib2.imgql` already builds the collective operators on them. Days of
+compiler work, of the order of the round of fixes recorded above.
+
+### Three difficulties, in increasing order
+
+**The bound is not a fact about the data.** `--numframes` is known: it is the
+length of the series. The number of connected components is a property of the
+result of a computation, unknown until runtime. If `maxLabels` under-approximates
+it, the existential is unsound: it misses witnesses silently. The generated
+program can check it -- `max(lcc(phi)) <= K` is expressible -- but a declarative
+specification cannot abort; at most it prints something a person has to read.
+This goes in the paper as a hypothesis, not in a footnote.
+
+**The cost multiplies.** A quantifier multiplies the spatial work under it by K,
+two nested ones by K squared. At the 11 operations per frame measured above, K=50
+gives some 550 per frame on 9M-voxel volumes. Memoisation helps only where the
+subterms do *not* depend on the label, which is exactly where one does not care.
+`sharing.sh` measures this unchanged, given the quantified specification.
+
+**Labels are not stable across frames.** This is the one that has to be settled
+before the other two matter.
+
+### Deterministic is not stable
+
+`lcc` is deterministic: the same input gives the same labels. Two similar frames
+are two different inputs. ITK assigns labels consecutively in the order it meets
+the components in a raster scan, so the label of a component depends on what
+lies *before it* in the image. A new lesion earlier in scan order at *t+1* shifts
+every later label by one; a merge or a split renumbers everything after it. The
+labels stay stable exactly as long as nothing happens, and break in the cases
+one wants to observe. (The argument does not depend on the implementation: any
+labelling of a single image is a function of that image, and no such function
+can know the previous frame.)
+
+Hence a formula such as `lcc(phi@t) = L and lcc(phi@(t+1)) = L` does not say
+"the same component persists": it says two integers coincide, which means
+nothing. The quantifier gives the binding *within* a frame for free; across
+frames it gives only the vocabulary in which a criterion of identity has to be
+stated. Two ways to state one, both of which remove the dependence on how `lcc`
+numbers, and both of which make the criterion explicit -- which is the honest
+way to present it.
+
+**A. Label the temporal footprint, not the frame.** Compute `lcc` once, on the
+union of the lesion over all times:
+
+```
+let footprint = lcc(eventually(lesion))
+let region(L) = eq(footprint, L)        // an atomic proposition, frame-independent
+```
+
+`region(L) and lesion@t` is the part of footprint L present at *t*. Consistent
+by construction, and expressible today with no change to the compiler:
+`eventually phi` is `until(true, phi)`, whose unrolling is the disjunction over
+the frames, and `lcc` is then computed once on it rather than once per frame
+(checked: the third pass emits a single `lcc` over `lesion@0 or ... or
+lesion@N`). The bound K becomes `max(footprint)`, still unknown at compile time
+but computed once rather than per frame.
+
+The limitation is semantic and has to be said: two lesions that *merge* have a
+single footprint from the start, so "two lesions merged" is not expressible; and
+two distinct lesions occupying the same space at different times collapse into
+one. For lesions that do not move, given registration, only the first matters.
+
+**B. Label the first frame and propagate with `~>`.** The labels come from
+`lcc(lesion@0)`; at each later time, "region L" is what at *t+1* lies in a
+component that touches region L at *t*:
+
+```
+region_0(L)     = eq(lcc(lesion@0), L)
+region_{t+1}(L) = lesion@(t+1) ~> region_t(L)
+```
+
+A recursion along *t* -- exactly the shape the unrolling machinery already
+handles; `until` is a recursion along *t* with an `or` where this has a `~>`. It
+would be a new temporal operator beside `until`, of the same order of work.
+Merges and splits are handled as they come: the regions stop being a partition
+and become sets of labels, a merged component carrying both. New lesions are the
+one gap: they inherit nothing and have to be labelled separately, with fresh
+labels past those of frame 0.
+
+And a dividend: with propagation the K squared disappears. One no longer asks
+"exists K at *t+1* overlapping L at *t*"; one asks about L at *t+1* directly. The
+criterion of identity -- overlap -- is baked into the propagation, and the
+quantification costs K again.
+
+### The choice
+
+**B is the one to pursue.** It is the more expressive of the two -- it is the
+only one that sees merges and splits -- and it is a contribution in its own
+right, an operator the paper can present as such, beside the lesion tracking it
+serves. A is worth keeping as the zero-cost baseline: it needs no compiler
+change, so it is what to run in the container first, and it is the comparison
+that shows what B buys.
+
+In either case the answer to "how do you know it is the same lesion" becomes a
+line of the specification rather than an assumption about how ITK numbers its
+components.
+
+### A cheaper existential to try first
+
+VoxLogicA already has an existential over components, implicit and at no cost:
+`through`, written `~>`. `a ~> b` holds at *x* when *x* lies in a component of
+`a` that meets `b`. So `lesion@(t+1) ~> lesion@t` is "this voxel is in a lesion
+at *t+1* whose component overlapped a lesion at *t*" -- persistence per
+component, with no quantifier and no factor K.
+
+The line is clear: `~>` binds the component *implicitly to the point of
+evaluation*, so it covers everything about *the* component one is standing in.
+The quantifier is needed when a label has to be *bound and reused elsewhere*:
+comparing two distinct components with each other, or following one through
+three or more times. Before implementing, write down the properties actually
+wanted and see how many fall on the `~>` side. If almost all do, the quantifier
+is a theoretical contribution with a thin use case, and that is worth knowing
+first. If the interesting ones remain -- comparisons between components are the
+typical case -- the extension has its justification written above it, which is
+what a reviewer asks for.
+
 ## Not verified here
 
 **The generated VoxLogicA 1 program has run, in another repository.** It is not
@@ -152,4 +298,5 @@ VoxLogicA 1 and runs the whole toolchain, throwaway frames included. That turns
 3. Confirm the cohort is co-registered, or scope the registration work.
 4. Generalise the output format to volumes.
 5. Past operators, with the boundary convention written down.
-6. The formulas, which are the research and not an estimate.
+6. The propagation operator (B above), then the quantifier over its labels.
+7. The formulas, which are the research and not an estimate.
