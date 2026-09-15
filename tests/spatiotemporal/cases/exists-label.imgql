@@ -1,0 +1,20 @@
+// NOT IMPLEMENTED: existential over labels.
+//
+// exists(l, psi) binds l in psi and holds where psi holds for some label l in
+// 1..K, K the bound given on the command line (it cannot be known before the
+// components are computed, so it is a hypothesis of the run, to be checked
+// against max(lcc(...)) in the generated program). It unrolls, as until does,
+// into a disjunction over 1..K with l instantiated -- the memoisation of the
+// second pass then shares whatever does not depend on l.
+//
+// l is a free identifier, as the frame reference n is; the binder is the only
+// thing that tells them apart. It has to be lower case: the parser reads an
+// initial capital as an operator.
+//
+// The goal: a voxel that is in a tracked region now and still in the same one
+// at the next frame, for some region -- the lesion persists, per component.
+// Today "exists" and "l" go through untouched, like "tracked" does.
+let study = load("study.nii.gz")
+let lesion = gt(intensity(frame(study,n)),500)
+let region(l) = tracked(lesion,l)
+save "persistent" exists(l,and(region(l),diamond(region(l))))

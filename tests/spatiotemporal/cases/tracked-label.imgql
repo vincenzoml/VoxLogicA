@@ -1,0 +1,20 @@
+// NOT IMPLEMENTED: label propagation.
+//
+// tracked(phi, l) is the region, at the current frame, descended from the
+// connected component of phi labelled l at frame 0:
+//
+//   tracked(phi, l) at 0    =  eq(lcc(phi at 0), l)
+//   tracked(phi, l) at t+1  =  through(tracked(phi, l) at t, phi at t+1)
+//
+// that is, what at t+1 lies in a component of phi that touches region l at t.
+// Merges and splits come out as they are: a merged component carries every
+// label it touched, so the regions are not a partition. A component at t+1 that
+// touches nothing at t belongs to no region; how it gets a fresh label is the
+// design decision still open.
+//
+// Today "tracked" is an identifier like any other and goes through untouched,
+// so the third pass emits a program VoxLogicA 1 would reject. With two next
+// operators the goal is component 1 of frame 0, followed to frame 2.
+let study = load("study.nii.gz")
+let lesion = gt(intensity(frame(study,n)),500)
+save "first" diamond(diamond(tracked(lesion,1)))

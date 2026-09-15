@@ -1,0 +1,55 @@
+### case exists-label, 3 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)=l
+let op1(n)="study.nii.gz"
+let op2(n)=load(op1(n))
+let op3(n)=n
+let op4(n)=frame(op2(n),op3(n))
+let op5(n)=intensity(op4(n))
+let op6(n)=500
+let op7(n)=gt(op5(n),op6(n))
+let op8(n)=tracked(op7(n),op0(n))
+let op9(n)=op8(inc(n))
+let op10(n)=and(op8(n),op9(n))
+let op11(n)=exists(op0(n),op10(n))
+save "persistent" op11(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=l
+let op2="study.nii.gz"
+let op3=load(op2)
+let op4=frame(op3,op0)
+let op5=intensity(op4)
+let op6=500
+let op7=gt(op5,op6)
+let op8=tracked(op7,op1)
+let op9=inc(op0)
+let op10=frame(op3,op9)
+let op11=intensity(op10)
+let op12=gt(op11,op6)
+let op13=tracked(op12,op1)
+let op14=and(op8,op13)
+let op15=exists(op1,op14)
+save "persistent" op15
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = l
+let op1 = "study.nii.gz"
+load studyAt0 = "frames/study_0.png"
+load studyAt1 = "frames/study_1.png"
+load studyAt2 = "frames/study_2.png"
+let op3 = 0
+let op4 = studyAt0
+let op5 = intensity(op4)
+let op6 = 500
+let op7 = gt(op5,op6)
+let op8 = tracked(op7,op0)
+let op10 = studyAt1
+let op11 = intensity(op10)
+let op12 = gt(op11,op6)
+let op13 = tracked(op12,op0)
+let op14 = and(op8,op13)
+let op15 = exists(op0,op14)
+save "persistent.png" op15

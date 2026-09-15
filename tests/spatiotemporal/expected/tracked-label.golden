@@ -1,0 +1,43 @@
+### case tracked-label, 3 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="study.nii.gz"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=500
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=1
+let op8(n)=tracked(op6(n),op7(n))
+let op9(n)=op8(inc(n))
+let op10(n)=op9(inc(n))
+save "first" op10(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2=inc(op1)
+let op3="study.nii.gz"
+let op4=load(op3)
+let op5=frame(op4,op2)
+let op6=intensity(op5)
+let op7=500
+let op8=gt(op6,op7)
+let op9=1
+let op10=tracked(op8,op9)
+save "first" op10
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "study.nii.gz"
+load studyAt0 = "frames/study_0.png"
+load studyAt1 = "frames/study_1.png"
+load studyAt2 = "frames/study_2.png"
+let op2 = 0
+let op5 = studyAt2
+let op6 = intensity(op5)
+let op7 = 500
+let op8 = gt(op6,op7)
+let op9 = 1
+let op10 = tracked(op8,op9)
+save "first.png" op10

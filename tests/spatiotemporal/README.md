@@ -82,3 +82,12 @@ The same mechanism is how to record a bug that is still open: add the case, let
 `--update` write down whatever the tool does today, and mark the specification
 `KNOWN BAD`. Fixing the bug then shows up as a diff, and the golden file is
 regenerated on purpose.
+
+And it is how a feature is specified before it exists. `tracked-label` and
+`exists-label` are marked `NOT IMPLEMENTED`: they are written in the syntax the
+label propagation and the existential over labels are meant to have, and their
+golden files record what the tool does with it today -- it passes `tracked`,
+`exists` and the bound variable through untouched, like any identifier it does
+not know, and emits a program VoxLogicA 1 would reject. The diff that appears
+when the operators land is the check that they do what the comment in the
+specification says. See `notes/spatio-temporal.md`, *Quantifying over labels*.

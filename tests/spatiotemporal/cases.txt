@@ -14,3 +14,7 @@ literals               2
 horizon-overflow       2
 nullary-identifier     2
 wrong-context-name     2
+
+# Label propagation and the existential over labels (branch existential-labels)
+tracked-label          3
+exists-label           3
