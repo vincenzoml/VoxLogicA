@@ -5,4 +5,4 @@
 let study = load("study.nii.gz")
 let lesion = gt(intensity(frame(study,n)),500)
 let region(l) = eq(lcc(lesion),l)
-save "wrong" and(exists(l,region(l)),region(l))
+save "wrong" and(exists(l,lcc(lesion),region(l)),region(l))

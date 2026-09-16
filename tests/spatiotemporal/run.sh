@@ -114,6 +114,31 @@ generate() {
     else
         echo "SKIPPED: pass 2 produced no output"
     fi
+
+    # A quantified case is also run as a probe: the same specification, its
+    # goals replaced by the highest label of each labelling, which is what the
+    # bound above is to be computed from. The probe needs no bound, and what it
+    # emits at the end is what a driver would run first; the middle pass is the
+    # same reduction as above and is not recorded.
+    [ -n "$labels" ] || return
+    local q1=$work/$name.probe.1.imgql
+    local q2=$work/$name.probe.2.imgql
+    local q3=$work/$name.probe.3.imgql
+    rm -f "$q1" "$q2" "$q3"
+
+    echo
+    echo "### probe, pass 1: --savetaskgraphasprogram --providecontext n --probe"
+    run "$q1" cases/"$name".imgql --numframes "$frames" --savetaskgraphasprogram "$q1" --providecontext n --probe
+    echo
+    echo "### probe, pass 3: --evaluatespatiotemporal"
+    if [ -f "$q1" ]; then
+        "$binary" "$q1" --numframes "$frames" --savetaskgraphasprogram "$q2" >/dev/null 2>&1
+    fi
+    if [ -f "$q2" ]; then
+        run "$q3" "$q2" --numframes "$frames" --evaluatespatiotemporal "$q3"
+    else
+        echo "SKIPPED: the probe produced no output"
+    fi
 }
 
 wanted() {

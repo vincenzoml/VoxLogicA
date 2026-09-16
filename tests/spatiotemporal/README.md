@@ -97,12 +97,24 @@ existential unrolled around a `tracked` that still is not. See
 
 ## The existential over labels
 
-`exists(l, psi)` makes `l` a parameter of every declaration beside the frame
-reference -- `let op7(n,l)` -- and unrolls into `or(psi(1), ..., psi(K))`, `K`
-being `--maxlabels`. `exists-footprint` is the case that shows the shape on a
-region VoxLogicA 1 can compute today, and `free-label` pins the diagnostic for a
-label variable that reaches a `save` without meeting its `exists`: the goal
-would otherwise instantiate it silently.
+`exists(l, labels, psi)` makes `l` a parameter of every declaration beside the
+frame reference -- `let op7(n,l)` -- and unrolls into `or(psi(1), ..., psi(K))`,
+`K` being `--maxlabels`. `exists-footprint` is the case that shows the shape on
+a region VoxLogicA 1 can compute today; `free-label` pins the diagnostic for a
+label variable that reaches a `save` without meeting its `exists`, since the
+goal would otherwise instantiate it silently, and `self-bound-labelling` the one
+for a labelling that depends on the variable it gives its values to.
+
+The bound is a hypothesis, not a fact: a label past `K` is a witness the
+disjunction misses, and the result says false where the specification says
+true. Naming the labelling is what makes that visible. The result travels
+through the second pass wrapped as `bounded(labels, K, result)`, one instance
+per frame it is evaluated at, and the third pass resolves it into the result
+and a `print "labels opN within K" max(opN) .<=. K` beside the goals: whatever
+drives the run reads it and stops on a false. And the golden of every
+quantified case has a second part, the same specification under `--probe`: its
+goals replaced by the highest label of each labelling at each frame, which needs
+no bound and is what a driver runs first to compute `--maxlabels` from the data.
 
 `initially(phi)` is phi at frame 0 whatever temporal operators stand around it,
 the one absolute frame where `diamond` and `until` move relative to the current

@@ -20,6 +20,7 @@ initially-nested       3
 # The existential over labels
 exists-footprint       3  2
 free-label             2  2
+self-bound-labelling   2  2
 
 # Label propagation (branch existential-labels): tracked is not implemented yet
 tracked-label          3

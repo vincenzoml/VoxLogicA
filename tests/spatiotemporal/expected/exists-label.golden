@@ -9,33 +9,37 @@ let op4(n,l)=frame(op2(n,l),op3(n,l))
 let op5(n,l)=intensity(op4(n,l))
 let op6(n,l)=500
 let op7(n,l)=gt(op5(n,l),op6(n,l))
-let op8(n,l)=tracked(op7(n,l),op0(n,l))
-let op9(n,l)=op8(inc(n),l)
-let op10(n,l)=and(op8(n,l),op9(n,l))
-let op11(n,l)=or(op10(n,1),op10(n,2))
-save "persistent" op11(0,0)
+let op8(n,l)=lcc(op7(n,l))
+let op9(n,l)=op8(0,l)
+let op10(n,l)=tracked(op7(n,l),op0(n,l))
+let op11(n,l)=op10(inc(n),l)
+let op12(n,l)=and(op10(n,l),op11(n,l))
+let op13(n,l)=bounded(op9(n,l),2,or(op12(n,1),op12(n,2)))
+save "persistent" op13(0,0)
 ### pass 2: --savetaskgraphasprogram
 let op0=0
-let op1=1
-let op2="study.nii.gz"
-let op3=load(op2)
-let op4=frame(op3,op0)
-let op5=intensity(op4)
-let op6=500
-let op7=gt(op5,op6)
-let op8=tracked(op7,op1)
-let op9=inc(op0)
-let op10=frame(op3,op9)
-let op11=intensity(op10)
-let op12=gt(op11,op6)
-let op13=tracked(op12,op1)
-let op14=and(op8,op13)
-let op15=2
-let op16=tracked(op7,op15)
-let op17=tracked(op12,op15)
-let op18=and(op16,op17)
-let op19=or(op14,op18)
-save "persistent" op19
+let op1="study.nii.gz"
+let op2=load(op1)
+let op3=frame(op2,op0)
+let op4=intensity(op3)
+let op5=500
+let op6=gt(op4,op5)
+let op7=lcc(op6)
+let op8=2
+let op9=1
+let op10=tracked(op6,op9)
+let op11=inc(op0)
+let op12=frame(op2,op11)
+let op13=intensity(op12)
+let op14=gt(op13,op5)
+let op15=tracked(op14,op9)
+let op16=and(op10,op15)
+let op17=tracked(op6,op8)
+let op18=tracked(op14,op8)
+let op19=and(op17,op18)
+let op20=or(op16,op19)
+let op21=bounded(op7,op8,op20)
+save "persistent" op21
 ### pass 3: --evaluatespatiotemporal
 import "stdlib2.imgql"
 
@@ -48,16 +52,56 @@ let op3 = studyAt0
 let op4 = intensity(op3)
 let op5 = 500
 let op6 = gt(op4,op5)
-let op7 = 1
-let op8 = tracked(op6,op7)
-let op10 = studyAt1
-let op11 = intensity(op10)
-let op12 = gt(op11,op5)
-let op13 = tracked(op12,op7)
-let op14 = and(op8,op13)
-let op15 = 2
-let op16 = tracked(op6,op15)
-let op17 = tracked(op12,op15)
-let op18 = and(op16,op17)
-let op19 = or(op14,op18)
-save "persistent.png" op19
+let op7 = lcc(op6)
+let op8 = 2
+let op9 = 1
+let op10 = tracked(op6,op9)
+let op12 = studyAt1
+let op13 = intensity(op12)
+let op14 = gt(op13,op5)
+let op15 = tracked(op14,op9)
+let op16 = and(op10,op15)
+let op17 = tracked(op6,op8)
+let op18 = tracked(op14,op8)
+let op19 = and(op17,op18)
+let op20 = or(op16,op19)
+let op21 = op20
+save "persistent.png" op21
+// the bounds the existentials were unrolled to: false here means witnesses were missed
+print "labels op7 within 2" max(op7) .<=. 2
+
+### probe, pass 1: --savetaskgraphasprogram --providecontext n --probe
+let op0(n,l)=l
+let op1(n,l)="study.nii.gz"
+let op2(n,l)=load(op1(n,l))
+let op3(n,l)=n
+let op4(n,l)=frame(op2(n,l),op3(n,l))
+let op5(n,l)=intensity(op4(n,l))
+let op6(n,l)=500
+let op7(n,l)=gt(op5(n,l),op6(n,l))
+let op8(n,l)=lcc(op7(n,l))
+let op9(n,l)=op8(0,l)
+let op10(n,l)=tracked(op7(n,l),op0(n,l))
+let op11(n,l)=op10(inc(n),l)
+let op12(n,l)=and(op10(n,l),op11(n,l))
+let op13(n,l)=bounded(op9(n,l),1,op12(n,1))
+print "labels of l in op9 at frame 0" max(op9(0,0))
+print "labels of l in op9 at frame 1" max(op9(1,0))
+print "labels of l in op9 at frame 2" max(op9(2,0))
+### probe, pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "study.nii.gz"
+load studyAt0 = "frames/study_0.png"
+load studyAt1 = "frames/study_1.png"
+load studyAt2 = "frames/study_2.png"
+let op2 = 0
+let op3 = studyAt0
+let op4 = intensity(op3)
+let op5 = 500
+let op6 = gt(op4,op5)
+let op7 = lcc(op6)
+let op8 = max(op7)
+print "labels of l in op9 at frame 0" op8
+print "labels of l in op9 at frame 1" op8
+print "labels of l in op9 at frame 2" op8

@@ -1,9 +1,13 @@
 // The existential over labels, on a region it can use today.
 //
-// exists(l, psi) holds where psi holds for some label l in 1..K, K the bound
-// given with --maxlabels. The variable becomes a parameter of every declaration
-// beside the frame reference, and the exists unrolls into or(psi(1),...,psi(K)),
-// so that the reduction of the second pass shares whatever does not depend on l.
+// exists(l, labels, psi) holds where psi holds for some label l of the image
+// labels. The variable becomes a parameter of every declaration beside the
+// frame reference, and the exists unrolls into or(psi(1),...,psi(K)), K the
+// bound given with --maxlabels, so that the reduction of the second pass shares
+// whatever does not depend on l. The bound is a hypothesis: a label past it is
+// a witness the disjunction misses. Naming the labelling is what makes it
+// checkable -- the third pass prints max(labels) .<=. K beside the program --
+// and computable beforehand, by the same specification under --probe.
 //
 // The labels come from the temporal footprint: lcc is computed once, on the
 // union of the lesion over every frame, so the same label names the same
@@ -20,4 +24,4 @@ let study = load("study.nii.gz")
 let lesion = gt(intensity(frame(study,n)),500)
 let footprint = initially(lcc(until(true,lesion)))
 let region(l) = and(eq(footprint,l),lesion)
-save "persistent" exists(l,and(region(l),diamond(region(l))))
+save "persistent" exists(l,footprint,and(region(l),diamond(region(l))))

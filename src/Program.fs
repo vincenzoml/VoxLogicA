@@ -14,6 +14,7 @@ type CmdLine =
     | [<UniqueAttribute>] SaveTaskGraphAsProgram of option<string>
     | [<UniqueAttribute>] NumFrames of int
     | [<UniqueAttribute>] MaxLabels of int
+    | [<UniqueAttribute>] Probe
     | [<UniqueAttribute>] ProvideContext of option<string>
     | [<UniqueAttribute>] SaveSyntax of option<string>
     | [<UniqueAttribute>] SaveLabelling of option<string>
@@ -30,6 +31,7 @@ type CmdLine =
             | SaveTaskGraphAsProgram _ -> "save the task graph in VoxLogicA format and exit"
             | NumFrames _ -> "number of frames to process"
             | MaxLabels _ -> "bound on the labels an exists ranges over"
+            | Probe -> "print the highest label of every labelling an exists ranges over, instead of the goals: what --maxlabels is computed from"
             | ProvideContext _ -> "provide the context"
             | SaveSyntax _ -> "save the AST in text format and exit"
             | SaveLabelling _ -> "save the labelling in text format and exit"
@@ -144,13 +146,15 @@ let main (argv: string array) =
             | Some k when k < 1 -> ErrorMsg.fail $"--maxlabels is {k}: an exists cannot range over fewer than one label"
             | Some k -> k
 
+        let probe = parsed.Contains Probe
+
         if parsed.Contains SaveTaskGraphAsAST then
-            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames (), maxLabels)
+            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames (), maxLabels, probe)
 
             emit "the task graph in AST syntax" (parsed.GetResult SaveTaskGraphAsAST) $"{voxlogicaProgram}"
 
         if parsed.Contains SaveTaskGraphAsProgram then
-            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames (), maxLabels)
+            let voxlogicaProgram = program.ToProgram(contextOpt, numFrames (), maxLabels, probe)
 
             emit
                 "the task graph in VoxLogicA syntax"

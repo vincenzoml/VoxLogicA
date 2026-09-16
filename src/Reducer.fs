@@ -62,7 +62,10 @@ type WorkPlan =
 
     // maxLabels is a function, not a value: only a specification that quantifies
     // over labels needs the bound, and the others must keep working without it.
-    member this.ToProgram(ctx: option<string>, numFrames: int, maxLabels: unit -> int) : Program =
+    // With probe set, the goals are replaced by a print of the highest label of
+    // every labelling an exists ranges over, at every frame: what the bound is
+    // to be computed from, before the specification itself is unrolled with it.
+    member this.ToProgram(ctx: option<string>, numFrames: int, maxLabels: unit -> int, probe: bool) : Program =
         // Identifiers for the operations introduced by unrolling the temporal
         // operators. They start past the ids of the DAG, so that they can never
         // collide with the identifiers of the operations of the work plan.
@@ -87,11 +90,15 @@ type WorkPlan =
                 x
             | _ -> ErrorMsg.fail $"exists binds '{operand}', which is not an identifier"
 
+        // exists(l, labels, psi): l ranges over the labels of the image labels,
+        // and is bound in psi. Naming the labelling is what lets the pipeline
+        // check the bound it unrolls to, and compute it beforehand.
         let bindingOf (op: Operation) =
             match op.operator, op.arguments with
-            | Identifier "exists", [ binder; body ] -> Some(labelVariableOf binder, body)
+            | Identifier "exists", [ binder; labels; body ] -> Some(labelVariableOf binder, labels, body)
             | Identifier "exists", _ ->
-                ErrorMsg.fail "exists must take two arguments: the label variable and the formula it is bound in"
+                ErrorMsg.fail
+                    "exists must take three arguments: the label variable, the labelling it ranges over, and the formula it is bound in"
             | _ -> None
 
         // The label variables of the specification, in the order in which they
@@ -100,7 +107,7 @@ type WorkPlan =
         let labelVars =
             this.operations
             |> Seq.choose bindingOf
-            |> Seq.map fst
+            |> Seq.map (fun (l, _, _) -> l)
             |> Seq.distinct
             |> List.ofSeq
 
@@ -114,7 +121,13 @@ type WorkPlan =
 
             freeLabels[i] <-
                 match bindingOf op, op.operator with
-                | Some(l, body), _ -> Set.remove l freeLabels[body]
+                | Some(l, labels, body), _ ->
+                    // The labelling is where the variable takes its values from, so
+                    // it cannot itself depend on it.
+                    if Set.contains l freeLabels[labels] then
+                        ErrorMsg.fail $"the labelling that exists ranges over for '{l}' depends on '{l}' itself"
+
+                    Set.union freeLabels[labels] (Set.remove l freeLabels[body])
                 | None, Identifier x when List.isEmpty op.arguments && List.contains x labelVars -> Set.singleton x
                 | None, _ -> op.arguments |> List.map (fun arg -> freeLabels[arg]) |> Set.unionMany
 
@@ -221,20 +234,32 @@ type WorkPlan =
                 | _ -> failwith "Until must take two arguments"
             | Identifier "exists" ->
                 match bindingOf op with
-                | Some(l, body) ->
+                | Some(l, labels, body) ->
                     // Bounded unrolling of exists l. psi, with maxLabels as the bound:
                     // psi(1) | psi(2) | ... | psi(K). A fold and not a recursion, so
                     // unlike until it needs no declaration but its own. What does
                     // not depend on l is written K times here and shared again by
                     // the reduction of the next pass.
-                    let bound = maxLabels ()
+                    //
+                    // A probe never reaches the existentials from its goals, so the
+                    // bound it has not got yet is not needed: any value unrolls a
+                    // declaration the next pass drops.
+                    let bound = if probe then 1 else maxLabels ()
                     let instance label = atLabel l label env[body]
 
-                    let result =
+                    let disjunction =
                         List.foldBack
                             (fun label rest -> ECall("unknown", "or", [ instance label; rest ]))
                             [ 1 .. bound - 1 ]
                             (instance bound)
+
+                    // A label past the bound is a witness the disjunction misses,
+                    // silently. The result travels wrapped with the labelling and
+                    // the bound, so that every instance of it the next pass makes --
+                    // one per frame it is evaluated at -- keeps its own labelling,
+                    // and the last pass can print the check beside the program.
+                    let result =
+                        ECall("unknown", "bounded", [ atFrame env[labels]; ENumber(float bound); disjunction ])
 
                     Seq.empty, result, opId
                 | None -> failwith "unreachable: bindingOf accepts every exists"
@@ -259,10 +284,40 @@ type WorkPlan =
         let goals =
             [ let param = List.map (fun _ -> ENumber 0.0) ctxArgs
 
-              for goal in this.goals do
-                  match goal with
-                  | GoalSave(x, y) -> yield Save("unknown", x, ECall("unknown", $"op{env[y]}", param))
-                  | GoalPrint(x, y) -> yield Print("unknown", x, ECall("unknown", $"op{env[y]}", param)) ]
+              if probe then
+                  // The highest label of each labelling, at each frame of the
+                  // video: past the end the last frame persists, so no frame
+                  // beyond it can have more labels. A labelling that depends on
+                  // another label variable would have to be probed once per value
+                  // of that variable, which is the bound being asked for.
+                  for i = 0 to this.operations.Length - 1 do
+                      match bindingOf this.operations[i] with
+                      | Some(l, labels, _) ->
+                          match List.ofSeq freeLabels[labels] with
+                          | [] -> ()
+                          | k :: _ ->
+                              ErrorMsg.fail (
+                                  $"the labelling that exists ranges over for '{l}' depends on '{k}', a label variable: "
+                                  + "its bound cannot be probed and has to be given with --maxlabels"
+                              )
+
+                          for frame = 0 to numFrames - 1 do
+                              let actuals =
+                                  List.map (fun _ -> ENumber(float frame)) frameArgs
+                                  @ List.map (fun _ -> ENumber 0.0) labelVars
+
+                              yield
+                                  Print(
+                                      "unknown",
+                                      $"labels of {l} in op{env[labels]} at frame {frame}",
+                                      ECall("unknown", "max", [ apply env[labels] actuals ])
+                                  )
+                      | None -> ()
+              else
+                  for goal in this.goals do
+                      match goal with
+                      | GoalSave(x, y) -> yield Save("unknown", x, ECall("unknown", $"op{env[y]}", param))
+                      | GoalPrint(x, y) -> yield Print("unknown", x, ECall("unknown", $"op{env[y]}", param)) ]
 
         Program [ yield! declarations; yield! goals ]
 

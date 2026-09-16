@@ -1,0 +1,7 @@
+// The labelling an exists ranges over is where its variable takes its values
+// from, so it cannot depend on that variable: there would be nothing to take
+// them from. Rejected by the first pass, before any bound is asked for.
+let study = load("study.nii.gz")
+let lesion = gt(intensity(frame(study,n)),500)
+let components = lcc(lesion)
+save "wrong" exists(l,lcc(eq(components,l)),eq(components,l))

@@ -1,12 +1,13 @@
 // NOT IMPLEMENTED: label propagation, under an existential that is.
 //
-// exists(l, psi) holds where psi holds for some label l in 1..K, K the bound
-// given with --maxlabels (it cannot be known before the components are
-// computed, so it is a hypothesis of the run, to be checked against
-// max(lcc(...)) in the generated program). It unrolls, as until does, into a
-// disjunction over 1..K with l instantiated -- the memoisation of the second
-// pass then shares whatever does not depend on l. See exists-footprint for the
-// same shape on a region that works today.
+// exists(l, labels, psi) holds where psi holds for some label l of the image
+// labels; here the labels of the lesion at frame 0, which is where tracked
+// numbers its regions. It unrolls, as until does, into a disjunction over 1..K
+// with l instantiated, K the bound given with --maxlabels -- the memoisation of
+// the second pass then shares whatever does not depend on l. The bound is a
+// hypothesis of the run: the third pass prints its check beside the program,
+// and --probe computes it from the data. See exists-footprint for the same
+// shape on a region that works today.
 //
 // l is a free identifier, as the frame reference n is; the binder is the only
 // thing that tells them apart. It has to be lower case: the parser reads an
@@ -19,4 +20,4 @@
 let study = load("study.nii.gz")
 let lesion = gt(intensity(frame(study,n)),500)
 let region(l) = tracked(lesion,l)
-save "persistent" exists(l,and(region(l),diamond(region(l))))
+save "persistent" exists(l,initially(lcc(lesion)),and(region(l),diamond(region(l))))

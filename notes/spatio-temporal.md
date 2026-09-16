@@ -169,7 +169,9 @@ result of a computation, unknown until runtime. If `maxLabels` under-approximate
 it, the existential is unsound: it misses witnesses silently. The generated
 program can check it -- `max(lcc(phi)) <= K` is expressible -- but a declarative
 specification cannot abort; at most it prints something a person has to read.
-This goes in the paper as a hypothesis, not in a footnote.
+This goes in the paper as a hypothesis, not in a footnote. (Revisited under
+*What landed*: with the labelling named in the binder, the toolchain computes
+the bound before the run and checks it after.)
 
 **The cost multiplies.** A quantifier multiplies the spatial work under it by K,
 two nested ones by K squared. At the 11 operations per frame measured above, K=50
@@ -277,7 +279,8 @@ what a reviewer asks for.
 
 ### What landed (2026-09-16, branch `existential-labels`)
 
-The existential is in, as sketched above. `exists(l, psi)` makes `l` a
+The existential is in, as sketched above, with one change to the sketch:
+the quantifier names its domain. `exists(l, labels, psi)` makes `l` a
 parameter of every declaration beside the frame reference (`let op7(n,l)`),
 unrolls into `or(psi(1), ..., psi(K))` with `K` from `--maxlabels`, and leaves
 the second pass to share whatever does not depend on `l`. The bound is asked
@@ -285,7 +288,34 @@ for only when something is quantified; a label variable that reaches a goal
 without meeting its `exists` is rejected by the first pass, since the goal
 would otherwise instantiate it silently. Nested quantifiers over distinct
 variables work, and the third pass shows the K squared the section above
-predicts. Golden cases: `exists-footprint`, `exists-label`, `free-label`.
+predicts. Golden cases: `exists-footprint`, `exists-label`, `free-label`,
+`self-bound-labelling`.
+
+**The bound, revisited.** The first difficulty above -- `K` under-approximated
+loses witnesses silently, and VoxLogicA 1 cannot abort -- looked like a
+limitation to write down. It is not, once the compiler knows *which* labelling
+`l` ranges over; with `exists(l, psi)` it did not, and could neither check nor
+compute the bound. With the labelling named, two things, neither of which
+touches VoxLogicA 1:
+
+- *the check is emitted.* The unrolled result travels through the second pass
+  as `bounded(labels, K, result)`, a pseudo-operator like `inc`, so that every
+  instance the memoisation makes -- one per frame the existential is evaluated
+  at -- keeps its own labelling; the third pass resolves it to the result plus
+  `print "labels opN within K" max(opN) .<=. K` beside the goals. The labelling
+  is computed for the formula anyway, so the check costs nothing. A false there
+  is the driver's signal to stop.
+- *the bound is computed, not guessed.* `--probe` emits the same specification
+  with its goals replaced by `print max(labelling)` at every frame, and needs
+  no bound. The driver runs the probe first, reads the numbers, and unrolls with
+  their maximum: `K` becomes a fact about the data, and the check above is the
+  belt to that pair of braces. One labelling that depends on another label
+  variable cannot be probed (it would have to be probed once per value of that
+  variable), and says so.
+
+What remains for the paper is then the honest statement: the existential is
+bounded, the bound is measured on the data before the run and verified after
+it, and the price is one extra evaluation of the labellings.
 
 Writing the footprint baseline as a golden case turned up something the
 sketch of A above glosses over. `lcc(until(true, lesion))` under a `diamond`

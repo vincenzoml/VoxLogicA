@@ -102,6 +102,11 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
     let evaluatedProgram = ResizeArray<string>()
     evaluatedProgram.Add("import \"stdlib2.imgql\"\n")
 
+    // The labellings the existentials range over, with the bound each was
+    // unrolled to. Two existentials over the same labelling at the same frame
+    // make the same check, which is printed once.
+    let bounds = ResizeArray<int * int>()
+
     for i in 0 .. workplan.operations.Length - 1 do
         match workplan.operations[i].operator with
         | Identifier "load" ->
@@ -140,6 +145,21 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
             | _ -> ErrorMsg.fail "frame must take two arguments"
         // The frame arithmetic is over: nothing is left of it in the program.
         | Identifier "inc" -> ()
+        // An existential, unrolled to a bound on the labels of a labelling: the
+        // result stands, and the bound becomes a check printed with the goals.
+        | Identifier "bounded" ->
+            match argumentsOf i with
+            | [ labels; k; result ] ->
+                let bound =
+                    match environment.TryFind k with
+                    | Some(VNumber x) -> int x
+                    | _ -> ErrorMsg.fail $"'{operandOf k}' bounds the labels of an existential, but it is not a number"
+
+                if not (bounds.Contains((labels, bound))) then
+                    bounds.Add((labels, bound))
+
+                evaluatedProgram.Add($"let op{i} = op{result}")
+            | _ -> ErrorMsg.fail "bounded must take three arguments"
         | Identifier x -> evaluatedProgram.Add($"let op{i} = " + x + application (argumentsOf i))
         | Number x -> evaluatedProgram.Add($"let op{i} = " + numberToSyntax x)
         | Bool x -> evaluatedProgram.Add($"let op{i} = " + boolToSyntax x)
@@ -149,6 +169,16 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
         match goal with
         | GoalSave(x, y) -> evaluatedProgram.Add($"save \"{x}.png\" op{y}")
         | GoalPrint(x, y) -> evaluatedProgram.Add($"print \"{x}\" op{y}")
+
+    // The bound is a hypothesis of the run, not a fact about the data: a label
+    // past it is a witness the existential missed, and the result would say
+    // false where the specification says true. VoxLogicA cannot abort on it,
+    // but it can print it, and whatever drives the run can read it and stop.
+    if bounds.Count > 0 then
+        evaluatedProgram.Add("// the bounds the existentials were unrolled to: false here means witnesses were missed")
+
+        for (labels, bound) in bounds do
+            evaluatedProgram.Add($"print \"labels op{labels} within {bound}\" max(op{labels}) .<=. {bound}")
 
     { program = evaluatedProgram
       env = environment }

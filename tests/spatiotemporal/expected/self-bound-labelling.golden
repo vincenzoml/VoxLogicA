@@ -1,7 +1,7 @@
-### case free-label, 2 frames, 2 labels
+### case self-bound-labelling, 2 frames, 2 labels
 
 ### pass 1: --savetaskgraphasprogram --providecontext n --maxlabels 2
-[TIME] [fail] 'l' is free in save "wrong": no exists binds it
+[TIME] [fail] the labelling that exists ranges over for 'l' depends on 'l' itself
 EXIT 1
 
 ### pass 2: --savetaskgraphasprogram
@@ -11,7 +11,7 @@ SKIPPED: pass 1 produced no output
 SKIPPED: pass 2 produced no output
 
 ### probe, pass 1: --savetaskgraphasprogram --providecontext n --probe
-[TIME] [fail] 'l' is free in save "wrong": no exists binds it
+[TIME] [fail] the labelling that exists ranges over for 'l' depends on 'l' itself
 EXIT 1
 
 ### probe, pass 3: --evaluatespatiotemporal

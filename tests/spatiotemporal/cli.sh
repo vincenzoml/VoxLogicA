@@ -76,6 +76,20 @@ check "--maxlabels 0 is rejected" 1 "$message"
 "$binary" "$spec" --numframes 2 --providecontext n --savetaskgraphasprogram "$work/j.imgql" >/dev/null 2>&1
 check "--savetaskgraphasprogram without --maxlabels, when nothing is quantified" 0 $?
 
+# The probe is what the bound is computed from, so it must not ask for one; and
+# it replaces the goals, so nothing is saved by it.
+"$binary" "$quantified" --numframes 2 --providecontext n --probe --savetaskgraphasprogram "$work/k.imgql" >/dev/null 2>&1
+check "--probe works without --maxlabels" 0 $?
+check "the probe prints and saves nothing" 0 "$(grep -c '^save' "$work/k.imgql")"
+check "the probe asks for the highest label" 1 "$(grep -c '^print .* max(' "$work/k.imgql" | sed 's/[1-9][0-9]*/1/')"
+
+# And the program the pipeline ends with carries the check of the bound it was
+# unrolled to, as a print beside the goals.
+"$binary" "$quantified" --numframes 2 --providecontext n --maxlabels 2 --savetaskgraphasprogram "$work/l1.imgql" >/dev/null 2>&1
+"$binary" "$work/l1.imgql" --numframes 2 --savetaskgraphasprogram "$work/l2.imgql" >/dev/null 2>&1
+"$binary" "$work/l2.imgql" --numframes 2 --evaluatespatiotemporal "$work/l3.imgql" >/dev/null 2>&1
+check "the flattened program prints the check of the bound" 1 "$(grep -c '^print "labels op[0-9]* within 2" max(op[0-9]*) .<=. 2$' "$work/l3.imgql")"
+
 # The frame reference is honoured by both dumps of the task graph.
 "$binary" "$spec" --numframes 2 --providecontext n --savetaskgraphasast "$work/e.ast" >/dev/null 2>&1
 found=$(grep -c 'Declaration ("op0", \["n"\]' "$work/e.ast" 2>/dev/null || echo 0)
