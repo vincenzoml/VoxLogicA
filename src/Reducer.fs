@@ -60,7 +60,9 @@ type WorkPlan =
         $"goals: {g}\noperations:\n{t}"
 
 
-    member this.ToProgram(ctx: option<string>, numFrames: int) : Program =
+    // maxLabels is a function, not a value: only a specification that quantifies
+    // over labels needs the bound, and the others must keep working without it.
+    member this.ToProgram(ctx: option<string>, numFrames: int, maxLabels: unit -> int) : Program =
         // Identifiers for the operations introduced by unrolling the temporal
         // operators. They start past the ids of the DAG, so that they can never
         // collide with the identifiers of the operations of the work plan.
@@ -71,23 +73,83 @@ type WorkPlan =
             nextId <- nextId + 1
             id
 
-        // The frame reference, when there is one, travels as an actual argument and
-        // is declared as a formal argument; it is never part of the name of an
-        // operation.
-        let ctxList =
-            match ctx with
-            | None -> []
-            | Some c -> [ ECall("unknown", c, []) ]
+        // The variable bound by an exists has to be a bare identifier: anything
+        // else -- a literal, or a name the specification has declared, which the
+        // reduction has already replaced with its body -- cannot be instantiated.
+        let labelVariableOf (binder: OperationId) =
+            let operand = this.operations[binder]
 
-        let ctxArgs =
-            match ctx with
-            | None -> []
-            | Some c -> [ c ]
+            match operand.operator with
+            | Identifier x when List.isEmpty operand.arguments ->
+                if Some x = ctx then
+                    ErrorMsg.fail $"exists cannot bind '{x}', which is the frame reference"
 
-        let atFrame id = ECall("unknown", $"op{id}", ctxList)
+                x
+            | _ -> ErrorMsg.fail $"exists binds '{operand}', which is not an identifier"
+
+        let bindingOf (op: Operation) =
+            match op.operator, op.arguments with
+            | Identifier "exists", [ binder; body ] -> Some(labelVariableOf binder, body)
+            | Identifier "exists", _ ->
+                ErrorMsg.fail "exists must take two arguments: the label variable and the formula it is bound in"
+            | _ -> None
+
+        // The label variables of the specification, in the order in which they
+        // are first bound. Each is instantiated by the exists that binds it, and
+        // travels through every other declaration like the frame reference does.
+        let labelVars =
+            this.operations
+            |> Seq.choose bindingOf
+            |> Seq.map fst
+            |> Seq.distinct
+            |> List.ofSeq
+
+        // A label variable that reaches a goal without meeting the exists that
+        // binds it is free: the goal would instantiate it to a value it never
+        // meant, and the mistake would only surface at the end of the pipeline.
+        let freeLabels = Array.create this.operations.Length Set.empty
+
+        for i = 0 to this.operations.Length - 1 do
+            let op = this.operations[i]
+
+            freeLabels[i] <-
+                match bindingOf op, op.operator with
+                | Some(l, body), _ -> Set.remove l freeLabels[body]
+                | None, Identifier x when List.isEmpty op.arguments && List.contains x labelVars -> Set.singleton x
+                | None, _ -> op.arguments |> List.map (fun arg -> freeLabels[arg]) |> Set.unionMany
+
+        for goal in this.goals do
+            let what, root =
+                match goal with
+                | GoalSave(x, y) -> $"save \"{x}\"", y
+                | GoalPrint(x, y) -> $"print \"{x}\"", y
+
+            match List.ofSeq freeLabels[root] with
+            | [] -> ()
+            | l :: _ -> ErrorMsg.fail $"'{l}' is free in {what}: no exists binds it"
+
+        // The frame reference, when there is one, and the label variables travel
+        // as actual arguments and are declared as formal arguments; they are never
+        // part of the name of an operation.
+        let frameArgs = Option.toList ctx
+        let ctxArgs = frameArgs @ labelVars
+        let reference (arg: string) = ECall("unknown", arg, [])
+        let apply id actuals = ECall("unknown", $"op{id}", actuals)
+
+        let atFrame id = apply id (List.map reference ctxArgs)
 
         let atNextFrame id =
-            ECall("unknown", $"op{id}", [ ECall("unknown", "inc", ctxList) ])
+            apply id (ECall("unknown", "inc", List.map reference frameArgs) :: List.map reference labelVars)
+
+        // The first frame, whatever the frame reference is: the one absolute
+        // frame, which the temporal operators around it cannot shift.
+        let atFirstFrame id =
+            apply id (List.map (fun _ -> ENumber 0.0) frameArgs @ List.map reference labelVars)
+
+        // The same operation with one label variable instantiated at a label, and
+        // everything else passed through.
+        let atLabel l (label: int) id =
+            apply id (List.map (fun arg -> if arg = l then ENumber(float label) else reference arg) ctxArgs)
 
         // Maps the ids of the DAG to the ids of the emitted declarations. The two
         // differ for the operators that expand to more than one declaration; since
@@ -120,6 +182,10 @@ type WorkPlan =
                 match op.arguments with
                 | [ a ] -> Seq.empty, atNextFrame env[a], opId
                 | _ -> failwith "Diamond must take one argument"
+            | Identifier "initially" ->
+                match op.arguments with
+                | [ a ] -> Seq.empty, atFirstFrame env[a], opId
+                | _ -> failwith "Initially must take one argument"
             | Identifier "until" ->
                 match op.arguments with
                 | [ a; b ] ->
@@ -153,6 +219,25 @@ type WorkPlan =
 
                     declarations :> seq<Command>, result, freshId ()
                 | _ -> failwith "Until must take two arguments"
+            | Identifier "exists" ->
+                match bindingOf op with
+                | Some(l, body) ->
+                    // Bounded unrolling of exists l. psi, with maxLabels as the bound:
+                    // psi(1) | psi(2) | ... | psi(K). A fold and not a recursion, so
+                    // unlike until it needs no declaration but its own. What does
+                    // not depend on l is written K times here and shared again by
+                    // the reduction of the next pass.
+                    let bound = maxLabels ()
+                    let instance label = atLabel l label env[body]
+
+                    let result =
+                        List.foldBack
+                            (fun label rest -> ECall("unknown", "or", [ instance label; rest ]))
+                            [ 1 .. bound - 1 ]
+                            (instance bound)
+
+                    Seq.empty, result, opId
+                | None -> failwith "unreachable: bindingOf accepts every exists"
             | Identifier x ->
                 Seq.empty, ECall("unknown", x, List.map (fun arg -> atFrame env[arg]) op.arguments), opId
             | Number x -> Seq.empty, ENumber x, opId
@@ -167,11 +252,12 @@ type WorkPlan =
             env[i] <- outId
             declarations.Add(Declaration($"op{outId}", ctxArgs, expr))
 
+        // The goals instantiate the frame reference at the first frame. A label
+        // variable has to be given a value too, for the declaration to be applied,
+        // but none is ever read: every goal has been checked above to bind them
+        // all.
         let goals =
-            [ let param =
-                match ctx with
-                | None -> []
-                | Some _ -> [ ENumber 0.0 ]
+            [ let param = List.map (fun _ -> ENumber 0.0) ctxArgs
 
               for goal in this.goals do
                   match goal with

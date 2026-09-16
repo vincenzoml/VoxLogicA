@@ -85,16 +85,21 @@ run() {
 }
 
 generate() {
-    local name=$1 frames=$2
+    local name=$1 frames=$2 labels=$3
     local p1=$work/$name.1.imgql
     local p2=$work/$name.2.imgql
     local p3=$work/$name.3.imgql
     rm -f "$p1" "$p2" "$p3"
 
-    echo "### case $name, $frames frames"
+    # The bound on the labels goes to the first pass alone: that is where the
+    # existential is unrolled, and the next two passes never see it.
+    local bound=()
+    [ -n "$labels" ] && bound=(--maxlabels "$labels")
+
+    echo "### case $name, $frames frames${labels:+, $labels labels}"
     echo
-    echo "### pass 1: --savetaskgraphasprogram --providecontext n"
-    run "$p1" cases/"$name".imgql --numframes "$frames" --savetaskgraphasprogram "$p1" --providecontext n
+    echo "### pass 1: --savetaskgraphasprogram --providecontext n${labels:+ --maxlabels $labels}"
+    run "$p1" cases/"$name".imgql --numframes "$frames" --savetaskgraphasprogram "$p1" --providecontext n "${bound[@]}"
     echo
     echo "### pass 2: --savetaskgraphasprogram"
     if [ -f "$p1" ]; then
@@ -121,13 +126,13 @@ wanted() {
 failed=0
 total=0
 
-while read -r name frames; do
+while read -r name frames labels; do
     case $name in '' | \#*) continue ;; esac
     wanted "$name" || continue
     total=$((total + 1))
     golden=expected/$name.golden
     actual=$work/$name.actual
-    generate "$name" "$frames" >"$actual"
+    generate "$name" "$frames" "$labels" >"$actual"
 
     if $update; then
         if [ -f "$golden" ] && cmp -s "$golden" "$actual"; then

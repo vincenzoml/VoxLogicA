@@ -1,0 +1,8 @@
+// initially(phi) is phi at the first frame, whatever temporal operators stand
+// around it: it is the one absolute frame reference, where diamond and until
+// only ever move relative to the current frame. Under a diamond it stays at
+// frame 0; over a diamond it fixes the frame the diamond moves from, so the
+// second conjunct is a at frame 1 wherever it is evaluated.
+let video = load("video.avi")
+let a = gt(intensity(frame(video,n)),42)
+save "result" diamond(and(diamond(initially(a)),initially(diamond(a))))

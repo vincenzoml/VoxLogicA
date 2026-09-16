@@ -1,6 +1,7 @@
-# One line per test case: <name> <numFrames>
-# The expected output of each case is in expected/<name>.golden and is produced
-# by run.sh --update. Cases whose specification is marked KNOWN BAD pin the
+# One line per test case: <name> <numFrames> [<maxLabels>]
+# The bound on the labels is passed to the first pass as --maxlabels, and only
+# the cases that quantify over labels need one. The expected output of each case
+# is in expected/<name>.golden and is produced by run.sh --update. Cases whose specification is marked KNOWN BAD pin the
 # current, wrong behaviour of an open bug: when the bug is fixed the diff is
 # expected, and the golden file has to be regenerated on purpose.
 
@@ -14,7 +15,12 @@ literals               2
 horizon-overflow       2
 nullary-identifier     2
 wrong-context-name     2
+initially-nested       3
 
-# Label propagation and the existential over labels (branch existential-labels)
+# The existential over labels
+exists-footprint       3  2
+free-label             2  2
+
+# Label propagation (branch existential-labels): tracked is not implemented yet
 tracked-label          3
-exists-label           3
+exists-label           3  2

@@ -1,0 +1,23 @@
+// The existential over labels, on a region it can use today.
+//
+// exists(l, psi) holds where psi holds for some label l in 1..K, K the bound
+// given with --maxlabels. The variable becomes a parameter of every declaration
+// beside the frame reference, and the exists unrolls into or(psi(1),...,psi(K)),
+// so that the reduction of the second pass shares whatever does not depend on l.
+//
+// The labels come from the temporal footprint: lcc is computed once, on the
+// union of the lesion over every frame, so the same label names the same
+// component at every time. That needs the footprint to be taken at an absolute
+// frame: under the diamond, until(true,lesion) alone would be "eventually, from
+// the next frame on", and its lcc a different labelling. initially(phi) is phi
+// at frame 0 whatever temporal operators stand around it, so the third pass
+// emits a single lcc, over lesion at every frame, and one eq per label.
+//
+// The formula reads "some footprint component is a lesion now and still is at
+// the next frame": with a footprint that is the persistence per component that
+// tracked will refine, and it is a program VoxLogicA 1 accepts as it stands.
+let study = load("study.nii.gz")
+let lesion = gt(intensity(frame(study,n)),500)
+let footprint = initially(lcc(until(true,lesion)))
+let region(l) = and(eq(footprint,l),lesion)
+save "persistent" exists(l,and(region(l),diamond(region(l))))

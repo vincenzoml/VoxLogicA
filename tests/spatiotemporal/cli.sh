@@ -63,6 +63,19 @@ check "--savetaskgraphasdot without --numframes" 0 $?
 message=$("$binary" "$spec" --numframes 0 --savetaskgraphasprogram "$work/f.imgql" 2>&1 | grep -c 'fewer than one frame')
 check "--numframes 0 is rejected" 1 "$message"
 
+# The bound on the labels is a hypothesis of the run, not a fact about the data:
+# a specification that quantifies over labels has to be given one, and one that
+# does not must not be asked for it. The case above has no exists in it.
+quantified=cases/exists-footprint.imgql
+message=$("$binary" "$quantified" --numframes 2 --providecontext n --savetaskgraphasprogram "$work/h.imgql" 2>&1 | grep -c 'has to be given with --maxlabels')
+check "missing --maxlabels is reported when exists is used" 1 "$message"
+
+message=$("$binary" "$quantified" --numframes 2 --providecontext n --maxlabels 0 --savetaskgraphasprogram "$work/i.imgql" 2>&1 | grep -c 'fewer than one label')
+check "--maxlabels 0 is rejected" 1 "$message"
+
+"$binary" "$spec" --numframes 2 --providecontext n --savetaskgraphasprogram "$work/j.imgql" >/dev/null 2>&1
+check "--savetaskgraphasprogram without --maxlabels, when nothing is quantified" 0 $?
+
 # The frame reference is honoured by both dumps of the task graph.
 "$binary" "$spec" --numframes 2 --providecontext n --savetaskgraphasast "$work/e.ast" >/dev/null 2>&1
 found=$(grep -c 'Declaration ("op0", \["n"\]' "$work/e.ast" 2>/dev/null || echo 0)

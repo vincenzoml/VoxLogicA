@@ -1,0 +1,11 @@
+### case free-label, 2 frames, 2 labels
+
+### pass 1: --savetaskgraphasprogram --providecontext n --maxlabels 2
+[TIME] [fail] 'l' is free in save "wrong": no exists binds it
+EXIT 1
+
+### pass 2: --savetaskgraphasprogram
+SKIPPED: pass 1 produced no output
+
+### pass 3: --evaluatespatiotemporal
+SKIPPED: pass 2 produced no output

@@ -6,6 +6,8 @@ result of every pass with the file recorded in `expected/`:
 
 1. `--savetaskgraphasprogram --providecontext n` — the spatial formulas become
    functions of the frame reference and the temporal operators are unrolled;
+   a case that quantifies over labels also gets `--maxlabels K`, the third
+   column of `cases.txt`, and its `exists` are unrolled here too;
 2. `--savetaskgraphasprogram` — the frame reference is instantiated at 0 and the
    whole program is inlined and shared again;
 3. `--evaluatespatiotemporal` — the `inc` chains are computed away and what is
@@ -83,11 +85,27 @@ The same mechanism is how to record a bug that is still open: add the case, let
 `KNOWN BAD`. Fixing the bug then shows up as a diff, and the golden file is
 regenerated on purpose.
 
-And it is how a feature is specified before it exists. `tracked-label` and
-`exists-label` are marked `NOT IMPLEMENTED`: they are written in the syntax the
-label propagation and the existential over labels are meant to have, and their
-golden files record what the tool does with it today -- it passes `tracked`,
-`exists` and the bound variable through untouched, like any identifier it does
-not know, and emits a program VoxLogicA 1 would reject. The diff that appears
-when the operators land is the check that they do what the comment in the
-specification says. See `notes/spatio-temporal.md`, *Quantifying over labels*.
+And it is how a feature is specified before it exists. `tracked-label` is
+marked `NOT IMPLEMENTED`: it is written in the syntax the label propagation is
+meant to have, and its golden file records what the tool does with it today --
+it passes `tracked` through untouched, like any identifier it does not know,
+and emits a program VoxLogicA 1 would reject. The diff that appears when the
+operator lands is the check that it does what the comment in the specification
+says. `exists-label` was specified the same way and its golden now records the
+existential unrolled around a `tracked` that still is not. See
+`notes/spatio-temporal.md`, *Quantifying over labels*.
+
+## The existential over labels
+
+`exists(l, psi)` makes `l` a parameter of every declaration beside the frame
+reference -- `let op7(n,l)` -- and unrolls into `or(psi(1), ..., psi(K))`, `K`
+being `--maxlabels`. `exists-footprint` is the case that shows the shape on a
+region VoxLogicA 1 can compute today, and `free-label` pins the diagnostic for a
+label variable that reaches a `save` without meeting its `exists`: the goal
+would otherwise instantiate it silently.
+
+`initially(phi)` is phi at frame 0 whatever temporal operators stand around it,
+the one absolute frame where `diamond` and `until` move relative to the current
+one. `initially-nested` pins it on its own; `exists-footprint` is why it exists:
+without it the footprint under a `diamond` is a different `lcc`, taken from the
+next frame on.

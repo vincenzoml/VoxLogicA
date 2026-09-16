@@ -1,0 +1,110 @@
+### case exists-footprint, 3 frames, 2 labels
+
+### pass 1: --savetaskgraphasprogram --providecontext n --maxlabels 2
+let op0(n,l)=l
+let op1(n,l)=true
+let op2(n,l)="study.nii.gz"
+let op3(n,l)=load(op2(n,l))
+let op4(n,l)=n
+let op5(n,l)=frame(op3(n,l),op4(n,l))
+let op6(n,l)=intensity(op5(n,l))
+let op7(n,l)=500
+let op8(n,l)=gt(op6(n,l),op7(n,l))
+let op17(n,l)=and(op1(n,l),op8(inc(n),l))
+let op18(n,l)=or(op8(n,l),op17(n,l))
+let op19(n,l)=and(op1(n,l),op18(inc(n),l))
+let op20(n,l)=or(op8(n,l),op19(n,l))
+let op21(n,l)=and(op1(n,l),op20(inc(n),l))
+let op22(n,l)=or(op8(n,l),op21(n,l))
+let op10(n,l)=lcc(op22(n,l))
+let op11(n,l)=op10(0,l)
+let op12(n,l)=eq(op11(n,l),op0(n,l))
+let op13(n,l)=and(op12(n,l),op8(n,l))
+let op14(n,l)=op13(inc(n),l)
+let op15(n,l)=and(op13(n,l),op14(n,l))
+let op16(n,l)=or(op15(n,1),op15(n,2))
+save "persistent" op16(0,0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=1
+let op2="study.nii.gz"
+let op3=load(op2)
+let op4=frame(op3,op0)
+let op5=intensity(op4)
+let op6=500
+let op7=gt(op5,op6)
+let op8=true
+let op9=inc(op0)
+let op10=frame(op3,op9)
+let op11=intensity(op10)
+let op12=gt(op11,op6)
+let op13=inc(op9)
+let op14=frame(op3,op13)
+let op15=intensity(op14)
+let op16=gt(op15,op6)
+let op17=inc(op13)
+let op18=frame(op3,op17)
+let op19=intensity(op18)
+let op20=gt(op19,op6)
+let op21=and(op8,op20)
+let op22=or(op16,op21)
+let op23=and(op8,op22)
+let op24=or(op12,op23)
+let op25=and(op8,op24)
+let op26=or(op7,op25)
+let op27=lcc(op26)
+let op28=eq(op27,op1)
+let op29=and(op28,op7)
+let op30=and(op28,op12)
+let op31=and(op29,op30)
+let op32=2
+let op33=eq(op27,op32)
+let op34=and(op33,op7)
+let op35=and(op33,op12)
+let op36=and(op34,op35)
+let op37=or(op31,op36)
+save "persistent" op37
+### pass 3: --evaluatespatiotemporal
+[TIME] [warn] 'study' has 3 frame(s) and the specification looks as far as frame 3: frame 3 repeat the last one
+import "stdlib2.imgql"
+
+let op0 = "study.nii.gz"
+load studyAt0 = "frames/study_0.png"
+load studyAt1 = "frames/study_1.png"
+load studyAt2 = "frames/study_2.png"
+// frame 3 repeat frame 2: past the end the last frame persists
+load studyAt3 = "frames/study_2.png"
+let op2 = 0
+let op3 = studyAt0
+let op4 = intensity(op3)
+let op5 = 500
+let op6 = gt(op4,op5)
+let op7 = true
+let op9 = studyAt1
+let op10 = intensity(op9)
+let op11 = gt(op10,op5)
+let op13 = studyAt2
+let op14 = intensity(op13)
+let op15 = gt(op14,op5)
+let op17 = studyAt3
+let op18 = intensity(op17)
+let op19 = gt(op18,op5)
+let op20 = and(op7,op19)
+let op21 = or(op15,op20)
+let op22 = and(op7,op21)
+let op23 = or(op11,op22)
+let op24 = and(op7,op23)
+let op25 = or(op6,op24)
+let op26 = lcc(op25)
+let op27 = 1
+let op28 = eq(op26,op27)
+let op29 = and(op28,op6)
+let op30 = and(op28,op11)
+let op31 = and(op29,op30)
+let op32 = 2
+let op33 = eq(op26,op32)
+let op34 = and(op33,op6)
+let op35 = and(op33,op11)
+let op36 = and(op34,op35)
+let op37 = or(op31,op36)
+save "persistent.png" op37

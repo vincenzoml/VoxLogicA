@@ -275,6 +275,32 @@ first. If the interesting ones remain -- comparisons between components are the
 typical case -- the extension has its justification written above it, which is
 what a reviewer asks for.
 
+### What landed (2026-09-16, branch `existential-labels`)
+
+The existential is in, as sketched above. `exists(l, psi)` makes `l` a
+parameter of every declaration beside the frame reference (`let op7(n,l)`),
+unrolls into `or(psi(1), ..., psi(K))` with `K` from `--maxlabels`, and leaves
+the second pass to share whatever does not depend on `l`. The bound is asked
+for only when something is quantified; a label variable that reaches a goal
+without meeting its `exists` is rejected by the first pass, since the goal
+would otherwise instantiate it silently. Nested quantifiers over distinct
+variables work, and the third pass shows the K squared the section above
+predicts. Golden cases: `exists-footprint`, `exists-label`, `free-label`.
+
+Writing the footprint baseline as a golden case turned up something the
+sketch of A above glosses over. `lcc(until(true, lesion))` under a `diamond`
+is *re-evaluated from the next frame*: `until` is relative to the current
+frame, so the footprint at *t+1* is the union from *t+1* on, a different
+image and a different labelling, and `eq(footprint, L)` at *t* and at *t+1*
+compare labels of two `lcc`. The frame-independent footprint needs an
+**absolute** frame, which the compiler did not have: `diamond` and `until`
+only move relative to `n`. Hence `initially(phi)`, phi at frame 0 whatever
+stands around it -- a one-line branch, `op(0,l)` in place of `op(n,l)` -- and
+the footprint is `initially(lcc(until(true, lesion)))`. With it the third pass
+emits a single `lcc` over the lesion at every frame and one `eq` per label,
+which is what A promised. It is also the first piece of what `tracked` needs:
+its recursion is along absolute frames too.
+
 ## Not verified here
 
 **The generated VoxLogicA 1 program has run, in another repository.** It is not
@@ -298,5 +324,6 @@ VoxLogicA 1 and runs the whole toolchain, throwaway frames included. That turns
 3. Confirm the cohort is co-registered, or scope the registration work.
 4. Generalise the output format to volumes.
 5. Past operators, with the boundary convention written down.
-6. The propagation operator (B above), then the quantifier over its labels.
+6. The propagation operator (B above). The quantifier over its labels is
+   done, and `initially` gives it the absolute frame it starts from.
 7. The formulas, which are the research and not an estimate.

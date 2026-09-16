@@ -1,0 +1,49 @@
+### case initially-nested, 3 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="video.avi"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=42
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=op6(0)
+let op8(n)=op7(inc(n))
+let op9(n)=op6(inc(n))
+let op10(n)=op9(0)
+let op11(n)=and(op8(n),op10(n))
+let op12(n)=op11(inc(n))
+save "result" op12(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2=inc(op1)
+let op3="video.avi"
+let op4=load(op3)
+let op5=frame(op4,op0)
+let op6=intensity(op5)
+let op7=42
+let op8=gt(op6,op7)
+let op9=frame(op4,op1)
+let op10=intensity(op9)
+let op11=gt(op10,op7)
+let op12=and(op8,op11)
+save "result" op12
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "video.avi"
+load videoAt0 = "frames/video_0.png"
+load videoAt1 = "frames/video_1.png"
+load videoAt2 = "frames/video_2.png"
+let op2 = 0
+let op3 = videoAt0
+let op4 = intensity(op3)
+let op5 = 42
+let op6 = gt(op4,op5)
+let op8 = videoAt1
+let op9 = intensity(op8)
+let op10 = gt(op9,op5)
+let op11 = and(op6,op10)
+save "result.png" op11

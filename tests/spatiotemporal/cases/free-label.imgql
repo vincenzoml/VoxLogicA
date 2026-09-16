@@ -1,0 +1,8 @@
+// A label variable that no exists binds has to be rejected by the first pass.
+// The goal instantiates every parameter of the declarations to apply them, so a
+// free variable would silently take a value the specification never gave it,
+// and the mistake would surface only in the program the third pass emits.
+let study = load("study.nii.gz")
+let lesion = gt(intensity(frame(study,n)),500)
+let region(l) = eq(lcc(lesion),l)
+save "wrong" and(exists(l,region(l)),region(l))
