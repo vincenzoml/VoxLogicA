@@ -25,3 +25,4 @@ src/test.dot
 src/test.png
 src/test-temporal.dot
 src/test-temporal.imgql
+tests/spatiotemporal/vl1/

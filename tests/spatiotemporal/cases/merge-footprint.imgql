@@ -5,13 +5,15 @@
 // merged(l) holds, at frame t, on the component of the lesion at t+1 that
 // touches region l at t and also touches a lesion at t outside region l: a
 // merge that involves l. The footprint is the lcc of the union of the lesion
-// over the whole series, so the two lesions of frame 0, joined at frame 1,
+// over the whole series -- until(tt, lesion), tt being the image that holds
+// everywhere, where true is a scalar VoxLogicA 1 would not put in an and --
+// so the two lesions of frame 0, joined at frame 1,
 // are one footprint component from the start: region 1 is both of them, no
 // lesion lies outside it, and the merge is invisible. Expected: false
 // everywhere (frames/merge-footprint.expected.png).
 let video = load("merge")
 let lesion = gt(intensity(frame(video,n)),127)
-let footprint = initially(lcc(until(true,lesion)))
+let footprint = initially(lcc(until(tt,lesion)))
 let region(l) = and(eq(footprint,l),lesion)
 let merged(l) = and(through(region(l),diamond(lesion)),through(and(lesion,not(region(l))),diamond(lesion)))
 save "merge-footprint" exists(l,footprint,merged(l))

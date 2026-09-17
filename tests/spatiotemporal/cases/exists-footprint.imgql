@@ -12,7 +12,7 @@
 // The labels come from the temporal footprint: lcc is computed once, on the
 // union of the lesion over every frame, so the same label names the same
 // component at every time. That needs the footprint to be taken at an absolute
-// frame: under the diamond, until(true,lesion) alone would be "eventually, from
+// frame: under the diamond, until(tt,lesion) alone would be "eventually, from
 // the next frame on", and its lcc a different labelling. initially(phi) is phi
 // at frame 0 whatever temporal operators stand around it, so the third pass
 // emits a single lcc, over lesion at every frame, and one eq per label.
@@ -22,6 +22,6 @@
 // tracked will refine, and it is a program VoxLogicA 1 accepts as it stands.
 let study = load("study.nii.gz")
 let lesion = gt(intensity(frame(study,n)),500)
-let footprint = initially(lcc(until(true,lesion)))
+let footprint = initially(lcc(until(tt,lesion)))
 let region(l) = and(eq(footprint,l),lesion)
 save "persistent" exists(l,footprint,and(region(l),diamond(region(l))))

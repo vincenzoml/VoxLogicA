@@ -358,30 +358,36 @@ emits a single `lcc` over the lesion at every frame and one `eq` per label,
 which is what A promised. It is also the first piece of what `tracked` needs:
 its recursion is along absolute frames too.
 
-## Not verified here
+## Verified here (2026-09-17)
 
-**The generated VoxLogicA 1 program has run, in another repository.** It is not
-reproducible from this one: there is no `frames/` directory, no VoxLogicA 1
-binary, and the reference outputs point at a `video.avi` that does not exist. The
-round of fixes recorded here also changed what the third pass emits -- comment
-lines beside the repeated frames, and as many repeated frames as the
-specification reaches rather than one -- so the run is worth repeating before
-anything is built on top of it.
+The generated programs now run, from this repository, on a pinned release of
+VoxLogicA 1 (`v1.3.3-experimental`, self-contained, fetched by
+`tests/spatiotemporal/vl1.sh`; no container needed, 340 MB on disk).
+`tests/spatiotemporal/semantics.sh` runs the three `merge-*` cases the way a
+driver would -- probe, bound from the probe, flatten, run, check the bound's
+print, compare the saved image with the drawn expectation by another
+VoxLogicA 1 program -- and all three agree with the hand-computed images:
+the footprint sees no merge, the labels of the first frame see it between the
+first two frames, and `tracked` sees at frame 2 what descends from both
+lesions. The probe measured 1 label for the footprint and 2 for the first
+frame, as predicted. An under-approximated bound was tried by hand and the
+check printed false.
 
-The way to make it reproducible is a container that fetches a stable release of
-VoxLogicA 1 and runs the whole toolchain, throwaway frames included. That turns
-"it worked once, elsewhere" into something the golden tests can sit next to.
+Two format assumptions surfaced on the first run, neither visible in the
+goldens: the release ships `stdlib.imgql` and not the `stdlib2.imgql` the
+program imports, which therefore has to sit beside it; and `true` is a scalar
+in VoxLogicA 1, not an image, so the footprint is `until(tt, lesion)`.
 
 ## Next, in order
 
-1. A container that fetches a stable VoxLogicA 1 and runs the toolchain end to
-   end on throwaway frames.
+1. Done, without a container: `vl1.sh` fetches the release and
+   `semantics.sh` runs the toolchain end to end on drawn frames.
 2. One patient, two timepoints, a trivial formula, checked by hand end to end.
    This is what shakes out the format assumptions.
 3. Confirm the cohort is co-registered, or scope the registration work.
 4. Generalise the output format to volumes.
 5. Past operators, with the boundary convention written down.
 6. Done: the propagation operator (B above), the quantifier over its labels,
-   and `initially` for the absolute frame. What is left here is the run of
-   the `merge-*` cases against their drawn expectations, which needs 1.
+   and `initially` for the absolute frame, run against the drawn
+   expectations.
 7. The formulas, which are the research and not an estimate.

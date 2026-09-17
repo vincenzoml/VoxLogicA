@@ -27,6 +27,10 @@ memoisation switched off. It builds a second copy of the tool in a temporary
 directory to get that second figure, so it leaves the working tree alone. See
 `notes/spatio-temporal.md` for what the numbers do and do not support.
 
+`semantics.sh` is the check the goldens cannot make: it runs the cases that
+have an expected image in `frames/` through VoxLogicA 1, which `vl1.sh`
+fetches. See *The merge series* below.
+
 `cli.sh` is the companion of `run.sh` and takes no arguments. The golden tests
 always invoke the tool with the same argument order, so they cannot see a
 command that reads `argv` by position instead of asking the parser; `cli.sh`
@@ -132,14 +136,13 @@ next frame on.
 
 ## The merge series: what the goldens cannot check
 
-The goldens compare the *text* of the generated programs; nothing here runs
-them, since VoxLogicA 1 is not in this repository. Whether footprint labelling
-gives a wrong answer where propagation gives the right one is a question about
-the *results*, and it needs frames. `frames/draw.py` draws a series of three
-16x5 frames -- two lesions, a bridge that merges them, the merged lesion
-persisting one frame further -- and, for each of the three `merge-*` cases,
-the image the case has to produce, computed by hand and not by any
-implementation of the semantics:
+The goldens compare the *text* of the generated programs. Whether footprint
+labelling gives a wrong answer where propagation gives the right one is a
+question about the *results*, and it needs frames and a model checker.
+`frames/draw.py` draws a series of three 16x5 frames -- two lesions, a bridge
+that merges them, the merged lesion persisting one frame further -- and, for
+each of the three `merge-*` cases, the image the case has to produce, computed
+by hand and not by any implementation of the semantics:
 
 | case | criterion of identity | expected |
 |---|---|---|
@@ -147,7 +150,16 @@ implementation of the semantics:
 | `merge-initially` | labels of the first frame (B, no propagation) | the merged lesion of frame 1 |
 | `merge-tracked` | propagation (B) | the merged lesion of frame 2 |
 
-All three compile; the third is the one only `tracked` can pass. Running
-them is for the container: VoxLogicA 1 invoked in this directory on the program
-of pass 3 finds the frames at `frames/merge_<t>.png`, and its output is to be
-compared with `frames/merge-<case>.expected.png` after thresholding.
+`semantics.sh` runs them. `vl1.sh` fetches a pinned release of VoxLogicA 1
+(self-contained, 87 MB, into `vl1/`, which git ignores), and for every case
+with an expected image `semantics.sh` does what a driver would: it runs the
+probe first and takes the bound from what it prints, flattens the case with
+that bound, runs the program of pass 3 next to a copy of the frames and of
+`stdlib2.imgql`, requires the check of the bound to print true, and compares
+the saved image with the expected one -- by another VoxLogicA 1 program, after
+thresholding, so that nothing but the model checker is needed.
+
+Two things the first run taught, which the goldens could not: a release of
+VoxLogicA 1 ships `stdlib.imgql` and not `stdlib2.imgql`, which the generated
+program imports, so the latter has to sit beside it; and `true` is a scalar
+there, not an image, so the footprint is `until(tt, lesion)`.

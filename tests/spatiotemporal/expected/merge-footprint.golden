@@ -2,7 +2,7 @@
 
 ### pass 1: --savetaskgraphasprogram --providecontext n --maxlabels 2
 let op0(n,l)=l
-let op1(n,l)=true
+let op1(n,l)=tt
 let op2(n,l)="merge"
 let op3(n,l)=load(op2(n,l))
 let op4(n,l)=n
@@ -36,7 +36,7 @@ let op3=frame(op2,op0)
 let op4=intensity(op3)
 let op5=127
 let op6=gt(op4,op5)
-let op7=true
+let op7=tt
 let op8=inc(op0)
 let op9=frame(op2,op8)
 let op10=intensity(op9)
@@ -90,7 +90,7 @@ let op3 = mergeAt0
 let op4 = intensity(op3)
 let op5 = 127
 let op6 = gt(op4,op5)
-let op7 = true
+let op7 = tt
 let op9 = mergeAt1
 let op10 = intensity(op9)
 let op11 = gt(op10,op5)
@@ -131,7 +131,7 @@ print "labels op26 within 2" max(op26) .<=. 2
 
 ### probe, pass 1: --savetaskgraphasprogram --providecontext n --probe
 let op0(n,l)=l
-let op1(n,l)=true
+let op1(n,l)=tt
 let op2(n,l)="merge"
 let op3(n,l)=load(op2(n,l))
 let op4(n,l)=n
@@ -174,7 +174,7 @@ let op3 = mergeAt0
 let op4 = intensity(op3)
 let op5 = 127
 let op6 = gt(op4,op5)
-let op7 = true
+let op7 = tt
 let op9 = mergeAt1
 let op10 = intensity(op9)
 let op11 = gt(op10,op5)
