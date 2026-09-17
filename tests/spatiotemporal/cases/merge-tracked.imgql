@@ -1,0 +1,18 @@
+// NOT IMPLEMENTED: label propagation, on the merge series.
+//
+// The series is frames/merge_<t>.png, drawn in frames/draw.py with the
+// expected result. What at frame 2 descends from lesion 1 of frame 0 is, by
+// propagation through the merged lesion of frame 1, the whole lesion of frame
+// 2; and so does what descends from lesion 2. Their intersection is the merged
+// lesion, shifted and all: the merge, seen two frames later, through a frame
+// where the region had to be followed by overlap. Expected: the lesion of
+// frame 2 (frames/merge-tracked.expected.png).
+//
+// Under footprint labelling the two regions never overlap, and neither do they
+// under the labels of frame 0 alone: both give an empty result. This is the
+// case tracked has to pass, and the one neither initially nor the footprint
+// can. Today tracked goes through untouched, so the third pass emits a program
+// VoxLogicA 1 would reject.
+let video = load("merge")
+let lesion = gt(intensity(frame(video,n)),127)
+save "merge-tracked" diamond(diamond(and(tracked(lesion,1),tracked(lesion,2))))

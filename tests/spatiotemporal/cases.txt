@@ -22,6 +22,11 @@ exists-footprint       3  2
 free-label             2  2
 self-bound-labelling   2  2
 
+# The merge series in frames/, where footprint labelling and propagation differ
+merge-footprint        3  2
+merge-initially        3  2
+
 # Label propagation (branch existential-labels): tracked is not implemented yet
 tracked-label          3
 exists-label           3  2
+merge-tracked          3

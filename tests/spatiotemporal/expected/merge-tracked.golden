@@ -1,0 +1,52 @@
+### case merge-tracked, 3 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="merge"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=127
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=1
+let op8(n)=tracked(op6(n),op7(n))
+let op9(n)=2
+let op10(n)=tracked(op6(n),op9(n))
+let op11(n)=and(op8(n),op10(n))
+let op12(n)=op11(inc(n))
+let op13(n)=op12(inc(n))
+save "merge-tracked" op13(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2=inc(op1)
+let op3="merge"
+let op4=load(op3)
+let op5=frame(op4,op2)
+let op6=intensity(op5)
+let op7=127
+let op8=gt(op6,op7)
+let op9=1
+let op10=tracked(op8,op9)
+let op11=2
+let op12=tracked(op8,op11)
+let op13=and(op10,op12)
+save "merge-tracked" op13
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "merge"
+load mergeAt0 = "frames/merge_0.png"
+load mergeAt1 = "frames/merge_1.png"
+load mergeAt2 = "frames/merge_2.png"
+let op2 = 0
+let op5 = mergeAt2
+let op6 = intensity(op5)
+let op7 = 127
+let op8 = gt(op6,op7)
+let op9 = 1
+let op10 = tracked(op8,op9)
+let op11 = 2
+let op12 = tracked(op8,op11)
+let op13 = and(op10,op12)
+save "merge-tracked.png" op13

@@ -121,3 +121,25 @@ the one absolute frame where `diamond` and `until` move relative to the current
 one. `initially-nested` pins it on its own; `exists-footprint` is why it exists:
 without it the footprint under a `diamond` is a different `lcc`, taken from the
 next frame on.
+
+## The merge series: what the goldens cannot check
+
+The goldens compare the *text* of the generated programs; nothing here runs
+them, since VoxLogicA 1 is not in this repository. Whether footprint labelling
+gives a wrong answer where propagation gives the right one is a question about
+the *results*, and it needs frames. `frames/draw.py` draws a series of three
+16x5 frames -- two lesions, a bridge that merges them, the merged lesion
+persisting one frame further -- and, for each of the three `merge-*` cases,
+the image the case has to produce, computed by hand and not by any
+implementation of the semantics:
+
+| case | criterion of identity | expected |
+|---|---|---|
+| `merge-footprint` | footprint of the whole series (A) | false everywhere: the merge is invisible |
+| `merge-initially` | labels of the first frame (B, no propagation) | the merged lesion of frame 1 |
+| `merge-tracked` | propagation (B), NOT IMPLEMENTED | the merged lesion of frame 2 |
+
+The first two compile today, the third is what `tracked` has to pass. Running
+them is for the container: VoxLogicA 1 invoked in this directory on the program
+of pass 3 finds the frames at `frames/merge_<t>.png`, and its output is to be
+compared with `frames/merge-<case>.expected.png` after thresholding.

@@ -1,0 +1,197 @@
+### case merge-footprint, 3 frames, 2 labels
+
+### pass 1: --savetaskgraphasprogram --providecontext n --maxlabels 2
+let op0(n,l)=l
+let op1(n,l)=true
+let op2(n,l)="merge"
+let op3(n,l)=load(op2(n,l))
+let op4(n,l)=n
+let op5(n,l)=frame(op3(n,l),op4(n,l))
+let op6(n,l)=intensity(op5(n,l))
+let op7(n,l)=127
+let op8(n,l)=gt(op6(n,l),op7(n,l))
+let op21(n,l)=and(op1(n,l),op8(inc(n),l))
+let op22(n,l)=or(op8(n,l),op21(n,l))
+let op23(n,l)=and(op1(n,l),op22(inc(n),l))
+let op24(n,l)=or(op8(n,l),op23(n,l))
+let op25(n,l)=and(op1(n,l),op24(inc(n),l))
+let op26(n,l)=or(op8(n,l),op25(n,l))
+let op10(n,l)=lcc(op26(n,l))
+let op11(n,l)=op10(0,l)
+let op12(n,l)=eq(op11(n,l),op0(n,l))
+let op13(n,l)=and(op12(n,l),op8(n,l))
+let op14(n,l)=op8(inc(n),l)
+let op15(n,l)=through(op13(n,l),op14(n,l))
+let op16(n,l)=not(op13(n,l))
+let op17(n,l)=and(op8(n,l),op16(n,l))
+let op18(n,l)=through(op17(n,l),op14(n,l))
+let op19(n,l)=and(op15(n,l),op18(n,l))
+let op20(n,l)=bounded(op11(n,l),2,or(op19(n,1),op19(n,2)))
+save "merge-footprint" op20(0,0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1="merge"
+let op2=load(op1)
+let op3=frame(op2,op0)
+let op4=intensity(op3)
+let op5=127
+let op6=gt(op4,op5)
+let op7=true
+let op8=inc(op0)
+let op9=frame(op2,op8)
+let op10=intensity(op9)
+let op11=gt(op10,op5)
+let op12=inc(op8)
+let op13=frame(op2,op12)
+let op14=intensity(op13)
+let op15=gt(op14,op5)
+let op16=inc(op12)
+let op17=frame(op2,op16)
+let op18=intensity(op17)
+let op19=gt(op18,op5)
+let op20=and(op7,op19)
+let op21=or(op15,op20)
+let op22=and(op7,op21)
+let op23=or(op11,op22)
+let op24=and(op7,op23)
+let op25=or(op6,op24)
+let op26=lcc(op25)
+let op27=2
+let op28=1
+let op29=eq(op26,op28)
+let op30=and(op29,op6)
+let op31=through(op30,op11)
+let op32=not(op30)
+let op33=and(op6,op32)
+let op34=through(op33,op11)
+let op35=and(op31,op34)
+let op36=eq(op26,op27)
+let op37=and(op36,op6)
+let op38=through(op37,op11)
+let op39=not(op37)
+let op40=and(op6,op39)
+let op41=through(op40,op11)
+let op42=and(op38,op41)
+let op43=or(op35,op42)
+let op44=bounded(op26,op27,op43)
+save "merge-footprint" op44
+### pass 3: --evaluatespatiotemporal
+[TIME] [warn] 'merge' has 3 frame(s) and the specification looks as far as frame 3: frame 3 repeat the last one
+import "stdlib2.imgql"
+
+let op0 = "merge"
+load mergeAt0 = "frames/merge_0.png"
+load mergeAt1 = "frames/merge_1.png"
+load mergeAt2 = "frames/merge_2.png"
+// frame 3 repeat frame 2: past the end the last frame persists
+load mergeAt3 = "frames/merge_2.png"
+let op2 = 0
+let op3 = mergeAt0
+let op4 = intensity(op3)
+let op5 = 127
+let op6 = gt(op4,op5)
+let op7 = true
+let op9 = mergeAt1
+let op10 = intensity(op9)
+let op11 = gt(op10,op5)
+let op13 = mergeAt2
+let op14 = intensity(op13)
+let op15 = gt(op14,op5)
+let op17 = mergeAt3
+let op18 = intensity(op17)
+let op19 = gt(op18,op5)
+let op20 = and(op7,op19)
+let op21 = or(op15,op20)
+let op22 = and(op7,op21)
+let op23 = or(op11,op22)
+let op24 = and(op7,op23)
+let op25 = or(op6,op24)
+let op26 = lcc(op25)
+let op27 = 2
+let op28 = 1
+let op29 = eq(op26,op28)
+let op30 = and(op29,op6)
+let op31 = through(op30,op11)
+let op32 = not(op30)
+let op33 = and(op6,op32)
+let op34 = through(op33,op11)
+let op35 = and(op31,op34)
+let op36 = eq(op26,op27)
+let op37 = and(op36,op6)
+let op38 = through(op37,op11)
+let op39 = not(op37)
+let op40 = and(op6,op39)
+let op41 = through(op40,op11)
+let op42 = and(op38,op41)
+let op43 = or(op35,op42)
+let op44 = op43
+save "merge-footprint.png" op44
+// the bounds the existentials were unrolled to: false here means witnesses were missed
+print "labels op26 within 2" max(op26) .<=. 2
+
+### probe, pass 1: --savetaskgraphasprogram --providecontext n --probe
+let op0(n,l)=l
+let op1(n,l)=true
+let op2(n,l)="merge"
+let op3(n,l)=load(op2(n,l))
+let op4(n,l)=n
+let op5(n,l)=frame(op3(n,l),op4(n,l))
+let op6(n,l)=intensity(op5(n,l))
+let op7(n,l)=127
+let op8(n,l)=gt(op6(n,l),op7(n,l))
+let op21(n,l)=and(op1(n,l),op8(inc(n),l))
+let op22(n,l)=or(op8(n,l),op21(n,l))
+let op23(n,l)=and(op1(n,l),op22(inc(n),l))
+let op24(n,l)=or(op8(n,l),op23(n,l))
+let op25(n,l)=and(op1(n,l),op24(inc(n),l))
+let op26(n,l)=or(op8(n,l),op25(n,l))
+let op10(n,l)=lcc(op26(n,l))
+let op11(n,l)=op10(0,l)
+let op12(n,l)=eq(op11(n,l),op0(n,l))
+let op13(n,l)=and(op12(n,l),op8(n,l))
+let op14(n,l)=op8(inc(n),l)
+let op15(n,l)=through(op13(n,l),op14(n,l))
+let op16(n,l)=not(op13(n,l))
+let op17(n,l)=and(op8(n,l),op16(n,l))
+let op18(n,l)=through(op17(n,l),op14(n,l))
+let op19(n,l)=and(op15(n,l),op18(n,l))
+let op20(n,l)=bounded(op11(n,l),1,op19(n,1))
+print "labels of l in op11 at frame 0" max(op11(0,0))
+print "labels of l in op11 at frame 1" max(op11(1,0))
+print "labels of l in op11 at frame 2" max(op11(2,0))
+### probe, pass 3: --evaluatespatiotemporal
+[TIME] [warn] 'merge' has 3 frame(s) and the specification looks as far as frame 3: frame 3 repeat the last one
+import "stdlib2.imgql"
+
+let op0 = "merge"
+load mergeAt0 = "frames/merge_0.png"
+load mergeAt1 = "frames/merge_1.png"
+load mergeAt2 = "frames/merge_2.png"
+// frame 3 repeat frame 2: past the end the last frame persists
+load mergeAt3 = "frames/merge_2.png"
+let op2 = 0
+let op3 = mergeAt0
+let op4 = intensity(op3)
+let op5 = 127
+let op6 = gt(op4,op5)
+let op7 = true
+let op9 = mergeAt1
+let op10 = intensity(op9)
+let op11 = gt(op10,op5)
+let op13 = mergeAt2
+let op14 = intensity(op13)
+let op15 = gt(op14,op5)
+let op17 = mergeAt3
+let op18 = intensity(op17)
+let op19 = gt(op18,op5)
+let op20 = and(op7,op19)
+let op21 = or(op15,op20)
+let op22 = and(op7,op21)
+let op23 = or(op11,op22)
+let op24 = and(op7,op23)
+let op25 = or(op6,op24)
+let op26 = lcc(op25)
+let op27 = max(op26)
+print "labels of l in op11 at frame 0" op27
+print "labels of l in op11 at frame 1" op27
+print "labels of l in op11 at frame 2" op27

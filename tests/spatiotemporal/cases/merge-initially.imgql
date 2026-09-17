@@ -1,0 +1,18 @@
+// The same merge, with the labels of the first frame (option B of the note,
+// restricted to what is expressible before tracked exists). The series is
+// frames/merge_<t>.png, drawn in frames/draw.py with the expected result.
+//
+// merged(l) is as in merge-footprint. Here the labels are those of the lesion
+// at frame 0, where the two lesions are components 1 and 2; the component of
+// frame 1 touches region 1 and touches region 2, which lies outside region 1,
+// so the merge is seen. Expected: the whole component of frame 1
+// (frames/merge-initially.expected.png). This is region l at frame 0 only --
+// tracked(lesion, l) at frame 0 is exactly eq(initially(lcc(lesion)), l) --
+// which is enough for a merge between the first two frames and for nothing
+// after them.
+let video = load("merge")
+let lesion = gt(intensity(frame(video,n)),127)
+let labels = initially(lcc(lesion))
+let region(l) = eq(labels,l)
+let merged(l) = and(through(region(l),diamond(lesion)),through(and(lesion,not(region(l))),diamond(lesion)))
+save "merge-initially" exists(l,labels,merged(l))

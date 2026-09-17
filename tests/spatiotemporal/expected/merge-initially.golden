@@ -1,0 +1,127 @@
+### case merge-initially, 3 frames, 2 labels
+
+### pass 1: --savetaskgraphasprogram --providecontext n --maxlabels 2
+let op0(n,l)=l
+let op1(n,l)="merge"
+let op2(n,l)=load(op1(n,l))
+let op3(n,l)=n
+let op4(n,l)=frame(op2(n,l),op3(n,l))
+let op5(n,l)=intensity(op4(n,l))
+let op6(n,l)=127
+let op7(n,l)=gt(op5(n,l),op6(n,l))
+let op8(n,l)=lcc(op7(n,l))
+let op9(n,l)=op8(0,l)
+let op10(n,l)=eq(op9(n,l),op0(n,l))
+let op11(n,l)=op7(inc(n),l)
+let op12(n,l)=through(op10(n,l),op11(n,l))
+let op13(n,l)=not(op10(n,l))
+let op14(n,l)=and(op7(n,l),op13(n,l))
+let op15(n,l)=through(op14(n,l),op11(n,l))
+let op16(n,l)=and(op12(n,l),op15(n,l))
+let op17(n,l)=bounded(op9(n,l),2,or(op16(n,1),op16(n,2)))
+save "merge-initially" op17(0,0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1="merge"
+let op2=load(op1)
+let op3=frame(op2,op0)
+let op4=intensity(op3)
+let op5=127
+let op6=gt(op4,op5)
+let op7=lcc(op6)
+let op8=2
+let op9=1
+let op10=eq(op7,op9)
+let op11=inc(op0)
+let op12=frame(op2,op11)
+let op13=intensity(op12)
+let op14=gt(op13,op5)
+let op15=through(op10,op14)
+let op16=not(op10)
+let op17=and(op6,op16)
+let op18=through(op17,op14)
+let op19=and(op15,op18)
+let op20=eq(op7,op8)
+let op21=through(op20,op14)
+let op22=not(op20)
+let op23=and(op6,op22)
+let op24=through(op23,op14)
+let op25=and(op21,op24)
+let op26=or(op19,op25)
+let op27=bounded(op7,op8,op26)
+save "merge-initially" op27
+### pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "merge"
+load mergeAt0 = "frames/merge_0.png"
+load mergeAt1 = "frames/merge_1.png"
+load mergeAt2 = "frames/merge_2.png"
+let op2 = 0
+let op3 = mergeAt0
+let op4 = intensity(op3)
+let op5 = 127
+let op6 = gt(op4,op5)
+let op7 = lcc(op6)
+let op8 = 2
+let op9 = 1
+let op10 = eq(op7,op9)
+let op12 = mergeAt1
+let op13 = intensity(op12)
+let op14 = gt(op13,op5)
+let op15 = through(op10,op14)
+let op16 = not(op10)
+let op17 = and(op6,op16)
+let op18 = through(op17,op14)
+let op19 = and(op15,op18)
+let op20 = eq(op7,op8)
+let op21 = through(op20,op14)
+let op22 = not(op20)
+let op23 = and(op6,op22)
+let op24 = through(op23,op14)
+let op25 = and(op21,op24)
+let op26 = or(op19,op25)
+let op27 = op26
+save "merge-initially.png" op27
+// the bounds the existentials were unrolled to: false here means witnesses were missed
+print "labels op7 within 2" max(op7) .<=. 2
+
+### probe, pass 1: --savetaskgraphasprogram --providecontext n --probe
+let op0(n,l)=l
+let op1(n,l)="merge"
+let op2(n,l)=load(op1(n,l))
+let op3(n,l)=n
+let op4(n,l)=frame(op2(n,l),op3(n,l))
+let op5(n,l)=intensity(op4(n,l))
+let op6(n,l)=127
+let op7(n,l)=gt(op5(n,l),op6(n,l))
+let op8(n,l)=lcc(op7(n,l))
+let op9(n,l)=op8(0,l)
+let op10(n,l)=eq(op9(n,l),op0(n,l))
+let op11(n,l)=op7(inc(n),l)
+let op12(n,l)=through(op10(n,l),op11(n,l))
+let op13(n,l)=not(op10(n,l))
+let op14(n,l)=and(op7(n,l),op13(n,l))
+let op15(n,l)=through(op14(n,l),op11(n,l))
+let op16(n,l)=and(op12(n,l),op15(n,l))
+let op17(n,l)=bounded(op9(n,l),1,op16(n,1))
+print "labels of l in op9 at frame 0" max(op9(0,0))
+print "labels of l in op9 at frame 1" max(op9(1,0))
+print "labels of l in op9 at frame 2" max(op9(2,0))
+### probe, pass 3: --evaluatespatiotemporal
+import "stdlib2.imgql"
+
+let op0 = "merge"
+load mergeAt0 = "frames/merge_0.png"
+load mergeAt1 = "frames/merge_1.png"
+load mergeAt2 = "frames/merge_2.png"
+let op2 = 0
+let op3 = mergeAt0
+let op4 = intensity(op3)
+let op5 = 127
+let op6 = gt(op4,op5)
+let op7 = lcc(op6)
+let op8 = max(op7)
+print "labels of l in op9 at frame 0" op8
+print "labels of l in op9 at frame 1" op8
+print "labels of l in op9 at frame 2" op8
