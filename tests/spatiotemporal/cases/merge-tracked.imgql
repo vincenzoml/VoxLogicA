@@ -1,4 +1,4 @@
-// NOT IMPLEMENTED: label propagation, on the merge series.
+// Label propagation, on the merge series: the case that needs it.
 //
 // The series is frames/merge_<t>.png, drawn in frames/draw.py with the
 // expected result. What at frame 2 descends from lesion 1 of frame 0 is, by
@@ -10,9 +10,9 @@
 //
 // Under footprint labelling the two regions never overlap, and neither do they
 // under the labels of frame 0 alone: both give an empty result. This is the
-// case tracked has to pass, and the one neither initially nor the footprint
-// can. Today tracked goes through untouched, so the third pass emits a program
-// VoxLogicA 1 would reject.
+// case neither initially nor the footprint can pass. The third pass is the
+// semantics written out: eq(lcc(lesion at 0), l), then through with the lesion
+// at 1, then at 2, for each label, and their and.
 let video = load("merge")
 let lesion = gt(intensity(frame(video,n)),127)
 save "merge-tracked" diamond(diamond(and(tracked(lesion,1),tracked(lesion,2))))

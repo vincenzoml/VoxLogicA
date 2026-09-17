@@ -26,7 +26,8 @@ self-bound-labelling   2  2
 merge-footprint        3  2
 merge-initially        3  2
 
-# Label propagation (branch existential-labels): tracked is not implemented yet
+# Label propagation
 tracked-label          3
+tracked-overflow       3
 exists-label           3  2
 merge-tracked          3

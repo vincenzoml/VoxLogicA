@@ -1,0 +1,9 @@
+// A tracked region followed past the end of the video. The chain of steps
+// stops at the last frame, and select clamps to it: past the end the last
+// frame persists, and so does what is tracked on it, since the last step is a
+// union of components of the last frame and touching it gives it back. Like
+// a frame past the end, it is said, so that a specification that looks too
+// far is told.
+let video = load("merge")
+let lesion = gt(intensity(frame(video,n)),127)
+save "overflow" diamond(diamond(diamond(tracked(lesion,1))))

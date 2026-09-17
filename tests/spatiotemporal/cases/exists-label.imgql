@@ -1,4 +1,4 @@
-// NOT IMPLEMENTED: label propagation, under an existential that is.
+// The existential over the labels of a tracked region.
 //
 // exists(l, labels, psi) holds where psi holds for some label l of the image
 // labels; here the labels of the lesion at frame 0, which is where tracked
@@ -15,8 +15,6 @@
 //
 // The goal: a voxel that is in a tracked region now and still in the same one
 // at the next frame, for some region -- the lesion persists, per component.
-// Today "tracked" goes through untouched, so the third pass still emits a
-// program VoxLogicA 1 would reject; the exists around it is already unrolled.
 let study = load("study.nii.gz")
 let lesion = gt(intensity(frame(study,n)),500)
 let region(l) = tracked(lesion,l)

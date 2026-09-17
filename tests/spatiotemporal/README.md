@@ -85,15 +85,15 @@ The same mechanism is how to record a bug that is still open: add the case, let
 `KNOWN BAD`. Fixing the bug then shows up as a diff, and the golden file is
 regenerated on purpose.
 
-And it is how a feature is specified before it exists. `tracked-label` is
-marked `NOT IMPLEMENTED`: it is written in the syntax the label propagation is
-meant to have, and its golden file records what the tool does with it today --
-it passes `tracked` through untouched, like any identifier it does not know,
-and emits a program VoxLogicA 1 would reject. The diff that appears when the
-operator lands is the check that it does what the comment in the specification
-says. `exists-label` was specified the same way and its golden now records the
-existential unrolled around a `tracked` that still is not. See
-`notes/spatio-temporal.md`, *Quantifying over labels*.
+And it is how a feature is specified before it exists. `tracked-label`,
+`exists-label` and `merge-tracked` were marked `NOT IMPLEMENTED` and written in
+the syntax the label propagation was meant to have, their golden files
+recording what the tool did with it -- it passed `tracked` through untouched,
+like any identifier it did not know, and emitted a program VoxLogicA 1 would
+reject. The diff that appeared when the operator landed was the check that it
+does what the comment in the specification says, and the goldens were
+regenerated on purpose. See `notes/spatio-temporal.md`, *Quantifying over
+labels*.
 
 ## The existential over labels
 
@@ -116,6 +116,14 @@ quantified case has a second part, the same specification under `--probe`: its
 goals replaced by the highest label of each labelling at each frame, which needs
 no bound and is what a driver runs first to compute `--maxlabels` from the data.
 
+`tracked(phi, l)` is the region descended from component `l` of `phi` at frame
+0, by overlap from one frame to the next. Its recursion runs along absolute
+frames, so the first pass writes it out as one step per frame of the video --
+`eq(lcc(phi(0)), l)`, then `through(step, phi(1))`, and so on -- and a
+`select(n, step_0, ..., step_N)` that the third pass resolves by the value of
+`n`, as it resolves `inc`. Past the last frame the last step persists, and the
+run says so (`tracked-overflow`). `merge-tracked` is the case that needs it.
+
 `initially(phi)` is phi at frame 0 whatever temporal operators stand around it,
 the one absolute frame where `diamond` and `until` move relative to the current
 one. `initially-nested` pins it on its own; `exists-footprint` is why it exists:
@@ -137,9 +145,9 @@ implementation of the semantics:
 |---|---|---|
 | `merge-footprint` | footprint of the whole series (A) | false everywhere: the merge is invisible |
 | `merge-initially` | labels of the first frame (B, no propagation) | the merged lesion of frame 1 |
-| `merge-tracked` | propagation (B), NOT IMPLEMENTED | the merged lesion of frame 2 |
+| `merge-tracked` | propagation (B) | the merged lesion of frame 2 |
 
-The first two compile today, the third is what `tracked` has to pass. Running
+All three compile; the third is the one only `tracked` can pass. Running
 them is for the container: VoxLogicA 1 invoked in this directory on the program
 of pass 3 finds the frames at `frames/merge_<t>.png`, and its output is to be
 compared with `frames/merge-<case>.expected.png` after thresholding.

@@ -317,6 +317,33 @@ What remains for the paper is then the honest statement: the existential is
 bounded, the bound is measured on the data before the run and verified after
 it, and the price is one extra evaluation of the labellings.
 
+**The propagation operator (2026-09-17).** `tracked(phi, l)` is in, as B
+above defines it: `eq(lcc(phi@0), l)` at frame 0, `through(region@t,
+phi@(t+1))` after. What made it different from `until` is that the recursion
+runs along *absolute* frames, so it cannot be unrolled relative to the frame
+reference: the first pass writes the chain out with literal frames, one step
+per frame of the video, and wraps it in `select(n, step_0, ..., step_N)`, a
+pseudo-operator the third pass resolves by the value of `n` as it resolves
+`inc`. Past the last frame the last step persists, which is what the
+semantics gives anyway (the last step is a union of components of the last
+frame, and touching it gives it back), and the run warns as it does for a
+frame past the end. The steps not selected are left as declarations nothing
+refers to; VoxLogicA 1 evaluates from its goals, so they cost nothing, but a
+reachability sweep in the third pass would tidy the output.
+
+New components stay outside every region, as the definition says; no fresh
+labels. For lesion tracking that is enough, because "new lesion" is definable
+as the complement, `and(phi, not(exists(l, initially(lcc(phi)), tracked(phi,
+l))))`, and the labelling the existential ranges over is that of frame 0,
+which `--probe` measures.
+
+The three `merge-*` cases are the semantic check the goldens cannot make: on
+a drawn series where two lesions merge and the merged one moves on, the
+footprint sees nothing, the labels of the first frame see the merge between
+the first two frames, and only `tracked` sees, at frame 2, what descends from
+both. Their expected images are drawn by hand in `tests/spatiotemporal/
+frames/draw.py`; running them is what the container is for.
+
 Writing the footprint baseline as a golden case turned up something the
 sketch of A above glosses over. `lcc(until(true, lesion))` under a `diamond`
 is *re-evaluated from the next frame*: `until` is relative to the current
@@ -354,6 +381,7 @@ VoxLogicA 1 and runs the whole toolchain, throwaway frames included. That turns
 3. Confirm the cohort is co-registered, or scope the registration work.
 4. Generalise the output format to volumes.
 5. Past operators, with the boundary convention written down.
-6. The propagation operator (B above). The quantifier over its labels is
-   done, and `initially` gives it the absolute frame it starts from.
+6. Done: the propagation operator (B above), the quantifier over its labels,
+   and `initially` for the absolute frame. What is left here is the run of
+   the `merge-*` cases against their drawn expectations, which needs 1.
 7. The formulas, which are the research and not an estimate.

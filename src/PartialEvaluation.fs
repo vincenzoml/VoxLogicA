@@ -107,6 +107,10 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
     // make the same check, which is printed once.
     let bounds = ResizeArray<int * int>()
 
+    // The furthest frame a tracked region is asked for, when it lies past the
+    // end of the video: the last step persists there, and the run says so.
+    let mutable furthestStep = None
+
     for i in 0 .. workplan.operations.Length - 1 do
         match workplan.operations[i].operator with
         | Identifier "load" ->
@@ -145,6 +149,30 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
             | _ -> ErrorMsg.fail "frame must take two arguments"
         // The frame arithmetic is over: nothing is left of it in the program.
         | Identifier "inc" -> ()
+        // A region followed through the frames, unrolled into one step per frame:
+        // the step is the one the frame index asks for. Past the end the last
+        // frame persists, and so does what is tracked on it: the last step is a
+        // union of components of the last frame, which touching it gives back.
+        | Identifier "select" ->
+            match argumentsOf i with
+            | index :: steps when not (List.isEmpty steps) ->
+                let frame =
+                    match environment.TryFind index with
+                    | Some(VNumber x) -> int x
+                    | _ ->
+                        ErrorMsg.fail (
+                            $"'{operandOf index}' selects the step of a tracked region, but it is not a frame number. "
+                            + "It has to be built from the frame reference passed to --providecontext"
+                        )
+
+                if frame < 0 then
+                    ErrorMsg.fail $"the specification refers to frame {frame}: there is no frame before the first one"
+
+                if frame > steps.Length - 1 then
+                    furthestStep <- Some(max frame (defaultArg furthestStep 0))
+
+                evaluatedProgram.Add($"let op{i} = op{List.item (min frame (steps.Length - 1)) steps}")
+            | _ -> ErrorMsg.fail "select must take a frame index and one step per frame"
         // An existential, unrolled to a bound on the labels of a labelling: the
         // result stands, and the bound becomes a check printed with the goals.
         | Identifier "bounded" ->
@@ -164,6 +192,12 @@ let evaluateProgram (workplan: WorkPlan) (numFrames: int) : PartialEvaluation =
         | Number x -> evaluatedProgram.Add($"let op{i} = " + numberToSyntax x)
         | Bool x -> evaluatedProgram.Add($"let op{i} = " + boolToSyntax x)
         | String x -> evaluatedProgram.Add($"let op{i} = " + "\"" + x + "\"")
+
+    match furthestStep with
+    | Some frame ->
+        ErrorMsg.Logger.Warning
+            $"the specification follows a tracked region as far as frame {frame}, past the last one, {numFrames - 1}: there it persists"
+    | None -> ()
 
     for goal in workplan.goals do
         match goal with

@@ -154,10 +154,10 @@ type WorkPlan =
         let atNextFrame id =
             apply id (ECall("unknown", "inc", List.map reference frameArgs) :: List.map reference labelVars)
 
-        // The first frame, whatever the frame reference is: the one absolute
+        // A frame by its number, whatever the frame reference is: an absolute
         // frame, which the temporal operators around it cannot shift.
-        let atFirstFrame id =
-            apply id (List.map (fun _ -> ENumber 0.0) frameArgs @ List.map reference labelVars)
+        let atFrameNumber (frame: int) id =
+            apply id (List.map (fun _ -> ENumber(float frame)) frameArgs @ List.map reference labelVars)
 
         // The same operation with one label variable instantiated at a label, and
         // everything else passed through.
@@ -197,8 +197,47 @@ type WorkPlan =
                 | _ -> failwith "Diamond must take one argument"
             | Identifier "initially" ->
                 match op.arguments with
-                | [ a ] -> Seq.empty, atFirstFrame env[a], opId
+                | [ a ] -> Seq.empty, atFrameNumber 0 env[a], opId
                 | _ -> failwith "Initially must take one argument"
+            | Identifier "tracked" ->
+                match op.arguments with
+                | [ a; b ] ->
+                    // tracked(phi, l) is the region descended from the component of
+                    // phi labelled l at frame 0:
+                    //   T_0     = eq(lcc(phi at 0), l)
+                    //   T_(k+1) = through(T_k, phi at k+1)
+                    // that is, what at k+1 lies in a component of phi that touches
+                    // the region at k. The recursion is along absolute frames, so
+                    // it cannot be unrolled relative to the frame reference as
+                    // until is: the chain is written out with literal frames, up
+                    // to the last frame of the video, and select picks the step
+                    // the frame reference asks for once the last pass knows it.
+                    let frameReference =
+                        match ctx with
+                        | Some c -> reference c
+                        | None -> ErrorMsg.fail "tracked follows a region through the frames: pass --providecontext"
+
+                    let declarations = ResizeArray<Command>()
+                    let chain = ResizeArray<int>()
+
+                    for frame = 0 to numFrames - 1 do
+                        let phi = atFrameNumber frame env[a]
+
+                        let step =
+                            if frame = 0 then
+                                ECall("unknown", "eq", [ ECall("unknown", "lcc", [ phi ]); atFrame env[b] ])
+                            else
+                                ECall("unknown", "through", [ atFrame chain[frame - 1]; phi ])
+
+                        let id = freshId ()
+                        declarations.Add(Declaration($"op{id}", ctxArgs, step))
+                        chain.Add id
+
+                    let result =
+                        ECall("unknown", "select", frameReference :: [ for id in chain -> atFrame id ])
+
+                    declarations :> seq<Command>, result, freshId ()
+                | _ -> failwith "tracked must take two arguments"
             | Identifier "until" ->
                 match op.arguments with
                 | [ a; b ] ->

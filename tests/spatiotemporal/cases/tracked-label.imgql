@@ -1,4 +1,4 @@
-// NOT IMPLEMENTED: label propagation.
+// Label propagation.
 //
 // tracked(phi, l) is the region, at the current frame, descended from the
 // connected component of phi labelled l at frame 0:
@@ -9,12 +9,14 @@
 // that is, what at t+1 lies in a component of phi that touches region l at t.
 // Merges and splits come out as they are: a merged component carries every
 // label it touched, so the regions are not a partition. A component at t+1 that
-// touches nothing at t belongs to no region; how it gets a fresh label is the
-// design decision still open.
+// touches nothing at t belongs to no region -- a new lesion, which is what
+// and(phi, not(exists(l, initially(lcc(phi)), tracked(phi, l)))) says.
 //
-// Today "tracked" is an identifier like any other and goes through untouched,
-// so the third pass emits a program VoxLogicA 1 would reject. With two next
-// operators the goal is component 1 of frame 0, followed to frame 2.
+// The recursion is along absolute frames, where until is relative to the
+// current one: the first pass writes the chain out with literal frames, one
+// step per frame of the video, and select picks the step the frame reference
+// asks for once the third pass knows its value. With two next operators the
+// goal is component 1 of frame 0, followed to frame 2.
 let study = load("study.nii.gz")
 let lesion = gt(intensity(frame(study,n)),500)
 save "first" diamond(diamond(tracked(lesion,1)))

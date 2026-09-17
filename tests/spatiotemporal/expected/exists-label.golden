@@ -11,9 +11,12 @@ let op6(n,l)=500
 let op7(n,l)=gt(op5(n,l),op6(n,l))
 let op8(n,l)=lcc(op7(n,l))
 let op9(n,l)=op8(0,l)
-let op10(n,l)=tracked(op7(n,l),op0(n,l))
-let op11(n,l)=op10(inc(n),l)
-let op12(n,l)=and(op10(n,l),op11(n,l))
+let op14(n,l)=eq(lcc(op7(0,l)),op0(n,l))
+let op15(n,l)=through(op14(n,l),op7(1,l))
+let op16(n,l)=through(op15(n,l),op7(2,l))
+let op17(n,l)=select(n,op14(n,l),op15(n,l),op16(n,l))
+let op11(n,l)=op17(inc(n),l)
+let op12(n,l)=and(op17(n,l),op11(n,l))
 let op13(n,l)=bounded(op9(n,l),2,or(op12(n,1),op12(n,2)))
 save "persistent" op13(0,0)
 ### pass 2: --savetaskgraphasprogram
@@ -27,19 +30,28 @@ let op6=gt(op4,op5)
 let op7=lcc(op6)
 let op8=2
 let op9=1
-let op10=tracked(op6,op9)
-let op11=inc(op0)
-let op12=frame(op2,op11)
-let op13=intensity(op12)
-let op14=gt(op13,op5)
-let op15=tracked(op14,op9)
-let op16=and(op10,op15)
-let op17=tracked(op6,op8)
-let op18=tracked(op14,op8)
-let op19=and(op17,op18)
-let op20=or(op16,op19)
-let op21=bounded(op7,op8,op20)
-save "persistent" op21
+let op10=eq(op7,op9)
+let op11=frame(op2,op9)
+let op12=intensity(op11)
+let op13=gt(op12,op5)
+let op14=through(op10,op13)
+let op15=frame(op2,op8)
+let op16=intensity(op15)
+let op17=gt(op16,op5)
+let op18=through(op14,op17)
+let op19=select(op0,op10,op14,op18)
+let op20=inc(op0)
+let op21=select(op20,op10,op14,op18)
+let op22=and(op19,op21)
+let op23=eq(op7,op8)
+let op24=through(op23,op13)
+let op25=through(op24,op17)
+let op26=select(op0,op23,op24,op25)
+let op27=select(op20,op23,op24,op25)
+let op28=and(op26,op27)
+let op29=or(op22,op28)
+let op30=bounded(op7,op8,op29)
+save "persistent" op30
 ### pass 3: --evaluatespatiotemporal
 import "stdlib2.imgql"
 
@@ -55,18 +67,27 @@ let op6 = gt(op4,op5)
 let op7 = lcc(op6)
 let op8 = 2
 let op9 = 1
-let op10 = tracked(op6,op9)
-let op12 = studyAt1
-let op13 = intensity(op12)
-let op14 = gt(op13,op5)
-let op15 = tracked(op14,op9)
-let op16 = and(op10,op15)
-let op17 = tracked(op6,op8)
-let op18 = tracked(op14,op8)
-let op19 = and(op17,op18)
-let op20 = or(op16,op19)
-let op21 = op20
-save "persistent.png" op21
+let op10 = eq(op7,op9)
+let op11 = studyAt1
+let op12 = intensity(op11)
+let op13 = gt(op12,op5)
+let op14 = through(op10,op13)
+let op15 = studyAt2
+let op16 = intensity(op15)
+let op17 = gt(op16,op5)
+let op18 = through(op14,op17)
+let op19 = op10
+let op21 = op14
+let op22 = and(op19,op21)
+let op23 = eq(op7,op8)
+let op24 = through(op23,op13)
+let op25 = through(op24,op17)
+let op26 = op23
+let op27 = op24
+let op28 = and(op26,op27)
+let op29 = or(op22,op28)
+let op30 = op29
+save "persistent.png" op30
 // the bounds the existentials were unrolled to: false here means witnesses were missed
 print "labels op7 within 2" max(op7) .<=. 2
 
@@ -81,9 +102,12 @@ let op6(n,l)=500
 let op7(n,l)=gt(op5(n,l),op6(n,l))
 let op8(n,l)=lcc(op7(n,l))
 let op9(n,l)=op8(0,l)
-let op10(n,l)=tracked(op7(n,l),op0(n,l))
-let op11(n,l)=op10(inc(n),l)
-let op12(n,l)=and(op10(n,l),op11(n,l))
+let op14(n,l)=eq(lcc(op7(0,l)),op0(n,l))
+let op15(n,l)=through(op14(n,l),op7(1,l))
+let op16(n,l)=through(op15(n,l),op7(2,l))
+let op17(n,l)=select(n,op14(n,l),op15(n,l),op16(n,l))
+let op11(n,l)=op17(inc(n),l)
+let op12(n,l)=and(op17(n,l),op11(n,l))
 let op13(n,l)=bounded(op9(n,l),1,op12(n,1))
 print "labels of l in op9 at frame 0" max(op9(0,0))
 print "labels of l in op9 at frame 1" max(op9(1,0))

@@ -1,0 +1,71 @@
+### case tracked-overflow, 3 frames
+
+### pass 1: --savetaskgraphasprogram --providecontext n
+let op0(n)="merge"
+let op1(n)=load(op0(n))
+let op2(n)=n
+let op3(n)=frame(op1(n),op2(n))
+let op4(n)=intensity(op3(n))
+let op5(n)=127
+let op6(n)=gt(op4(n),op5(n))
+let op7(n)=1
+let op12(n)=eq(lcc(op6(0)),op7(n))
+let op13(n)=through(op12(n),op6(1))
+let op14(n)=through(op13(n),op6(2))
+let op15(n)=select(n,op12(n),op13(n),op14(n))
+let op9(n)=op15(inc(n))
+let op10(n)=op9(inc(n))
+let op11(n)=op10(inc(n))
+save "overflow" op11(0)
+### pass 2: --savetaskgraphasprogram
+let op0=0
+let op1=inc(op0)
+let op2=inc(op1)
+let op3=inc(op2)
+let op4="merge"
+let op5=load(op4)
+let op6=frame(op5,op0)
+let op7=intensity(op6)
+let op8=127
+let op9=gt(op7,op8)
+let op10=lcc(op9)
+let op11=1
+let op12=eq(op10,op11)
+let op13=frame(op5,op11)
+let op14=intensity(op13)
+let op15=gt(op14,op8)
+let op16=through(op12,op15)
+let op17=2
+let op18=frame(op5,op17)
+let op19=intensity(op18)
+let op20=gt(op19,op8)
+let op21=through(op16,op20)
+let op22=select(op3,op12,op16,op21)
+save "overflow" op22
+### pass 3: --evaluatespatiotemporal
+[TIME] [warn] the specification follows a tracked region as far as frame 3, past the last one, 2: there it persists
+import "stdlib2.imgql"
+
+let op0 = 0
+let op4 = "merge"
+load mergeAt0 = "frames/merge_0.png"
+load mergeAt1 = "frames/merge_1.png"
+load mergeAt2 = "frames/merge_2.png"
+let op6 = mergeAt0
+let op7 = intensity(op6)
+let op8 = 127
+let op9 = gt(op7,op8)
+let op10 = lcc(op9)
+let op11 = 1
+let op12 = eq(op10,op11)
+let op13 = mergeAt1
+let op14 = intensity(op13)
+let op15 = gt(op14,op8)
+let op16 = through(op12,op15)
+let op17 = 2
+let op18 = mergeAt2
+let op19 = intensity(op18)
+let op20 = gt(op19,op8)
+let op21 = through(op16,op20)
+let op22 = op21
+save "overflow.png" op22

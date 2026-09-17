@@ -9,8 +9,11 @@ let op4(n)=intensity(op3(n))
 let op5(n)=500
 let op6(n)=gt(op4(n),op5(n))
 let op7(n)=1
-let op8(n)=tracked(op6(n),op7(n))
-let op9(n)=op8(inc(n))
+let op11(n)=eq(lcc(op6(0)),op7(n))
+let op12(n)=through(op11(n),op6(1))
+let op13(n)=through(op12(n),op6(2))
+let op14(n)=select(n,op11(n),op12(n),op13(n))
+let op9(n)=op14(inc(n))
 let op10(n)=op9(inc(n))
 save "first" op10(0)
 ### pass 2: --savetaskgraphasprogram
@@ -19,25 +22,47 @@ let op1=inc(op0)
 let op2=inc(op1)
 let op3="study.nii.gz"
 let op4=load(op3)
-let op5=frame(op4,op2)
+let op5=frame(op4,op0)
 let op6=intensity(op5)
 let op7=500
 let op8=gt(op6,op7)
-let op9=1
-let op10=tracked(op8,op9)
-save "first" op10
+let op9=lcc(op8)
+let op10=1
+let op11=eq(op9,op10)
+let op12=frame(op4,op10)
+let op13=intensity(op12)
+let op14=gt(op13,op7)
+let op15=through(op11,op14)
+let op16=2
+let op17=frame(op4,op16)
+let op18=intensity(op17)
+let op19=gt(op18,op7)
+let op20=through(op15,op19)
+let op21=select(op2,op11,op15,op20)
+save "first" op21
 ### pass 3: --evaluatespatiotemporal
 import "stdlib2.imgql"
 
-let op0 = "study.nii.gz"
+let op0 = 0
+let op3 = "study.nii.gz"
 load studyAt0 = "frames/study_0.png"
 load studyAt1 = "frames/study_1.png"
 load studyAt2 = "frames/study_2.png"
-let op2 = 0
-let op5 = studyAt2
+let op5 = studyAt0
 let op6 = intensity(op5)
 let op7 = 500
 let op8 = gt(op6,op7)
-let op9 = 1
-let op10 = tracked(op8,op9)
-save "first.png" op10
+let op9 = lcc(op8)
+let op10 = 1
+let op11 = eq(op9,op10)
+let op12 = studyAt1
+let op13 = intensity(op12)
+let op14 = gt(op13,op7)
+let op15 = through(op11,op14)
+let op16 = 2
+let op17 = studyAt2
+let op18 = intensity(op17)
+let op19 = gt(op18,op7)
+let op20 = through(op15,op19)
+let op21 = op20
+save "first.png" op21
