@@ -1,5 +1,7 @@
 # Spatio-temporal flattening: state, measurements, open questions
 
+How the existential and its forms work, case by case, is in `existential.md`.
+
 A working note on the pipeline in `src/`, what it costs, what it assumes, and
 what a paper built on it would have to answer. Written alongside the round of
 fixes recorded between `a92ac26` and `7f9431c`.
